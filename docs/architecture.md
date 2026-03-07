@@ -80,7 +80,7 @@ This gives the system one durable target independent of provider HTML quirks.
 4. `normalize`
    Convert weird DOM into compact semantic fragments.
 5. `structure`
-   Use an LLM to map fragments into schema-valid IR.
+   Use an LLM to repair low-confidence fragments into schema-valid IR while keeping deterministic blocks as the fallback path.
 6. `render`
    Derive reader, markdown, handover and JSON artifacts.
 
@@ -92,7 +92,7 @@ The current schema stores:
 - `imports`
 - `import_snapshots`
 
-The next storage expansion should add finer-grained normalized fragments and provider-specific debug metadata once the AI structuring pass lands.
+The next storage expansion should add raw model responses, selective retry state and richer provider-specific debug metadata around the structuring pass.
 
 ## Why `Vite + React + Hono`
 

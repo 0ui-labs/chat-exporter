@@ -16,6 +16,7 @@ export const importStageSchema = z.enum([
   "fetch",
   "extract",
   "normalize",
+  "structure",
   "render",
   "done"
 ]);

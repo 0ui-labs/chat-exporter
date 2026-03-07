@@ -19,7 +19,7 @@ This repository is scaffolded for the first product slice:
 - persisted debug snapshot view with raw-vs-normalized compare, normalized payload and raw HTML preview
 
 The current importer already uses `Playwright` against public ChatGPT share links, extracts a deterministic conversation structure and persists jobs plus raw snapshots in SQLite.
-The AI normalization step is still pending.
+An optional OpenAI repair pass can now re-structure low-confidence assistant messages behind a schema-validated interface when `OPENAI_API_KEY` is configured.
 
 ## Run
 
@@ -32,6 +32,14 @@ Web runs on `http://localhost:5173`.
 API runs on `http://localhost:8787`.
 SQLite is stored at `data/chat-exporter.db` by default.
 
+Optional AI structuring env vars:
+
+- `OPENAI_API_KEY`: enables the OpenAI repair pass
+- `OPENAI_STRUCTURING_MODEL`: defaults to `gpt-5-mini`
+- `OPENAI_STRUCTURING_MAX_MESSAGES`: caps assistant repair attempts per import
+- `OPENAI_STRUCTURING_MAX_MESSAGE_CHARS`: skips oversized assistant messages before repair
+- `OPENAI_STRUCTURING_ENABLED=false`: forces deterministic-only imports
+
 ## Build
 
 ```bash
@@ -42,6 +50,6 @@ pnpm typecheck
 ## Next Implementation Steps
 
 1. Improve deterministic extraction for edge cases like nested lists, tables and provider-specific code blocks.
-2. Add the AI structuring step behind a schema-validated interface.
-3. Add debug routes or UI for persisted raw snapshots and normalized payloads.
-4. Add additional ingestion modes such as pasted HTML or direct share-sheet payloads.
+2. Add richer AI repair/debug telemetry such as raw model responses and selective retry controls.
+3. Add additional ingestion modes such as pasted HTML or direct share-sheet payloads.
+4. Add search, filtering and timeline views across the persisted import archive.

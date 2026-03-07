@@ -274,6 +274,7 @@ export function ImportDetailPage() {
   }, [snapshot]);
 
   const compareMessages = snapshot?.normalizedPayload.messages ?? [];
+  const structuring = snapshot?.normalizedPayload.structuring;
   const selectedCompareMessage =
     compareMessages.find((message) => message.id === selectedCompareMessageId) ??
     compareMessages[0] ??
@@ -540,6 +541,60 @@ export function ImportDetailPage() {
                       </div>
                     </div>
 
+                    {structuring ? (
+                      <div className="rounded-2xl border border-border/80 bg-background/70 p-5">
+                        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                          Structuring pass
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline">{structuring.status}</Badge>
+                          <Badge variant="outline">{structuring.provider}</Badge>
+                          {structuring.model ? (
+                            <Badge variant="outline">{structuring.model}</Badge>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                          <div className="rounded-2xl border border-border/80 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              Candidates
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-foreground">
+                              {structuring.candidateCount}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/80 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              Attempted
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-foreground">
+                              {structuring.attemptedCount}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/80 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              Repaired
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-foreground">
+                              {structuring.repairedCount}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-border/80 p-3">
+                            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              Skipped / failed
+                            </p>
+                            <p className="mt-2 text-xl font-semibold text-foreground">
+                              {structuring.skippedCount + structuring.failedCount}
+                            </p>
+                          </div>
+                        </div>
+                        {structuring.skippedReason ? (
+                          <p className="mt-3 text-sm text-muted-foreground">
+                            {structuring.skippedReason}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     {snapshot.normalizedPayload.warnings.length > 0 ? (
                       <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-5 text-sm text-amber-950">
                         <p className="mb-2 font-medium">Normalization warnings</p>
@@ -601,9 +656,11 @@ export function ImportDetailPage() {
                                   {getMessagePreview(message)}
                                 </p>
                                 <p className="mt-2 text-xs text-muted-foreground">
-                                  {message.parser?.usedFallback
-                                    ? "fallback paragraph"
-                                    : `${message.blocks.length} normalized block${message.blocks.length === 1 ? "" : "s"}`}
+                                  {message.parser?.strategy === "ai-repair"
+                                    ? `AI repaired to ${message.blocks.length} block${message.blocks.length === 1 ? "" : "s"}`
+                                    : message.parser?.usedFallback
+                                      ? "fallback paragraph"
+                                      : `${message.blocks.length} normalized block${message.blocks.length === 1 ? "" : "s"}`}
                                 </p>
                               </button>
                             ))}
@@ -643,6 +700,16 @@ export function ImportDetailPage() {
                                       {selectedCompareMessage.parser?.source ? (
                                         <Badge variant="outline">
                                           {selectedCompareMessage.parser.source}
+                                        </Badge>
+                                      ) : null}
+                                      {selectedCompareMessage.parser?.strategy ? (
+                                        <Badge variant="outline">
+                                          {selectedCompareMessage.parser.strategy}
+                                        </Badge>
+                                      ) : null}
+                                      {selectedCompareMessage.parser?.model ? (
+                                        <Badge variant="outline">
+                                          {selectedCompareMessage.parser.model}
                                         </Badge>
                                       ) : null}
                                       {selectedCompareMessage.parser?.usedFallback ? (

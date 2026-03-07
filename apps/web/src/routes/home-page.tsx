@@ -173,14 +173,15 @@ export function HomePage() {
           <CardHeader>
             <CardTitle>Current build</CardTitle>
             <CardDescription>
-              The import job now uses a real Playwright fetch for public ChatGPT share
-              links. AI cleanup and persistent storage still come later.
+              Public ChatGPT share links are fetched with Playwright, persisted in
+              SQLite and optionally repaired with an OpenAI structuring pass when an
+              API key is configured.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-6 text-muted-foreground">
             <div className="rounded-2xl bg-secondary p-4 text-secondary-foreground">
               Web stays route-split and lightweight. Server owns browser automation,
-              deterministic extraction and the future AI normalization pass.
+              deterministic extraction and the optional AI repair pass.
             </div>
             <ul className="space-y-3">
               <li>Reader view for a human-friendly archive.</li>
@@ -195,8 +196,8 @@ export function HomePage() {
           <CardHeader>
             <CardTitle>Recent prototype jobs</CardTitle>
             <CardDescription>
-              In-memory state for now. SQLite replaces this once the job pipeline is
-              persisted.
+              Imports are stored in SQLite so completed jobs survive restarts and keep
+              their debug snapshots.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

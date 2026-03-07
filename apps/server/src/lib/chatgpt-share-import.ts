@@ -7,7 +7,11 @@ import {
 } from "@chat-exporter/shared";
 import { chromium } from "playwright";
 
-type StageCallback = (stage: Extract<ImportStage, "fetch" | "extract" | "normalize">) => void;
+import { applyOpenAiStructuring } from "./openai-structuring.js";
+
+type StageCallback = (
+  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">
+) => void;
 
 type ImportResult = {
   conversation: Conversation;
@@ -17,11 +21,7 @@ type ImportResult = {
     fetchedAt: string;
     pageTitle: string;
     rawHtml: string;
-    normalizedPayload: {
-      title: NormalizedSnapshotPayload["title"];
-      messages: NormalizedSnapshotPayload["messages"];
-      warnings: NormalizedSnapshotPayload["warnings"];
-    };
+    normalizedPayload: NormalizedSnapshotPayload;
     fetchMetadata: {
       articleCount: number;
       messageCount: number;
@@ -428,7 +428,8 @@ export async function importChatGptSharePage(
                     parser: {
                       source: "assistant-fallback",
                       blockCount: 1,
-                      usedFallback: true
+                      usedFallback: true,
+                      strategy: "fallback" as const
                     }
                   }
                 : null;
@@ -443,7 +444,8 @@ export async function importChatGptSharePage(
               parser: {
                 source: "assistant-markdown",
                 blockCount: blocks.length,
-                usedFallback: false
+                usedFallback: false,
+                strategy: "deterministic" as const
               }
             };
           }
@@ -467,7 +469,8 @@ export async function importChatGptSharePage(
                       ? "user-message"
                       : "user-whitespace-pre-wrap",
                   blockCount: 1,
-                  usedFallback: false
+                  usedFallback: false,
+                  strategy: "deterministic" as const
                 }
               }
             : null;
@@ -489,31 +492,36 @@ export async function importChatGptSharePage(
 
     options?.onStage?.("normalize");
     const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
+    options?.onStage?.("structure");
+    const structured = await applyOpenAiStructuring(normalizedPayload.messages);
+    const finalPayload = normalizedSnapshotPayloadSchema.parse({
+      ...normalizedPayload,
+      messages: structured.messages,
+      warnings: [...normalizedPayload.warnings, ...structured.warnings],
+      structuring: structured.structuring
+    });
     const rawHtml = await page.content();
     const fetchedAt = new Date().toISOString();
 
     const conversation = conversationSchema.parse({
       id: crypto.randomUUID(),
-      title: normalizedPayload.title,
+      title: finalPayload.title,
       source: {
         url,
         platform: "chatgpt"
       },
-      messages: normalizedPayload.messages
+      messages: finalPayload.messages
     });
 
     return {
       conversation,
-      warnings: [
-        "Deterministic DOM extraction is active. AI normalization is not enabled yet.",
-        ...normalizedPayload.warnings
-      ],
+      warnings: finalPayload.warnings,
       snapshot: {
         finalUrl: page.url(),
         fetchedAt,
-        pageTitle: normalizedPayload.title,
+        pageTitle: finalPayload.title,
         rawHtml,
-        normalizedPayload,
+        normalizedPayload: finalPayload,
         fetchMetadata: {
           articleCount: normalizedPayload.messages.length,
           messageCount: conversation.messages.length,
