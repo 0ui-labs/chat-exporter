@@ -95,26 +95,33 @@ export async function importGenericSharePage(
   try {
     const context = await browser.newContext();
 
-    await context.route("**/*", (route) => {
-      const resourceType = route.request().resourceType();
+    if (!isGoogleSourcePlatform(options.sourcePlatform)) {
+      await context.route("**/*", (route) => {
+        const resourceType = route.request().resourceType();
 
-      if (resourceType === "image" || resourceType === "media" || resourceType === "font") {
-        return route.abort();
-      }
+        if (resourceType === "image" || resourceType === "media" || resourceType === "font") {
+          return route.abort();
+        }
 
-      return route.continue();
-    });
+        return route.continue();
+      });
+    }
 
     const page = await context.newPage();
     await page.addInitScript({
       content: "globalThis.__name = (value) => value;"
     });
 
+    const navigationTimeout = isGoogleSourcePlatform(options.sourcePlatform) ? 60_000 : 30_000;
+
     options.onStage?.("fetch");
     await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30_000
+      waitUntil: "commit",
+      timeout: navigationTimeout
     });
+    await page.waitForLoadState("domcontentloaded", {
+      timeout: 20_000
+    }).catch(() => undefined);
 
     if (isGoogleSourcePlatform(options.sourcePlatform)) {
       await maybeDismissGoogleConsentGate(page);
@@ -725,7 +732,152 @@ export async function importGenericSharePage(
         return role === "user" ? "assistant" : "user";
       }
 
+      function pickGeminiTitle() {
+        const explicitTitle =
+          document.querySelector(".share-landing-page_content h1") ??
+          document.querySelector("main h1") ??
+          document.querySelector("h1");
+
+        if (explicitTitle) {
+          const title = normalizeWhitespace((explicitTitle as HTMLElement).innerText);
+
+          if (title) {
+            return normalizeTitle(title);
+          }
+        }
+
+        return normalizeTitle(document.title);
+      }
+
+      function normalizeGeminiUserQuery(text: string) {
+        return normalizeWhitespace(text.replace(/^you said\s*/i, ""));
+      }
+
+      function parseGeminiTurns() {
+        const turnElements = Array.from(document.querySelectorAll(".share-turn-viewer")).filter(
+          (element) => isVisible(element) && !isExcluded(element)
+        );
+
+        if (turnElements.length === 0) {
+          return null;
+        }
+
+        const messages: Array<{
+          id: string;
+          role: "user" | "assistant";
+          rawText: string;
+          rawHtml: string;
+          blocks: Array<Record<string, unknown>>;
+          parser: {
+            source: string;
+            blockCount: number;
+            usedFallback: boolean;
+            strategy: "deterministic" | "fallback";
+          };
+        }> = [];
+
+        turnElements.forEach((turnElement, index) => {
+          const turnId = turnElement.getAttribute("data-turn-id") ?? `gemini-turn-${index + 1}`;
+          const userElement =
+            turnElement.querySelector("user-query .user-query-container") ??
+            turnElement.querySelector(".user-query-container");
+          const responseElement =
+            turnElement.querySelector(
+              "response-container .response-container-with-gpi, response-container"
+            ) ?? turnElement.querySelector("response-container");
+
+          const userText = userElement
+            ? normalizeGeminiUserQuery((userElement as HTMLElement).innerText)
+            : "";
+
+          if (userText) {
+            messages.push({
+              id: `${turnId}-user`,
+              role: "user" as const,
+              rawText: userText,
+              rawHtml: (userElement as HTMLElement).innerHTML,
+              blocks: [{ type: "paragraph", text: userText }],
+              parser: {
+                source: "gemini-user-query",
+                blockCount: 1,
+                usedFallback: false,
+                strategy: "deterministic" as const
+              }
+            });
+          }
+
+          if (!responseElement) {
+            return;
+          }
+
+          const responseRoot = contentRootFor(responseElement);
+          const responseText = normalizeWhitespace((responseRoot as HTMLElement).innerText);
+
+          if (!responseText) {
+            return;
+          }
+
+          const responseBlocks = Array.from(responseRoot.childNodes).flatMap((childNode) => {
+            if (childNode.nodeType === Node.TEXT_NODE) {
+              const text = normalizeWhitespace(childNode.textContent ?? "");
+              return text ? [{ type: "paragraph" as const, text }] : [];
+            }
+
+            if (childNode.nodeType !== Node.ELEMENT_NODE) {
+              return [];
+            }
+
+            return elementToBlocks(childNode as Element);
+          });
+          const finalBlocks =
+            responseBlocks.length > 0
+              ? responseBlocks
+              : [{ type: "paragraph" as const, text: responseText }];
+
+          messages.push({
+            id: `${turnId}-assistant`,
+            role: "assistant" as const,
+            rawText: responseText,
+            rawHtml: (responseRoot as HTMLElement).innerHTML,
+            blocks: finalBlocks,
+            parser: {
+              source:
+                responseBlocks.length > 0
+                  ? "gemini-response-container"
+                  : "gemini-response-fallback",
+              blockCount: finalBlocks.length,
+              usedFallback: responseBlocks.length === 0,
+              strategy:
+                responseBlocks.length > 0
+                  ? ("deterministic" as const)
+                  : ("fallback" as const)
+            }
+          });
+        });
+
+        if (messages.length === 0) {
+          return null;
+        }
+
+        return {
+          title: pickGeminiTitle(),
+          messages,
+          warnings: [
+            `Parsed ${turnElements.length} Gemini share turn(s) from provider-specific containers.`
+          ]
+        };
+      }
+
       const warnings: string[] = [];
+
+      if (platform === "gemini") {
+        const geminiTurns = parseGeminiTurns();
+
+        if (geminiTurns) {
+          return geminiTurns;
+        }
+      }
+
       const extractionRoot = pickExtractionRoot();
       const rootText = normalizeWhitespace((extractionRoot as HTMLElement).innerText);
       const containerCandidates = [
