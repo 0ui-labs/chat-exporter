@@ -174,8 +174,8 @@ export function HomePage() {
             <CardTitle>Current build</CardTitle>
             <CardDescription>
               Public ChatGPT share links are fetched with Playwright, persisted in
-              SQLite and optionally repaired with an OpenAI structuring pass when an
-              API key is configured.
+              SQLite and optionally repaired with an OpenAI or Cerebras structuring
+              pass when a provider key is configured.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-6 text-muted-foreground">

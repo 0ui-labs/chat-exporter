@@ -9,10 +9,14 @@ import "../load-env.js";
 
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b";
+const DEFAULT_CEREBRAS_API_BASE_URL = "https://api.cerebras.ai/v1";
 const DEFAULT_MAX_MESSAGES = 24;
 const DEFAULT_MAX_MESSAGE_CHARS = 18_000;
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS = 4096;
+const DEFAULT_CEREBRAS_REASONING_EFFORT = "low";
 const MIN_REPAIR_SCORE = 4;
 const STRUCTURE_HINT_PATTERN =
   /(^|\n)([-*]\s+\S+|\d+\.\s+\S+|#{1,6}\s+\S+|>\s+\S+|```|`[^`]+`|\|.+\|)/m;
@@ -35,15 +39,24 @@ type CandidateMessage = {
 };
 
 type StructuringConfig = {
-  apiKey?: string;
-  apiBaseUrl: string;
-  model: string;
   concurrency: number;
   maxMessages: number;
   maxMessageChars: number;
   timeoutMs: number;
   enabled: boolean;
+  provider: "openai" | "cerebras" | "deterministic";
+  model: string;
   disabledReason?: string;
+  openai?: {
+    apiKey: string;
+    apiBaseUrl: string;
+  };
+  cerebras?: {
+    apiKey: string;
+    apiBaseUrl: string;
+    maxCompletionTokens: number;
+    reasoningEffort: "none" | "low" | "medium" | "high";
+  };
 };
 
 type RepairSuccess = {
@@ -70,45 +83,128 @@ function readPositiveInteger(value: string | undefined, fallback: number) {
   return Math.max(1, Math.floor(parsed));
 }
 
+function readProviderSelection() {
+  const rawValue = process.env.STRUCTURING_PROVIDER?.trim().toLowerCase();
+
+  if (rawValue === "openai" || rawValue === "cerebras" || rawValue === "deterministic") {
+    return rawValue;
+  }
+
+  return "auto";
+}
+
+function readReasoningEffort(value: string | undefined) {
+  switch (value?.trim().toLowerCase()) {
+    case "none":
+    case "low":
+    case "medium":
+    case "high":
+      return value.trim().toLowerCase() as "none" | "low" | "medium" | "high";
+    default:
+      return DEFAULT_CEREBRAS_REASONING_EFFORT as "low";
+  }
+}
+
 function readStructuringConfig(): StructuringConfig {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const rawEnabled = process.env.OPENAI_STRUCTURING_ENABLED?.trim().toLowerCase();
+  const cerebrasApiKey = process.env.CEREBRAS_API_KEY?.trim();
+  const rawEnabled = process.env.STRUCTURING_ENABLED?.trim().toLowerCase()
+    ?? process.env.OPENAI_STRUCTURING_ENABLED?.trim().toLowerCase();
   const explicitlyDisabled =
     rawEnabled === "0" || rawEnabled === "false" || rawEnabled === "off";
-  const model = process.env.OPENAI_STRUCTURING_MODEL?.trim() || DEFAULT_MODEL;
-  const apiBaseUrl =
+  const providerSelection = readProviderSelection();
+  const openAiModel = process.env.OPENAI_STRUCTURING_MODEL?.trim() || DEFAULT_MODEL;
+  const cerebrasModel =
+    process.env.CEREBRAS_STRUCTURING_MODEL?.trim() || DEFAULT_CEREBRAS_MODEL;
+  const openAiApiBaseUrl =
     process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") || DEFAULT_API_BASE_URL;
+  const cerebrasApiBaseUrl =
+    process.env.CEREBRAS_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+    DEFAULT_CEREBRAS_API_BASE_URL;
+  const sharedConfig = {
+    concurrency: readPositiveInteger(
+      process.env.STRUCTURING_CONCURRENCY ?? process.env.OPENAI_STRUCTURING_CONCURRENCY,
+      DEFAULT_CONCURRENCY
+    ),
+    maxMessages: readPositiveInteger(
+      process.env.STRUCTURING_MAX_MESSAGES ?? process.env.OPENAI_STRUCTURING_MAX_MESSAGES,
+      DEFAULT_MAX_MESSAGES
+    ),
+    maxMessageChars: readPositiveInteger(
+      process.env.STRUCTURING_MAX_MESSAGE_CHARS ??
+        process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
+      DEFAULT_MAX_MESSAGE_CHARS
+    ),
+    timeoutMs: readPositiveInteger(
+      process.env.STRUCTURING_TIMEOUT_MS ?? process.env.OPENAI_STRUCTURING_TIMEOUT_MS,
+      DEFAULT_TIMEOUT_MS
+    )
+  };
 
   if (explicitlyDisabled) {
     return {
-      apiKey,
-      apiBaseUrl,
-      model,
-      concurrency: readPositiveInteger(process.env.OPENAI_STRUCTURING_CONCURRENCY, DEFAULT_CONCURRENCY),
-      maxMessages: readPositiveInteger(process.env.OPENAI_STRUCTURING_MAX_MESSAGES, DEFAULT_MAX_MESSAGES),
-      maxMessageChars: readPositiveInteger(
-        process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
-        DEFAULT_MAX_MESSAGE_CHARS
-      ),
-      timeoutMs: readPositiveInteger(process.env.OPENAI_STRUCTURING_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
+      ...sharedConfig,
       enabled: false,
-      disabledReason: "OPENAI_STRUCTURING_ENABLED is disabled."
+      provider: "deterministic",
+      model: openAiModel,
+      disabledReason: "STRUCTURING_ENABLED is disabled."
+    };
+  }
+
+  const selectedProvider =
+    providerSelection === "auto"
+      ? apiKey
+        ? "openai"
+        : cerebrasApiKey
+          ? "cerebras"
+          : "deterministic"
+      : providerSelection;
+
+  if (selectedProvider === "openai") {
+    return {
+      ...sharedConfig,
+      enabled: Boolean(apiKey),
+      provider: "openai",
+      model: openAiModel,
+      disabledReason: apiKey ? undefined : "OPENAI_API_KEY is not configured.",
+      openai: apiKey
+        ? {
+            apiKey,
+            apiBaseUrl: openAiApiBaseUrl
+          }
+        : undefined
+    };
+  }
+
+  if (selectedProvider === "cerebras") {
+    return {
+      ...sharedConfig,
+      enabled: Boolean(cerebrasApiKey),
+      provider: "cerebras",
+      model: cerebrasModel,
+      disabledReason: cerebrasApiKey ? undefined : "CEREBRAS_API_KEY is not configured.",
+      cerebras: cerebrasApiKey
+        ? {
+            apiKey: cerebrasApiKey,
+            apiBaseUrl: cerebrasApiBaseUrl,
+            maxCompletionTokens: readPositiveInteger(
+              process.env.CEREBRAS_STRUCTURING_MAX_COMPLETION_TOKENS,
+              DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS
+            ),
+            reasoningEffort: readReasoningEffort(
+              process.env.CEREBRAS_STRUCTURING_REASONING_EFFORT
+            )
+          }
+        : undefined
     };
   }
 
   return {
-    apiKey,
-    apiBaseUrl,
-    model,
-    concurrency: readPositiveInteger(process.env.OPENAI_STRUCTURING_CONCURRENCY, DEFAULT_CONCURRENCY),
-    maxMessages: readPositiveInteger(process.env.OPENAI_STRUCTURING_MAX_MESSAGES, DEFAULT_MAX_MESSAGES),
-    maxMessageChars: readPositiveInteger(
-      process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
-      DEFAULT_MAX_MESSAGE_CHARS
-    ),
-    timeoutMs: readPositiveInteger(process.env.OPENAI_STRUCTURING_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
-    enabled: Boolean(apiKey),
-    disabledReason: apiKey ? undefined : "OPENAI_API_KEY is not configured."
+    ...sharedConfig,
+    enabled: false,
+    provider: "deterministic",
+    model: openAiModel,
+    disabledReason: "No structuring provider key is configured."
   };
 }
 
@@ -396,7 +492,6 @@ function buildSchema() {
     properties: {
       blocks: {
         type: "array",
-        minItems: 1,
         items: {
           anyOf: [
             {
@@ -550,11 +645,23 @@ function buildPrompt(candidate: CandidateMessage) {
 }
 
 async function requestRepair(candidate: CandidateMessage, config: StructuringConfig) {
-  const response = await fetch(`${config.apiBaseUrl}/responses`, {
+  if (config.provider === "openai" && config.openai) {
+    return requestOpenAiRepair(candidate, config);
+  }
+
+  if (config.provider === "cerebras" && config.cerebras) {
+    return requestCerebrasRepair(candidate, config);
+  }
+
+  throw new Error("No active AI provider is configured for structuring.");
+}
+
+async function requestOpenAiRepair(candidate: CandidateMessage, config: StructuringConfig) {
+  const response = await fetch(`${config.openai!.apiBaseUrl}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`
+      Authorization: `Bearer ${config.openai!.apiKey}`
     },
     body: JSON.stringify({
       model: config.model,
@@ -603,6 +710,67 @@ async function requestRepair(candidate: CandidateMessage, config: StructuringCon
 
   const payload = (await response.json()) as unknown;
   const outputText = getOutputText(payload);
+  return parseStructuredBlocks(JSON.parse(outputText) as unknown);
+}
+
+async function requestCerebrasRepair(candidate: CandidateMessage, config: StructuringConfig) {
+  const response = await fetch(`${config.cerebras!.apiBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.cerebras!.apiKey}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        {
+          role: "system",
+          content:
+            candidate.kind === "block"
+              ? "Repair one suspicious assistant block from an archived chat transcript. Return replacement blocks for that block only, not the whole message. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Convert leaked block-level markdown, repeated step markers, code fences, or table markup into semantic blocks when clearly supported."
+              : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks."
+        },
+        {
+          role: "user",
+          content: buildPrompt(candidate)
+        }
+      ],
+      temperature: 0,
+      top_p: 1,
+      max_completion_tokens: config.cerebras!.maxCompletionTokens,
+      reasoning_effort: config.cerebras!.reasoningEffort,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "chat_exporter_blocks",
+          strict: true,
+          schema: buildSchema()
+        }
+      }
+    }),
+    signal: AbortSignal.timeout(config.timeoutMs)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Cerebras Chat Completions returned ${response.status}: ${errorText.slice(0, 400)}`
+    );
+  }
+
+  const payload = (await response.json()) as {
+    choices?: Array<{
+      message?: {
+        content?: string | null;
+      };
+    }>;
+  };
+  const outputText = payload.choices?.[0]?.message?.content?.trim();
+
+  if (!outputText) {
+    throw new Error("Cerebras response did not contain structured JSON content.");
+  }
+
   return parseStructuredBlocks(JSON.parse(outputText) as unknown);
 }
 
@@ -749,7 +917,7 @@ export async function applyOpenAiStructuring(
       warnings: [],
       structuring: {
         status: "disabled",
-        provider: "deterministic",
+        provider: config.provider,
         model: config.model,
         candidateCount: candidateMessages.length,
         attemptedCount: 0,
@@ -784,7 +952,7 @@ export async function applyOpenAiStructuring(
           : [],
       structuring: {
         status: "skipped",
-        provider: "openai",
+        provider: config.provider,
         model: config.model,
         candidateCount: candidateMessages.length,
         attemptedCount: 0,
@@ -828,7 +996,7 @@ export async function applyOpenAiStructuring(
 
   if (cappedCount > 0) {
     warnings.push(
-      `Skipped AI repair for ${cappedCount} assistant message(s) because the OPENAI_STRUCTURING_MAX_MESSAGES limit was reached.`
+      `Skipped AI repair for ${cappedCount} assistant message(s) because the STRUCTURING_MAX_MESSAGES limit was reached.`
     );
   }
 
@@ -852,9 +1020,9 @@ export async function applyOpenAiStructuring(
   return {
     messages: nextMessages,
     warnings,
-    structuring: {
+      structuring: {
       status,
-      provider: "openai",
+      provider: config.provider,
       model: config.model,
       candidateCount: candidateMessages.length,
       attemptedCount: attemptedCandidates.length,

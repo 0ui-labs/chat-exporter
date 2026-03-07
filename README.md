@@ -19,7 +19,7 @@ This repository is scaffolded for the first product slice:
 - persisted debug snapshot view with raw-vs-normalized compare, normalized payload and raw HTML preview
 
 The current importer already uses `Playwright` against public ChatGPT share links, extracts a deterministic conversation structure and persists jobs plus raw snapshots in SQLite.
-An optional OpenAI repair pass can now re-structure low-confidence assistant messages behind a schema-validated interface when `OPENAI_API_KEY` is configured.
+An optional AI repair pass can now re-structure low-confidence assistant messages behind a schema-validated interface using OpenAI or Cerebras.
 
 ## Run
 
@@ -36,11 +36,17 @@ The server now loads env values from root `.env` and `.env.local`, plus optional
 
 Optional AI structuring env vars:
 
+- `STRUCTURING_PROVIDER`: `auto`, `openai`, `cerebras` or `deterministic`
 - `OPENAI_API_KEY`: enables the OpenAI repair pass
 - `OPENAI_STRUCTURING_MODEL`: defaults to `gpt-5-mini`
-- `OPENAI_STRUCTURING_MAX_MESSAGES`: caps assistant repair attempts per import
-- `OPENAI_STRUCTURING_MAX_MESSAGE_CHARS`: skips oversized assistant messages before repair
-- `OPENAI_STRUCTURING_ENABLED=false`: forces deterministic-only imports
+- `CEREBRAS_API_KEY`: enables the Cerebras repair pass
+- `CEREBRAS_STRUCTURING_MODEL`: defaults to `gpt-oss-120b`
+- `CEREBRAS_STRUCTURING_REASONING_EFFORT`: `low`, `medium` or `high`, defaults to `low`
+- `CEREBRAS_STRUCTURING_MAX_COMPLETION_TOKENS`: defaults to `4096`
+- `STRUCTURING_MAX_MESSAGES`: caps assistant repair attempts per import
+- `STRUCTURING_MAX_MESSAGE_CHARS`: skips oversized assistant messages before repair
+- `STRUCTURING_TIMEOUT_MS`: request timeout per repair call, defaults to `60000`
+- `STRUCTURING_ENABLED=false`: forces deterministic-only imports
 
 ## Build
 
