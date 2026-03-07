@@ -273,13 +273,13 @@ function buildSchema() {
         type: "array",
         minItems: 1,
         items: {
-          oneOf: [
+          anyOf: [
             {
               type: "object",
               additionalProperties: false,
               required: ["type", "text"],
               properties: {
-                type: { const: "paragraph" },
+                type: { type: "string", enum: ["paragraph"] },
                 text: { type: "string" }
               }
             },
@@ -288,7 +288,7 @@ function buildSchema() {
               additionalProperties: false,
               required: ["type", "level", "text"],
               properties: {
-                type: { const: "heading" },
+                type: { type: "string", enum: ["heading"] },
                 level: { type: "integer", minimum: 1, maximum: 6 },
                 text: { type: "string" }
               }
@@ -298,7 +298,7 @@ function buildSchema() {
               additionalProperties: false,
               required: ["type", "ordered", "items"],
               properties: {
-                type: { const: "list" },
+                type: { type: "string", enum: ["list"] },
                 ordered: { type: "boolean" },
                 items: {
                   type: "array",
@@ -311,7 +311,7 @@ function buildSchema() {
               additionalProperties: false,
               required: ["type", "language", "text"],
               properties: {
-                type: { const: "code" },
+                type: { type: "string", enum: ["code"] },
                 language: { type: "string" },
                 text: { type: "string" }
               }
@@ -321,7 +321,7 @@ function buildSchema() {
               additionalProperties: false,
               required: ["type", "text"],
               properties: {
-                type: { const: "quote" },
+                type: { type: "string", enum: ["quote"] },
                 text: { type: "string" }
               }
             },
@@ -330,7 +330,7 @@ function buildSchema() {
               additionalProperties: false,
               required: ["type", "headers", "rows"],
               properties: {
-                type: { const: "table" },
+                type: { type: "string", enum: ["table"] },
                 headers: {
                   type: "array",
                   items: { type: "string" }
