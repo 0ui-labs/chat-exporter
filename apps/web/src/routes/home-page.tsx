@@ -1,7 +1,5 @@
 import { startTransition, useEffect, useState, type FormEvent } from "react";
 import {
-  ArrowRight,
-  CheckCircle2,
   Clock3,
   ExternalLink,
   LoaderCircle
@@ -71,14 +69,6 @@ function getSafeExternalUrl(value: string) {
   }
 }
 
-function getSourceHost(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
 function formatSourceLabel(url: string) {
   try {
     const parsed = new URL(url);
@@ -104,31 +94,6 @@ function formatElapsed(ms: number) {
   }
 
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-function formatAge(ms: number) {
-  if (!Number.isFinite(ms) || ms < 0) {
-    return "just now";
-  }
-
-  const seconds = Math.floor(ms / 1000);
-
-  if (seconds < 5) {
-    return "just now";
-  }
-
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
 }
 
 function getActiveStage(job: ImportJob) {
@@ -245,7 +210,6 @@ export function HomePage() {
 
   const [url, setUrl] = useState("");
   const [hasEditedUrl, setHasEditedUrl] = useState(false);
-  const [mode, setMode] = useState<"archive" | "handover">("archive");
   const [view, setView] = useState<ViewMode>("reader");
   const [error, setError] = useState<string | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
@@ -269,7 +233,7 @@ export function HomePage() {
           jobs
             .slice()
             .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
-            .slice(0, 3)
+            .slice(0, 2)
         );
       } catch {
         if (!cancelled) {
@@ -346,8 +310,6 @@ export function HomePage() {
     if (!hasEditedUrl) {
       setUrl(job.sourceUrl);
     }
-
-    setMode(job.mode);
   }, [hasEditedUrl, job]);
 
   useEffect(() => {
@@ -384,7 +346,7 @@ export function HomePage() {
     setError(null);
 
     try {
-      const nextJob = await createImport({ url, mode });
+      const nextJob = await createImport({ url, mode: "archive" });
 
       setHasEditedUrl(false);
       setJob(nextJob);
@@ -406,7 +368,6 @@ export function HomePage() {
     setJobError(null);
     setHasEditedUrl(false);
     setUrl(selectedJob.sourceUrl);
-    setMode(selectedJob.mode);
     setJob(selectedJob);
     startTransition(() => {
       setActiveImport(selectedJob.id);
@@ -416,76 +377,51 @@ export function HomePage() {
   const activeStage = job ? getActiveStage(job) : null;
   const activeSourceUrl = getSafeExternalUrl(job?.sourceUrl ?? url);
   const createdAtMs = job ? Date.parse(job.createdAt) : Number.NaN;
-  const updatedAtMs = job ? Date.parse(job.updatedAt) : Number.NaN;
   const elapsedTime = formatElapsed(now - createdAtMs);
-  const updatedAgo = formatAge(now - updatedAtMs);
-  const isCompleted = job?.status === "completed";
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
+  const showRecentJobs = !activeImportId && recentJobs.length > 0;
+  const showInlineOriginalButton = Boolean(job && activeSourceUrl);
 
   return (
     <div className="mx-auto w-full max-w-5xl">
       <Card className="overflow-hidden border-border/90 bg-card/92 shadow-panel">
-        <CardContent className="p-5 sm:p-8">
-          <div className="space-y-7">
-            <header className="space-y-2">
-              <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Import a public chat link
-              </h1>
-              <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-                Read or export the cleaned transcript on this page.
-              </p>
-            </header>
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-6">
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="relative flex-1">
+                  <Input
+                    aria-label="Share link"
+                    className={cn(
+                      "h-12 pr-4 text-base",
+                      showInlineOriginalButton ? "pr-24 sm:pr-40" : null
+                    )}
+                    inputMode="url"
+                    placeholder="https://chatgpt.com/share/... or another public AI share link"
+                    value={url}
+                    onChange={(event) => {
+                      setHasEditedUrl(true);
+                      setUrl(event.target.value);
+                    }}
+                  />
 
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="flex flex-col gap-3 lg:flex-row">
-                <Input
-                  aria-label="Share link"
-                  className="h-14 text-base"
-                  inputMode="url"
-                  placeholder="https://chatgpt.com/share/... or another public AI share link"
-                  value={url}
-                  onChange={(event) => {
-                    setHasEditedUrl(true);
-                    setUrl(event.target.value);
-                  }}
-                />
-                <Button className="h-14 px-6 lg:min-w-[11rem]" disabled={submitting} size="lg" type="submit">
-                  {submitting ? "Importing..." : "Import"}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={mode === "archive" ? "default" : "outline"}
-                    onClick={() => setMode("archive")}
-                  >
-                    Archive
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={mode === "handover" ? "default" : "outline"}
-                    onClick={() => setMode("handover")}
-                  >
-                    Handover
-                  </Button>
+                  {showInlineOriginalButton ? (
+                    <a
+                      className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-lg border border-border bg-background/95 px-3 text-xs font-medium text-foreground transition hover:bg-foreground/5"
+                      href={activeSourceUrl ?? undefined}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span className="sm:hidden">Open</span>
+                      <span className="hidden sm:inline">Open original</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
                 </div>
 
-                {activeSourceUrl ? (
-                  <a
-                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-background/70 px-4 text-sm font-medium text-foreground transition hover:bg-foreground/5"
-                    href={activeSourceUrl}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    Open original
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                ) : null}
+                <Button className="h-12 px-5 lg:min-w-[8rem]" disabled={submitting} type="submit">
+                  {submitting ? "Importing..." : "Import"}
+                </Button>
               </div>
 
               {error ? (
@@ -495,9 +431,9 @@ export function HomePage() {
               ) : null}
             </form>
 
-            {recentJobs.length > 0 ? (
+            {showRecentJobs ? (
               <section className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                   Recent imports
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -505,7 +441,7 @@ export function HomePage() {
                     <button
                       key={recentJob.id}
                       className={cn(
-                        "inline-flex max-w-full items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                        "inline-flex max-w-full items-center rounded-full border px-4 py-2 text-sm transition",
                         activeImportId === recentJob.id
                           ? "border-primary/30 bg-primary/10 text-primary"
                           : "border-border/80 bg-background/65 text-foreground hover:bg-foreground/5"
@@ -513,10 +449,7 @@ export function HomePage() {
                       type="button"
                       onClick={() => handleSelectJob(recentJob)}
                     >
-                      <span className="max-w-[18rem] truncate">{formatSourceLabel(recentJob.sourceUrl)}</span>
-                      <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        {recentJob.status}
-                      </span>
+                      <span className="max-w-[22rem] truncate">{formatSourceLabel(recentJob.sourceUrl)}</span>
                     </button>
                   ))}
                 </div>
@@ -528,63 +461,32 @@ export function HomePage() {
                 {jobError}
               </div>
             ) : job ? (
-              <section className="space-y-5 rounded-[1.9rem] border border-border/80 bg-background/70 p-5 sm:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Badge variant={job.status === "completed" ? "default" : "outline"}>
-                        {job.status === "completed"
-                          ? "Ready"
-                          : job.status === "failed"
-                            ? "Failed"
-                            : job.status === "queued"
-                              ? "Queued"
-                              : "Importing"}
-                      </Badge>
-                      <p className="text-sm text-muted-foreground">
-                        {job.summary
-                          ? `${job.summary.messageCount} messages · ${job.summary.transcriptWords} words`
-                          : `${getSourceHost(job.sourceUrl)} · updated ${updatedAgo}`}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                        {job.status === "completed"
-                          ? "Transcript ready"
-                          : job.status === "failed"
-                            ? "Import failed"
-                            : activeStage?.label}
-                      </h2>
-                      <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                        {job.status === "failed"
-                          ? job.error ?? "The conversation could not be prepared."
-                          : job.status === "completed"
-                            ? "Keep reading below or switch to another export."
-                            : activeStage?.detail}
-                      </p>
-                    </div>
-                  </div>
-
-                  {(job.status === "queued" || job.status === "running") && activeStage ? (
-                    <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2 text-foreground">
-                        {job.status === "queued" ? (
-                          <Clock3 className="h-4 w-4" />
-                        ) : (
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                        )}
-                        <span className="font-medium">{activeStage.label}</span>
-                      </div>
-                      <p className="mt-2">Running for {elapsedTime}</p>
-                      <p>Last update {updatedAgo}</p>
-                    </div>
-                  ) : job.status === "completed" ? (
-                    <div className="rounded-2xl border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2 text-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        <span className="font-medium">Imported from {getSourceHost(job.sourceUrl)}</span>
-                      </div>
-                      <p className="mt-2">Finished {updatedAgo}</p>
+              <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant={job.status === "completed" ? "default" : "outline"}>
+                    {job.status === "completed"
+                      ? "Ready"
+                      : job.status === "failed"
+                        ? "Failed"
+                        : job.status === "queued"
+                          ? "Queued"
+                          : "Importing"}
+                  </Badge>
+                  {job.summary ? (
+                    <p className="text-sm text-muted-foreground">
+                      {job.summary.messageCount} messages · {job.summary.transcriptWords} words
+                    </p>
+                  ) : null}
+                  {job.status !== "completed" && activeStage ? (
+                    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                      {job.status === "queued" ? (
+                        <Clock3 className="h-4 w-4" />
+                      ) : (
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                      )}
+                      <span>{activeStage.label}</span>
+                      <span>·</span>
+                      <span>{elapsedTime}</span>
                     </div>
                   ) : null}
                 </div>
@@ -596,31 +498,11 @@ export function HomePage() {
                 ) : null}
 
                 {job.status === "failed" ? null : job.status === "queued" || job.status === "running" ? (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {Object.values(importStages).map((stage) => {
-                        const isActive = stage.label === activeStage?.label;
-
-                        return (
-                          <div
-                            key={stage.label}
-                            className={cn(
-                              "rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.18em]",
-                              isActive
-                                ? "border-primary/30 bg-primary/10 text-primary"
-                                : "border-border/80 bg-background/75 text-muted-foreground"
-                            )}
-                          >
-                            {stage.label}
-                          </div>
-                        );
-                      })}
-                    </div>
-
+                  <div className="space-y-3">
                     <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
-                      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
                         <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-                        Preparing transcript
+                        {activeStage?.detail ?? "Preparing transcript"}
                       </div>
                       <div className="space-y-3">
                         <div className="h-3 w-40 animate-pulse rounded-full bg-primary/15" />
@@ -689,15 +571,7 @@ export function HomePage() {
                   </div>
                 )}
               </section>
-            ) : (
-              <section className="rounded-[1.9rem] border border-dashed border-border/80 bg-background/55 p-6">
-                <p className="text-sm leading-7 text-muted-foreground">
-                  The transcript will appear here after you start or reopen an import. Supported
-                  sources stay intentionally simple: public AI share links with no extra setup on
-                  the reading side.
-                </p>
-              </section>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
