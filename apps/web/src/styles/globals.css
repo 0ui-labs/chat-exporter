@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 36 45% 97%;
+  --foreground: 195 28% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 195 28% 11%;
+  --secondary: 38 40% 92%;
+  --secondary-foreground: 192 30% 16%;
+  --muted: 35 28% 92%;
+  --muted-foreground: 194 12% 42%;
+  --primary: 177 70% 26%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 28 95% 58%;
+  --accent-foreground: 17 36% 14%;
+  --border: 192 24% 84%;
+  --input: 192 24% 84%;
+  --ring: 177 70% 26%;
+  --radius: 1.15rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, hsl(var(--accent) / 0.16), transparent 30%),
+    radial-gradient(circle at 90% 10%, hsl(var(--primary) / 0.16), transparent 24%),
+    linear-gradient(180deg, hsl(var(--background)), hsl(35 35% 94%));
+  color: hsl(var(--foreground));
+  font-family:
+    "IBM Plex Sans",
+    "Avenir Next",
+    "Segoe UI",
+    sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+code,
+pre {
+  font-family:
+    "JetBrains Mono",
+    "SFMono-Regular",
+    "Menlo",
+    monospace;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
