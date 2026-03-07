@@ -16,7 +16,7 @@ This repository is scaffolded for the first product slice:
 - async import job model
 - shared `Conversation IR`
 - reader, markdown, handover and JSON result views
-- persisted debug snapshot view for normalized payload and raw HTML preview
+- persisted debug snapshot view with raw-vs-normalized compare, normalized payload and raw HTML preview
 
 The current importer already uses `Playwright` against public ChatGPT share links, extracts a deterministic conversation structure and persists jobs plus raw snapshots in SQLite.
 The AI normalization step is still pending.

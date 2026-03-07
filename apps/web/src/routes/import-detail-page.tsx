@@ -12,7 +12,12 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { Block, ImportJob, ImportSnapshot } from "@chat-exporter/shared";
+import type {
+  Block,
+  ImportJob,
+  ImportSnapshot,
+  NormalizedSnapshotMessage
+} from "@chat-exporter/shared";
 
 import { getImport, getImportSnapshot } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "reader" | "markdown" | "handover" | "json" | "debug";
+type DebugPanel = "compare" | "payload" | "raw-html";
 
 const views: { value: ViewMode; label: string; icon: typeof Layers3 }[] = [
   { value: "reader", label: "Reader", icon: Layers3 },
@@ -36,6 +42,52 @@ const views: { value: ViewMode; label: string; icon: typeof Layers3 }[] = [
   { value: "json", label: "JSON", icon: FileJson2 },
   { value: "debug", label: "Debug", icon: Bug }
 ];
+
+const debugPanels: { value: DebugPanel; label: string }[] = [
+  { value: "compare", label: "Raw vs normalized" },
+  { value: "payload", label: "Normalized payload" },
+  { value: "raw-html", label: "Raw HTML" }
+];
+
+function blockToPlainText(block: Block) {
+  switch (block.type) {
+    case "paragraph":
+    case "heading":
+    case "quote":
+    case "code":
+      return block.text;
+    case "list":
+      return block.items.join(" ");
+    case "table":
+      return [block.headers.join(" "), ...block.rows.map((row) => row.join(" "))].join(" ");
+  }
+}
+
+function getMessagePreview(message: NormalizedSnapshotMessage) {
+  const source = (message.rawText ?? message.blocks.map(blockToPlainText).join(" "))
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!source) {
+    return "No preview text available.";
+  }
+
+  return source.length > 160 ? `${source.slice(0, 157)}…` : source;
+}
+
+function truncatePreview(value: string, limit: number) {
+  if (value.length <= limit) {
+    return {
+      text: value,
+      truncated: false
+    };
+  }
+
+  return {
+    text: `${value.slice(0, limit)}\n…`,
+    truncated: true
+  };
+}
 
 function renderBlock(block: Block) {
   switch (block.type) {
@@ -106,14 +158,17 @@ export function ImportDetailPage() {
   const [job, setJob] = useState<ImportJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("reader");
+  const [debugPanel, setDebugPanel] = useState<DebugPanel>("compare");
   const [snapshot, setSnapshot] = useState<ImportSnapshot | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [loadingSnapshot, setLoadingSnapshot] = useState(false);
+  const [selectedCompareMessageId, setSelectedCompareMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     setSnapshot(null);
     setSnapshotError(null);
     setLoadingSnapshot(false);
+    setSelectedCompareMessageId(null);
   }, [importId]);
 
   useEffect(() => {
@@ -200,6 +255,36 @@ export function ImportDetailPage() {
       cancelled = true;
     };
   }, [importId, job?.status, snapshot, view]);
+
+  useEffect(() => {
+    const messages = snapshot?.normalizedPayload.messages ?? [];
+
+    if (messages.length === 0) {
+      setSelectedCompareMessageId(null);
+      return;
+    }
+
+    setSelectedCompareMessageId((currentSelection) => {
+      if (currentSelection && messages.some((message) => message.id === currentSelection)) {
+        return currentSelection;
+      }
+
+      return messages[0]?.id ?? null;
+    });
+  }, [snapshot]);
+
+  const compareMessages = snapshot?.normalizedPayload.messages ?? [];
+  const selectedCompareMessage =
+    compareMessages.find((message) => message.id === selectedCompareMessageId) ??
+    compareMessages[0] ??
+    null;
+  const hasRawCompareData = compareMessages.some((message) => message.rawText || message.rawHtml);
+  const selectedCompareRawText = selectedCompareMessage?.rawText
+    ? truncatePreview(selectedCompareMessage.rawText, 8_000)
+    : null;
+  const selectedCompareRawHtml = selectedCompareMessage?.rawHtml
+    ? truncatePreview(selectedCompareMessage.rawHtml, 6_000)
+    : null;
 
   const artifact =
     view === "markdown"
@@ -455,30 +540,229 @@ export function ImportDetailPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
-                      <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">
-                        Normalized payload
-                      </p>
-                      <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
-                        <code>{JSON.stringify(snapshot.normalizedPayload, null, 2)}</code>
-                      </pre>
+                    {snapshot.normalizedPayload.warnings.length > 0 ? (
+                      <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-5 text-sm text-amber-950">
+                        <p className="mb-2 font-medium">Normalization warnings</p>
+                        <ul className="space-y-2">
+                          {snapshot.normalizedPayload.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    <div className="flex flex-wrap gap-3">
+                      {debugPanels.map((panel) => (
+                        <Button
+                          key={panel.value}
+                          type="button"
+                          variant={debugPanel === panel.value ? "default" : "outline"}
+                          onClick={() => setDebugPanel(panel.value)}
+                        >
+                          {panel.label}
+                        </Button>
+                      ))}
                     </div>
 
-                    <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
-                          Raw HTML preview
-                        </p>
-                        {snapshot.rawHtmlTruncated ? (
-                          <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
-                            truncated preview
-                          </Badge>
-                        ) : null}
+                    {debugPanel === "compare" ? (
+                      <div className="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)]">
+                        <div className="rounded-2xl border border-border/80 bg-background/70 p-4">
+                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                            Message compare
+                          </p>
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            Inspect the stored raw fragment beside the normalized block output for a
+                            single message at a time.
+                          </p>
+                          <div className="mt-4 space-y-2">
+                            {compareMessages.map((message, index) => (
+                              <button
+                                key={message.id}
+                                type="button"
+                                onClick={() => setSelectedCompareMessageId(message.id)}
+                                className={cn(
+                                  "w-full rounded-2xl border p-3 text-left transition",
+                                  selectedCompareMessage?.id === message.id
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border/80 bg-card/70 hover:bg-foreground/5"
+                                )}
+                              >
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <Badge
+                                    variant={message.role === "assistant" ? "default" : "outline"}
+                                  >
+                                    {message.role}
+                                  </Badge>
+                                  <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                    #{index + 1}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-foreground/85">
+                                  {getMessagePreview(message)}
+                                </p>
+                                <p className="mt-2 text-xs text-muted-foreground">
+                                  {message.parser?.usedFallback
+                                    ? "fallback paragraph"
+                                    : `${message.blocks.length} normalized block${message.blocks.length === 1 ? "" : "s"}`}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 min-w-0">
+                          {!hasRawCompareData ? (
+                            <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-5 text-sm text-amber-950">
+                              This snapshot predates raw fragment capture. Re-import the page to
+                              inspect stored raw text and HTML side by side.
+                            </div>
+                          ) : null}
+
+                          {selectedCompareMessage ? (
+                            <>
+                              <div className="rounded-2xl border border-border/80 bg-background/70 p-5">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                      Selected message
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                                      <Badge
+                                        variant={
+                                          selectedCompareMessage.role === "assistant"
+                                            ? "default"
+                                            : "outline"
+                                        }
+                                      >
+                                        {selectedCompareMessage.role}
+                                      </Badge>
+                                      <Badge variant="outline">
+                                        {selectedCompareMessage.blocks.length} block
+                                        {selectedCompareMessage.blocks.length === 1 ? "" : "s"}
+                                      </Badge>
+                                      {selectedCompareMessage.parser?.source ? (
+                                        <Badge variant="outline">
+                                          {selectedCompareMessage.parser.source}
+                                        </Badge>
+                                      ) : null}
+                                      {selectedCompareMessage.parser?.usedFallback ? (
+                                        <Badge variant="outline">fallback</Badge>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    Message id: {selectedCompareMessage.id}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-4 xl:grid-cols-2">
+                                <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                                      Raw text
+                                    </p>
+                                    {selectedCompareRawText?.truncated ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="border-zinc-700 bg-zinc-900 text-zinc-300"
+                                      >
+                                        truncated preview
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                                    <code>
+                                      {selectedCompareRawText?.text ??
+                                        "No raw text stored for this snapshot message."}
+                                    </code>
+                                  </pre>
+                                </div>
+
+                                <div className="rounded-2xl border border-border/80 bg-background/70 p-5">
+                                  <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                    Normalized render
+                                  </p>
+                                  <div className="space-y-4">
+                                    {selectedCompareMessage.blocks.map((block, index) => (
+                                      <div
+                                        key={`${selectedCompareMessage.id}-${block.type}-${index}`}
+                                      >
+                                        {renderBlock(block)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-4 xl:grid-cols-2">
+                                <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
+                                  <div className="mb-3 flex items-center justify-between gap-3">
+                                    <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                                      Raw HTML fragment
+                                    </p>
+                                    {selectedCompareRawHtml?.truncated ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="border-zinc-700 bg-zinc-900 text-zinc-300"
+                                      >
+                                        truncated preview
+                                      </Badge>
+                                    ) : null}
+                                  </div>
+                                  <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                                    <code>
+                                      {selectedCompareRawHtml?.text ??
+                                        "No raw HTML fragment stored for this snapshot message."}
+                                    </code>
+                                  </pre>
+                                </div>
+
+                                <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
+                                  <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">
+                                    Normalized message JSON
+                                  </p>
+                                  <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                                    <code>
+                                      {JSON.stringify(selectedCompareMessage, null, 2)}
+                                    </code>
+                                  </pre>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="rounded-2xl border border-border/80 bg-background/70 p-5 text-sm text-muted-foreground">
+                              No normalized messages were stored in this snapshot.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
-                        <code>{snapshot.rawHtmlPreview}</code>
-                      </pre>
-                    </div>
+                    ) : debugPanel === "payload" ? (
+                      <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
+                        <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">
+                          Normalized payload
+                        </p>
+                        <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                          <code>{JSON.stringify(snapshot.normalizedPayload, null, 2)}</code>
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                            Raw HTML preview
+                          </p>
+                          {snapshot.rawHtmlTruncated ? (
+                            <Badge variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                              truncated preview
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
+                          <code>{snapshot.rawHtmlPreview}</code>
+                        </pre>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="rounded-2xl border border-border/80 bg-background/70 p-5 text-sm text-muted-foreground">

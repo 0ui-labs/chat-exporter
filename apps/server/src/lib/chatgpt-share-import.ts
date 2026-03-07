@@ -1,4 +1,10 @@
-import { conversationSchema, type Conversation, type ImportStage } from "@chat-exporter/shared";
+import {
+  conversationSchema,
+  normalizedSnapshotPayloadSchema,
+  type Conversation,
+  type ImportStage,
+  type NormalizedSnapshotPayload
+} from "@chat-exporter/shared";
 import { chromium } from "playwright";
 
 type StageCallback = (stage: Extract<ImportStage, "fetch" | "extract" | "normalize">) => void;
@@ -12,9 +18,9 @@ type ImportResult = {
     pageTitle: string;
     rawHtml: string;
     normalizedPayload: {
-      title: string;
-      messages: unknown[];
-      warnings: string[];
+      title: NormalizedSnapshotPayload["title"];
+      messages: NormalizedSnapshotPayload["messages"];
+      warnings: NormalizedSnapshotPayload["warnings"];
     };
     fetchMetadata: {
       articleCount: number;
@@ -407,14 +413,23 @@ export async function importChatGptSharePage(
               return elementToBlocks(childNode as Element);
             });
 
+            const rawText = normalizeWhitespace(messageElement.innerText);
+            const rawHtml = messageElement.innerHTML;
+
             if (blocks.length === 0) {
               fallbackCount += 1;
-              const text = normalizeWhitespace(messageElement.innerText);
-              return text
+              return rawText
                 ? {
                     id: messageId,
                     role,
-                    blocks: [{ type: "paragraph" as const, text }]
+                    rawText,
+                    rawHtml,
+                    blocks: [{ type: "paragraph" as const, text: rawText }],
+                    parser: {
+                      source: "assistant-fallback",
+                      blockCount: 1,
+                      usedFallback: true
+                    }
                   }
                 : null;
             }
@@ -422,7 +437,14 @@ export async function importChatGptSharePage(
             return {
               id: messageId,
               role,
-              blocks
+              rawText,
+              rawHtml,
+              blocks,
+              parser: {
+                source: "assistant-markdown",
+                blockCount: blocks.length,
+                usedFallback: false
+              }
             };
           }
 
@@ -430,12 +452,23 @@ export async function importChatGptSharePage(
             (messageElement.querySelector(".whitespace-pre-wrap") as HTMLElement | null) ??
             messageElement;
           const text = normalizeWhitespace(textSource.innerText);
+          const rawHtml = textSource.innerHTML;
 
           return text
             ? {
                 id: messageId,
                 role,
-                blocks: [{ type: "paragraph" as const, text }]
+                rawText: text,
+                rawHtml,
+                blocks: [{ type: "paragraph" as const, text }],
+                parser: {
+                  source:
+                    textSource === messageElement
+                      ? "user-message"
+                      : "user-whitespace-pre-wrap",
+                  blockCount: 1,
+                  usedFallback: false
+                }
               }
             : null;
         })
@@ -455,33 +488,34 @@ export async function importChatGptSharePage(
     });
 
     options?.onStage?.("normalize");
+    const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
     const rawHtml = await page.content();
     const fetchedAt = new Date().toISOString();
 
     const conversation = conversationSchema.parse({
       id: crypto.randomUUID(),
-      title: extracted.title,
+      title: normalizedPayload.title,
       source: {
         url,
         platform: "chatgpt"
       },
-      messages: extracted.messages
+      messages: normalizedPayload.messages
     });
 
     return {
       conversation,
       warnings: [
         "Deterministic DOM extraction is active. AI normalization is not enabled yet.",
-        ...extracted.warnings
+        ...normalizedPayload.warnings
       ],
       snapshot: {
         finalUrl: page.url(),
         fetchedAt,
-        pageTitle: extracted.title,
+        pageTitle: normalizedPayload.title,
         rawHtml,
-        normalizedPayload: extracted,
+        normalizedPayload,
         fetchMetadata: {
-          articleCount: extracted.messages.length,
+          articleCount: normalizedPayload.messages.length,
           messageCount: conversation.messages.length,
           rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8")
         }
