@@ -12,8 +12,13 @@ const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MAX_MESSAGES = 24;
 const DEFAULT_MAX_MESSAGE_CHARS = 18_000;
 const DEFAULT_CONCURRENCY = 2;
+const DEFAULT_TIMEOUT_MS = 60_000;
+const MIN_REPAIR_SCORE = 4;
 const STRUCTURE_HINT_PATTERN =
   /(^|\n)([-*]\s+\S+|\d+\.\s+\S+|#{1,6}\s+\S+|>\s+\S+|```|`[^`]+`|\|.+\|)/m;
+const PARAGRAPH_BLOCK_SYNTAX_PATTERN =
+  /(^|\n)(#{1,6}\s+\S+|[-*]\s+\S+|\d+\.\s+\S+|>\s+\S+|```|\|.+\|)/gm;
+const EMPHASIZED_STEP_PATTERN = /(?:^|\n\n)\*\*\d+\.\s+.+?\*\*(?=\n\n|$)/gm;
 
 type StructuringMetadata = NonNullable<NormalizedSnapshotPayload["structuring"]>;
 type StructuredSnapshotMessage = NormalizedSnapshotMessage & {
@@ -21,9 +26,12 @@ type StructuredSnapshotMessage = NormalizedSnapshotMessage & {
 };
 
 type CandidateMessage = {
+  kind: "message" | "block";
   index: number;
   message: StructuredSnapshotMessage;
-  reason: string;
+  reasons: string[];
+  score: number;
+  blockIndex?: number;
 };
 
 type StructuringConfig = {
@@ -33,6 +41,7 @@ type StructuringConfig = {
   concurrency: number;
   maxMessages: number;
   maxMessageChars: number;
+  timeoutMs: number;
   enabled: boolean;
   disabledReason?: string;
 };
@@ -81,6 +90,7 @@ function readStructuringConfig(): StructuringConfig {
         process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
         DEFAULT_MAX_MESSAGE_CHARS
       ),
+      timeoutMs: readPositiveInteger(process.env.OPENAI_STRUCTURING_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
       enabled: false,
       disabledReason: "OPENAI_STRUCTURING_ENABLED is disabled."
     };
@@ -96,6 +106,7 @@ function readStructuringConfig(): StructuringConfig {
       process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
       DEFAULT_MAX_MESSAGE_CHARS
     ),
+    timeoutMs: readPositiveInteger(process.env.OPENAI_STRUCTURING_TIMEOUT_MS, DEFAULT_TIMEOUT_MS),
     enabled: Boolean(apiKey),
     disabledReason: apiKey ? undefined : "OPENAI_API_KEY is not configured."
   };
@@ -122,31 +133,145 @@ function normalizeMessages(
   }));
 }
 
-function detectRepairReason(message: NormalizedSnapshotMessage) {
+function countMatches(value: string, pattern: RegExp) {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  return Array.from(value.matchAll(new RegExp(pattern.source, flags))).length;
+}
+
+function collectParagraphRepairSignals(message: StructuredSnapshotMessage) {
+  const signals: Array<{
+    blockIndex: number;
+    reasons: string[];
+    score: number;
+  }> = [];
+
+  for (const [blockIndex, block] of message.blocks.entries()) {
+    if (block.type !== "paragraph" && block.type !== "quote") {
+      continue;
+    }
+
+    const reasons = new Set<string>();
+    let score = 0;
+
+    if (countMatches(block.text, EMPHASIZED_STEP_PATTERN) >= 2) {
+      reasons.add("markdown-step-paragraph");
+      score += 4;
+    }
+
+    const syntaxMatches = countMatches(block.text, PARAGRAPH_BLOCK_SYNTAX_PATTERN);
+
+    if (syntaxMatches >= 2 && block.text.includes("\n")) {
+      reasons.add("block-markdown-leaked-into-paragraph");
+      score += 4;
+    }
+
+    if (block.text.includes("```")) {
+      reasons.add("code-fence-leaked-into-paragraph");
+      score += 5;
+    }
+
+    if (countMatches(block.text, /\|.+\|/gm) >= 2) {
+      reasons.add("table-markup-leaked-into-paragraph");
+      score += 5;
+    }
+
+    if (score < MIN_REPAIR_SCORE) {
+      continue;
+    }
+
+    signals.push({
+      blockIndex,
+      reasons: [...reasons],
+      score
+    });
+  }
+
+  return signals;
+}
+
+function collectRawHtmlRepairSignals(message: StructuredSnapshotMessage) {
+  const reasons = new Set<string>();
+  let score = 0;
+
+  const hasCodeBlock = message.blocks.some((block) => block.type === "code");
+  const hasTableBlock = message.blocks.some((block) => block.type === "table");
+  const hasListBlock = message.blocks.some((block) => block.type === "list");
+  const hasQuoteBlock = message.blocks.some((block) => block.type === "quote");
+
+  if (message.rawHtml?.includes("<pre") && !hasCodeBlock) {
+    reasons.add("raw-html-code-missing-in-blocks");
+    score += 5;
+  }
+
+  if (message.rawHtml?.includes("<table") && !hasTableBlock) {
+    reasons.add("raw-html-table-missing-in-blocks");
+    score += 5;
+  }
+
+  if (
+    (message.rawHtml?.includes("<ul") || message.rawHtml?.includes("<ol")) &&
+    !hasListBlock
+  ) {
+    reasons.add("raw-html-list-missing-in-blocks");
+    score += 4;
+  }
+
+  if (message.rawHtml?.includes("<blockquote") && !hasQuoteBlock) {
+    reasons.add("raw-html-quote-missing-in-blocks");
+    score += 4;
+  }
+
+  return {
+    reasons: [...reasons],
+    score
+  };
+}
+
+function detectMessageRepairCandidate(message: StructuredSnapshotMessage) {
   if (message.role !== "assistant" || !message.rawText?.trim()) {
     return null;
   }
 
-  if (message.parser?.usedFallback) {
-    return "fallback";
-  }
+  const reasons = new Set<string>();
+  let score = 0;
 
-  if (message.blocks.length !== 1 || message.blocks[0]?.type !== "paragraph") {
-    return null;
+  if (message.parser.usedFallback) {
+    reasons.add("fallback");
+    score += 8;
   }
 
   if (
-    STRUCTURE_HINT_PATTERN.test(message.rawText) ||
-    message.rawHtml?.includes("<pre") ||
-    message.rawHtml?.includes("<table") ||
-    message.rawHtml?.includes("<ul") ||
-    message.rawHtml?.includes("<ol") ||
-    message.rawHtml?.includes("<blockquote")
+    message.blocks.length === 1 &&
+    message.blocks[0]?.type === "paragraph" &&
+    (
+      STRUCTURE_HINT_PATTERN.test(message.rawText) ||
+      message.rawHtml?.includes("<pre") ||
+      message.rawHtml?.includes("<table") ||
+      message.rawHtml?.includes("<ul") ||
+      message.rawHtml?.includes("<ol") ||
+      message.rawHtml?.includes("<blockquote")
+    )
   ) {
-    return "structure-hints";
+    reasons.add("single-paragraph-structure-hints");
+    score += 6;
   }
 
-  return null;
+  const rawHtmlSignals = collectRawHtmlRepairSignals(message);
+
+  for (const reason of rawHtmlSignals.reasons) {
+    reasons.add(reason);
+  }
+
+  score += rawHtmlSignals.score;
+
+  if (score < MIN_REPAIR_SCORE) {
+    return null;
+  }
+
+  return {
+    reasons: [...reasons],
+    score
+  };
 }
 
 function blockToPlainText(block: Block) {
@@ -351,11 +476,70 @@ function buildSchema() {
   } as const;
 }
 
+function excerptAround(value: string | undefined, needle: string, radius: number) {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const normalizedNeedle = needle.trim();
+  if (!normalizedNeedle) {
+    return value.slice(0, radius * 2);
+  }
+
+  const searchNeedle = normalizedNeedle.slice(0, 96);
+  const matchIndex = value.indexOf(searchNeedle);
+
+  if (matchIndex < 0) {
+    return value.slice(0, radius * 2);
+  }
+
+  const start = Math.max(0, matchIndex - radius);
+  const end = Math.min(value.length, matchIndex + searchNeedle.length + radius);
+  return value.slice(start, end);
+}
+
+function candidateInputSize(candidate: CandidateMessage) {
+  if (candidate.kind === "block") {
+    const block = candidate.message.blocks[candidate.blockIndex ?? 0];
+    return block ? blockToPlainText(block).length : 0;
+  }
+
+  return candidate.message.rawText?.length ?? 0;
+}
+
 function buildPrompt(candidate: CandidateMessage) {
+  if (candidate.kind === "block") {
+    const blockIndex = candidate.blockIndex ?? 0;
+    const block = candidate.message.blocks[blockIndex];
+
+    return JSON.stringify(
+      {
+        scope: "single-block-repair",
+        role: candidate.message.role,
+        reasons: candidate.reasons,
+        score: candidate.score,
+        blockIndex,
+        currentBlock: block,
+        previousBlock: blockIndex > 0 ? candidate.message.blocks[blockIndex - 1] : null,
+        nextBlock:
+          blockIndex < candidate.message.blocks.length - 1
+            ? candidate.message.blocks[blockIndex + 1]
+            : null,
+        rawTextExcerpt: block
+          ? excerptAround(candidate.message.rawText, blockToPlainText(block), 900)
+          : candidate.message.rawText?.slice(0, 1_800)
+      },
+      null,
+      2
+    );
+  }
+
   return JSON.stringify(
     {
+      scope: "full-message-repair",
       role: candidate.message.role,
-      reason: candidate.reason,
+      reasons: candidate.reasons,
+      score: candidate.score,
       rawText: candidate.message.rawText,
       rawHtml: candidate.message.rawHtml?.slice(0, 8_000),
       currentBlocks: candidate.message.blocks
@@ -384,7 +568,9 @@ async function requestRepair(candidate: CandidateMessage, config: StructuringCon
             {
               type: "input_text",
               text:
-                "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML."
+                candidate.kind === "block"
+                  ? "Repair one suspicious assistant block from an archived chat transcript. Return replacement blocks for that block only, not the whole message. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Convert leaked block-level markdown, repeated step markers, code fences, or table markup into semantic blocks when clearly supported."
+                  : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks."
             }
           ]
         },
@@ -407,7 +593,7 @@ async function requestRepair(candidate: CandidateMessage, config: StructuringCon
         }
       }
     }),
-    signal: AbortSignal.timeout(25_000)
+    signal: AbortSignal.timeout(config.timeoutMs)
   });
 
   if (!response.ok) {
@@ -424,7 +610,12 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
   try {
     const repairedBlocks = await requestRepair(candidate, config);
 
-    if (!contentLooksPreserved(candidate.message.rawText ?? "", repairedBlocks)) {
+    const comparisonSource =
+      candidate.kind === "block"
+        ? blockToPlainText(candidate.message.blocks[candidate.blockIndex ?? 0]!)
+        : candidate.message.rawText ?? "";
+
+    if (!contentLooksPreserved(comparisonSource, repairedBlocks)) {
       return {
         ok: false,
         index: candidate.index,
@@ -432,15 +623,24 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
       };
     }
 
+    const nextBlocks =
+      candidate.kind === "block"
+        ? [
+            ...candidate.message.blocks.slice(0, candidate.blockIndex),
+            ...repairedBlocks,
+            ...candidate.message.blocks.slice((candidate.blockIndex ?? 0) + 1)
+          ]
+        : repairedBlocks;
+
     return {
       ok: true,
       index: candidate.index,
       message: {
         ...candidate.message,
-        blocks: repairedBlocks,
+        blocks: nextBlocks,
         parser: {
           ...defaultParserStrategy(candidate.message),
-          blockCount: repairedBlocks.length,
+          blockCount: nextBlocks.length,
           usedFallback: false,
           strategy: "ai-repair",
           model: config.model
@@ -490,10 +690,39 @@ export async function applyOpenAiStructuring(
   structuring: StructuringMetadata;
 }> {
   const normalizedMessages = normalizeMessages(messages);
-  const candidateMessages = normalizedMessages.flatMap((message, index) => {
-    const reason = detectRepairReason(message);
-    return reason ? [{ index, message, reason }] : [];
-  });
+  const candidateMessages: CandidateMessage[] = normalizedMessages.flatMap<CandidateMessage>(
+    (message, index) => {
+    const messageLevelCandidate = detectMessageRepairCandidate(message);
+
+    if (messageLevelCandidate) {
+      return [
+        {
+          kind: "message" as const,
+          index,
+          message,
+          reasons: messageLevelCandidate.reasons,
+          score: messageLevelCandidate.score
+        }
+      ];
+    }
+
+    const bestParagraphCandidate = collectParagraphRepairSignals(message)
+      .sort((left, right) => right.score - left.score || left.blockIndex - right.blockIndex)[0];
+
+    return bestParagraphCandidate
+      ? [
+          {
+            kind: "block" as const,
+            index,
+            message,
+            reasons: bestParagraphCandidate.reasons,
+            score: bestParagraphCandidate.score,
+            blockIndex: bestParagraphCandidate.blockIndex
+          }
+        ]
+      : [];
+    }
+  ).sort((left, right) => right.score - left.score || left.index - right.index);
 
   if (candidateMessages.length === 0) {
     return {
@@ -533,7 +762,7 @@ export async function applyOpenAiStructuring(
   }
 
   const eligibleCandidates = candidateMessages.filter(
-    (candidate) => (candidate.message.rawText?.length ?? 0) <= config.maxMessageChars
+    (candidate) => candidateInputSize(candidate) <= config.maxMessageChars
   );
   const oversizedCount = candidateMessages.length - eligibleCandidates.length;
   const attemptedCandidates = eligibleCandidates.slice(0, config.maxMessages);
