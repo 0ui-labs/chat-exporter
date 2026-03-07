@@ -269,7 +269,7 @@ export function HomePage() {
           jobs
             .slice()
             .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
-            .slice(0, 4)
+            .slice(0, 3)
         );
       } catch {
         if (!cancelled) {
@@ -426,20 +426,14 @@ export function HomePage() {
     <div className="mx-auto w-full max-w-5xl">
       <Card className="overflow-hidden border-border/90 bg-card/92 shadow-panel">
         <CardContent className="p-5 sm:p-8">
-          <div className="space-y-8">
-            <header className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.22em] text-primary/80">
-                Portable transcript
+          <div className="space-y-7">
+            <header className="space-y-2">
+              <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                Import a public chat link
+              </h1>
+              <p className="max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
+                Read or export the cleaned transcript on this page.
               </p>
-              <div className="space-y-2">
-                <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-                  One link in. One clean conversation out.
-                </h1>
-                <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-                  Paste a public share link, wait a moment, then read or export the transcript
-                  right here.
-                </p>
-              </div>
             </header>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -455,8 +449,8 @@ export function HomePage() {
                     setUrl(event.target.value);
                   }}
                 />
-                <Button className="h-14 px-6 lg:min-w-[13rem]" disabled={submitting} size="lg" type="submit">
-                  {submitting ? "Starting import..." : "Start import"}
+                <Button className="h-14 px-6 lg:min-w-[11rem]" disabled={submitting} size="lg" type="submit">
+                  {submitting ? "Importing..." : "Import"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -503,20 +497,15 @@ export function HomePage() {
 
             {recentJobs.length > 0 ? (
               <section className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Recent imports
-                  </p>
-                  <span className="text-sm text-muted-foreground">
-                    Pick one to reopen it on this page.
-                  </span>
-                </div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Recent imports
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {recentJobs.map((recentJob) => (
                     <button
                       key={recentJob.id}
                       className={cn(
-                        "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+                        "inline-flex max-w-full items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
                         activeImportId === recentJob.id
                           ? "border-primary/30 bg-primary/10 text-primary"
                           : "border-border/80 bg-background/65 text-foreground hover:bg-foreground/5"
@@ -524,7 +513,7 @@ export function HomePage() {
                       type="button"
                       onClick={() => handleSelectJob(recentJob)}
                     >
-                      <span className="truncate">{formatSourceLabel(recentJob.sourceUrl)}</span>
+                      <span className="max-w-[18rem] truncate">{formatSourceLabel(recentJob.sourceUrl)}</span>
                       <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                         {recentJob.status}
                       </span>
@@ -570,7 +559,7 @@ export function HomePage() {
                         {job.status === "failed"
                           ? job.error ?? "The conversation could not be prepared."
                           : job.status === "completed"
-                            ? "Read it here or switch to another export format."
+                            ? "Keep reading below or switch to another export."
                             : activeStage?.detail}
                       </p>
                     </div>
