@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { importRequestSchema } from "@chat-exporter/shared";
+import { importRequestSchema, importSnapshotSchema } from "@chat-exporter/shared";
 
 import {
   createImportJob,
@@ -8,6 +8,9 @@ import {
   listImportJobs,
   runImportJob
 } from "../lib/import-store.js";
+import { getPersistedImportSnapshot } from "../lib/import-repository.js";
+
+const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
 function isSupportedChatGptShareLink(urlString: string) {
   const url = new URL(urlString);
@@ -58,6 +61,50 @@ export const importsRoute = new Hono()
     }
 
     return c.json(job);
+  })
+  .get("/:id/snapshot", (c) => {
+    const snapshot = getPersistedImportSnapshot(c.req.param("id"));
+
+    if (!snapshot) {
+      return c.json(
+        {
+          message: "Import snapshot not found."
+        },
+        404
+      );
+    }
+
+    const rawHtmlPreview = snapshot.rawHtml.slice(0, RAW_HTML_PREVIEW_LENGTH);
+
+    return c.json(
+      importSnapshotSchema.parse({
+        importId: snapshot.importId,
+        sourceUrl: snapshot.sourceUrl,
+        finalUrl: snapshot.finalUrl,
+        fetchedAt: snapshot.fetchedAt,
+        pageTitle: snapshot.pageTitle,
+        rawHtmlBytes: Buffer.byteLength(snapshot.rawHtml, "utf8"),
+        rawHtmlPreview,
+        rawHtmlTruncated: snapshot.rawHtml.length > rawHtmlPreview.length,
+        normalizedPayload: snapshot.normalizedPayload,
+        fetchMetadata: snapshot.fetchMetadata
+      })
+    );
+  })
+  .get("/:id/snapshot/raw-html", (c) => {
+    const snapshot = getPersistedImportSnapshot(c.req.param("id"));
+
+    if (!snapshot) {
+      return c.json(
+        {
+          message: "Import snapshot not found."
+        },
+        404
+      );
+    }
+
+    c.header("Content-Type", "text/plain; charset=utf-8");
+    return c.body(snapshot.rawHtml);
   })
   .get("/:id/export/:format", (c) => {
     const job = getImportJob(c.req.param("id"));

@@ -30,6 +30,18 @@ type SnapshotInput = {
   fetchMetadata: Record<string, unknown>;
 };
 
+type SnapshotRow = {
+  import_id: string;
+  source_url: string;
+  final_url: string;
+  fetched_at: string;
+  page_title: string;
+  raw_html: string;
+  normalized_payload_json: string;
+  fetch_metadata_json: string;
+  updated_at: string;
+};
+
 const insertImportStatement = db.prepare(`
   INSERT INTO imports (
     id,
@@ -121,6 +133,10 @@ const saveSnapshotStatement = db.prepare(`
     updated_at = excluded.updated_at
 `);
 
+const selectSnapshotStatement = db.prepare<unknown[], SnapshotRow>(
+  `SELECT * FROM import_snapshots WHERE import_id = ?`
+);
+
 function serializeImport(job: ImportJob) {
   return {
     id: job.id,
@@ -194,4 +210,23 @@ export function saveImportSnapshot(input: SnapshotInput) {
     fetch_metadata_json: JSON.stringify(input.fetchMetadata),
     updated_at: input.fetchedAt
   });
+}
+
+export function getPersistedImportSnapshot(importId: string) {
+  const row = selectSnapshotStatement.get(importId);
+
+  if (!row) {
+    return undefined;
+  }
+
+  return {
+    importId: row.import_id,
+    sourceUrl: row.source_url,
+    finalUrl: row.final_url,
+    fetchedAt: row.fetched_at,
+    pageTitle: row.page_title,
+    rawHtml: row.raw_html,
+    normalizedPayload: JSON.parse(row.normalized_payload_json) as unknown,
+    fetchMetadata: JSON.parse(row.fetch_metadata_json) as Record<string, unknown>
+  };
 }

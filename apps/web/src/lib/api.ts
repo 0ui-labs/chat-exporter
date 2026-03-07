@@ -1,8 +1,10 @@
 import {
   importJobSchema,
   importRequestSchema,
+  importSnapshotSchema,
   type ImportJob,
-  type ImportRequest
+  type ImportRequest,
+  type ImportSnapshot
 } from "@chat-exporter/shared";
 
 export async function createImport(payload: ImportRequest) {
@@ -45,4 +47,14 @@ export async function listImports() {
 
   const payload = (await response.json()) as unknown[];
   return payload.map((job) => importJobSchema.parse(job));
+}
+
+export async function getImportSnapshot(importId: string): Promise<ImportSnapshot> {
+  const response = await fetch(`/api/imports/${importId}/snapshot`);
+
+  if (!response.ok) {
+    throw new Error("Import snapshot could not be loaded.");
+  }
+
+  return importSnapshotSchema.parse(await response.json());
 }
