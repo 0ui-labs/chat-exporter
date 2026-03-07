@@ -7,3 +7,7 @@ playwright-report
 test-results
 data/*.db
 data/*.db-*
+.env
+.env.local
+apps/server/.env
+apps/server/.env.local

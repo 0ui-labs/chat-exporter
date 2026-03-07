@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
 
+import "../load-env.js";
+
 const defaultDbPath = fileURLToPath(
   new URL("../../../../data/chat-exporter.db", import.meta.url)
 );

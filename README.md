@@ -32,6 +32,8 @@ Web runs on `http://localhost:5173`.
 API runs on `http://localhost:8787`.
 SQLite is stored at `data/chat-exporter.db` by default.
 
+The server now loads env values from root `.env` and `.env.local`, plus optional `apps/server/.env` variants for local-only secrets.
+
 Optional AI structuring env vars:
 
 - `OPENAI_API_KEY`: enables the OpenAI repair pass

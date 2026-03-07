@@ -5,6 +5,8 @@ import type {
 } from "@chat-exporter/shared";
 import { blockSchema } from "@chat-exporter/shared";
 
+import "../load-env.js";
+
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MAX_MESSAGES = 24;
