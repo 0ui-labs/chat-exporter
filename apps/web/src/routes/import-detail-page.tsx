@@ -348,20 +348,30 @@ export function ImportDetailPage() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-      <aside className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle>Import job</CardTitle>
-              <Badge variant={job.status === "completed" ? "default" : "outline"}>
-                {job.status}
-              </Badge>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="gap-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <CardTitle>Import job</CardTitle>
+                <Badge variant={job.status === "completed" ? "default" : "outline"}>
+                  {job.status}
+                </Badge>
+              </div>
+              <CardDescription className="max-w-4xl break-all">
+                {job.sourceUrl}
+              </CardDescription>
             </div>
-            <CardDescription className="break-all">{job.sourceUrl}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="rounded-2xl bg-secondary p-4 text-secondary-foreground">
+
+            <Button className="w-full xl:w-auto" variant="outline" onClick={() => navigate("/")}>
+              Create another import
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(22rem,1fr)]">
+            <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
               <div className="mb-1 flex items-center gap-2">
                 {job.status === "completed" ? (
                   <CheckCircle2 className="h-4 w-4" />
@@ -390,25 +400,25 @@ export function ImportDetailPage() {
                   <p className="mt-2 text-2xl font-semibold">{job.summary.transcriptWords}</p>
                 </div>
               </div>
-            ) : null}
-
-            {job.warnings.length > 0 ? (
-              <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-4 text-amber-950">
-                <p className="mb-2 font-medium">Import warnings</p>
-                <ul className="space-y-2">
-                  {job.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border/80 bg-background/50 p-4 text-muted-foreground">
+                Summary metrics will appear after the import finishes.
               </div>
-            ) : null}
+            )}
+          </div>
 
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Create another import
-            </Button>
-          </CardContent>
-        </Card>
-      </aside>
+          {job.warnings.length > 0 ? (
+            <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-4 text-amber-950">
+              <p className="mb-2 font-medium">Import warnings</p>
+              <ul className="space-y-2">
+                {job.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <section className="space-y-6">
         <Card>
