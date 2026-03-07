@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Bug,
-  CheckCircle2,
-  Clock3,
   Database,
   ExternalLink,
   FileCode2,
@@ -48,6 +46,39 @@ const debugPanels: { value: DebugPanel; label: string }[] = [
   { value: "payload", label: "Normalized payload" },
   { value: "raw-html", label: "Raw HTML" }
 ];
+
+function getStatusCopy(status: ImportJob["status"]) {
+  switch (status) {
+    case "completed":
+      return {
+        badge: "Ready",
+        message: "Your conversation is ready to read, copy, or continue elsewhere."
+      };
+    case "running":
+      return {
+        badge: "Importing",
+        message: "We are preparing your conversation now. This page updates automatically."
+      };
+    case "queued":
+      return {
+        badge: "Queued",
+        message: "Your conversation is in line and will appear here in a moment."
+      };
+    case "failed":
+      return {
+        badge: "Failed",
+        message: "This conversation could not be prepared."
+      };
+  }
+}
+
+function getSourceHost(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 function blockToPlainText(block: Block) {
   switch (block.type) {
@@ -347,6 +378,9 @@ export function ImportDetailPage() {
     );
   }
 
+  const statusCopy = getStatusCopy(job.status);
+  const sourceHost = getSourceHost(job.sourceUrl);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -354,13 +388,13 @@ export function ImportDetailPage() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
-                <CardTitle>Import job</CardTitle>
+                <CardTitle>Conversation</CardTitle>
                 <Badge variant={job.status === "completed" ? "default" : "outline"}>
-                  {job.status}
+                  {statusCopy.badge}
                 </Badge>
               </div>
-              <CardDescription className="max-w-4xl break-all">
-                {job.sourceUrl}
+              <CardDescription className="max-w-3xl text-base leading-7 text-foreground/80">
+                {statusCopy.message}
               </CardDescription>
             </div>
 
@@ -372,17 +406,23 @@ export function ImportDetailPage() {
         <CardContent className="space-y-4 text-sm">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(22rem,1fr)]">
             <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
-              <div className="mb-1 flex items-center gap-2">
-                {job.status === "completed" ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <Clock3 className="h-4 w-4" />
-                )}
-                <span className="font-medium">Current stage: {job.currentStage}</span>
-              </div>
-              <p className="text-secondary-foreground/80">
-                Mode: {job.mode}. Source: {job.sourcePlatform}.
+              <p className="text-xs uppercase tracking-[0.18em] text-secondary-foreground/60">
+                Original conversation
               </p>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm leading-6 text-secondary-foreground/85">
+                  Open the original share page on {sourceHost}.
+                </p>
+                <a
+                  className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card/70 px-4 py-2 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-foreground/5"
+                  href={job.sourceUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open original
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
             </div>
 
             {job.summary ? (
@@ -406,17 +446,6 @@ export function ImportDetailPage() {
               </div>
             )}
           </div>
-
-          {job.warnings.length > 0 ? (
-            <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 p-4 text-amber-950">
-              <p className="mb-2 font-medium">Import warnings</p>
-              <ul className="space-y-2">
-                {job.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
 
@@ -425,7 +454,7 @@ export function ImportDetailPage() {
           <CardHeader>
             <CardTitle>Outputs</CardTitle>
             <CardDescription>
-              Reader view is human-first. Markdown, handover and JSON are derived artifacts.
+              Choose how you want to read, copy, or continue this conversation.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
