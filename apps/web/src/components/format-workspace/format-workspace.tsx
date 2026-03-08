@@ -1,7 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
-import type { AdjustmentSessionDetail, ImportJob } from "@chat-exporter/shared";
+import type {
+  AdjustmentSessionDetail,
+  FormatRule,
+  ImportJob
+} from "@chat-exporter/shared";
 
 import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
@@ -12,9 +16,11 @@ import type {
   ViewMode
 } from "@/components/format-workspace/types";
 import {
+  applyAdjustmentSession,
   appendAdjustmentMessage,
   createAdjustmentSession,
-  generateAdjustmentPreview
+  generateAdjustmentPreview,
+  getFormatRules
 } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +46,84 @@ const outputViews: { value: ViewMode; label: string }[] = [
 ];
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+
+function applyMarkdownRules(content: string, rules: FormatRule[]) {
+  const lines = content.split("\n");
+  const nextLines = [...lines];
+
+  for (const rule of rules) {
+    if (rule.status !== "active") {
+      continue;
+    }
+
+    const selector =
+      rule.selector && typeof rule.selector === "object"
+        ? (rule.selector as Record<string, unknown>)
+        : null;
+    const effect =
+      rule.compiledRule && typeof rule.compiledRule === "object"
+        ? (rule.compiledRule as Record<string, unknown>)
+        : null;
+
+    if (!selector || !effect) {
+      continue;
+    }
+
+    const lineStart = typeof selector.lineStart === "number" ? selector.lineStart : null;
+    const lineEnd = typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
+
+    if (!lineStart || !lineEnd) {
+      continue;
+    }
+
+    const startIndex = Math.max(0, lineStart - 1);
+    const endIndex = Math.min(nextLines.length - 1, lineEnd - 1);
+    const effectType = typeof effect.type === "string" ? effect.type : "";
+
+    switch (effectType) {
+      case "promote_to_heading":
+        nextLines[startIndex] = `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
+        break;
+      case "bold_prefix_before_colon":
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          const line = nextLines[index] ?? "";
+          nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
+        }
+        break;
+      case "normalize_list_structure":
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          const line = nextLines[index] ?? "";
+          const trimmedLine = line.trim();
+
+          if (!trimmedLine) {
+            continue;
+          }
+
+          nextLines[index] = /^[-*]\s/.test(trimmedLine) ? trimmedLine : `- ${trimmedLine}`;
+        }
+        break;
+      case "normalize_markdown_table":
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          const line = nextLines[index] ?? "";
+          nextLines[index] = line
+            .split("|")
+            .map((cell) => cell.trim())
+            .join(" | ")
+            .trim();
+        }
+        break;
+      case "reshape_markdown_block":
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          nextLines[index] = (nextLines[index] ?? "").trimEnd();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  return nextLines.join("\n");
+}
 
 function getStatusLabel(job: ImportJob) {
   if (job.status === "completed") {
@@ -131,6 +215,18 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [applyingByView, setApplyingByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
+  const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
+    reader: [],
+    markdown: [],
+    handover: [],
+    json: []
+  });
   const [selectionByView, setSelectionByView] = useState<Record<ViewMode, AdjustmentSelection | null>>({
     reader: null,
     markdown: null,
@@ -146,6 +242,9 @@ export function FormatWorkspace({
   const activeSessionLoading = sessionLoadingByView[view];
   const activeSelection = selectionByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
+  const activeRules = rulesByView[view];
+  const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
+  const isApplying = applyingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
   const isPreviewing = previewingByView[view];
 
@@ -157,6 +256,40 @@ export function FormatWorkspace({
       }));
     }
   }, [isAdjustModeEnabled, isAdjustableView, view]);
+
+  useEffect(() => {
+    if (!isAdjustableView) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void getFormatRules(job.id, view)
+      .then((rules) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRulesByView((current) => ({
+          ...current,
+          [view]: rules
+        }));
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setRulesByView((current) => ({
+          ...current,
+          [view]: []
+        }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdjustableView, job.id, view]);
 
   useEffect(() => {
     if (!isAdjustModeEnabled || !isAdjustableView || !activeSelection) {
@@ -348,6 +481,48 @@ export function FormatWorkspace({
     }
   }
 
+  async function handleApplyPreview() {
+    if (!activeSessionDetail?.session.previewArtifact) {
+      return;
+    }
+
+    setApplyingByView((current) => ({
+      ...current,
+      [view]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    try {
+      const result = await applyAdjustmentSession(activeSessionDetail.session.id);
+
+      setSessionDetailByView((current) => ({
+        ...current,
+        [view]: {
+          ...activeSessionDetail,
+          session: result.session
+        }
+      }));
+      setRulesByView((current) => ({
+        ...current,
+        [view]: [result.rule, ...current[view]]
+      }));
+    } catch (error) {
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]:
+          error instanceof Error ? error.message : "Adjustment rule could not be applied."
+      }));
+    } finally {
+      setApplyingByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -425,13 +600,25 @@ export function FormatWorkspace({
             ) : null}
           </div>
 
+          {activeRules.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {activeRules.map((rule) => (
+                <Badge key={rule.id} variant="secondary">
+                  {rule.kind}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+
           {isAdjustModeEnabled ? (
             <AdjustmentPanel
               draftMessage={activeDraftMessage}
               error={activeSessionError}
+              isApplying={isApplying}
               isLoading={activeSessionLoading}
               isPreviewing={isPreviewing}
               isSubmitting={isSubmittingMessage}
+              onApplyPreview={handleApplyPreview}
               onDraftMessageChange={handleDraftMessageChange}
               onGeneratePreview={handleGeneratePreview}
               onSubmitMessage={handleSubmitMessage}
@@ -443,6 +630,7 @@ export function FormatWorkspace({
 
           {view === "reader" ? (
             <ReaderView
+              activeRules={activeRules}
               conversation={job.conversation}
               adjustModeEnabled={isAdjustModeEnabled}
               selectedBlock={view === "reader" ? activeSelection : null}
@@ -450,7 +638,7 @@ export function FormatWorkspace({
             />
           ) : view === "markdown" ? (
             <MarkdownView
-              content={artifact}
+              content={displayedMarkdown}
               adjustModeEnabled={isAdjustModeEnabled}
               selectedRange={activeSelection}
               onSelectLines={handleSelectionChange}

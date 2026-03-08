@@ -1,9 +1,10 @@
-import type { Block, Conversation } from "@chat-exporter/shared";
+import type { Block, Conversation, FormatRule } from "@chat-exporter/shared";
 
 import type { AdjustmentSelection } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
 type ReaderViewProps = {
+  activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
   onSelectBlock: (selection: AdjustmentSelection) => void;
@@ -24,13 +25,84 @@ function blockToPlainText(block: Block) {
   }
 }
 
-function renderBlock(block: Block) {
+function renderTextWithBoldPrefix(text: string) {
+  const match = text.match(/^([^:\n]{1,120}:)(\s*)(.*)$/);
+
+  if (!match) {
+    return text;
+  }
+
+  return (
+    <>
+      <strong>{match[1]}</strong>
+      {match[2]}
+      {match[3]}
+    </>
+  );
+}
+
+function matchesRule(
+  rule: FormatRule,
+  messageId: string,
+  blockIndex: number,
+  blockType: Block["type"]
+) {
+  const selector =
+    rule.selector && typeof rule.selector === "object"
+      ? (rule.selector as Record<string, unknown>)
+      : null;
+
+  if (!selector) {
+    return false;
+  }
+
+  const selectorMessageId =
+    typeof selector.messageId === "string" ? selector.messageId : undefined;
+  const selectorBlockIndex =
+    typeof selector.blockIndex === "number" ? selector.blockIndex : undefined;
+  const selectorBlockType =
+    typeof selector.blockType === "string" ? selector.blockType : undefined;
+
+  return (
+    selectorMessageId === messageId &&
+    selectorBlockIndex === blockIndex &&
+    selectorBlockType === blockType
+  );
+}
+
+function resolveBlockEffects(
+  rules: FormatRule[],
+  messageId: string,
+  blockIndex: number,
+  blockType: Block["type"]
+) {
+  return rules
+    .filter((rule) => rule.status === "active" && matchesRule(rule, messageId, blockIndex, blockType))
+    .map((rule) =>
+      rule.compiledRule && typeof rule.compiledRule === "object"
+        ? (rule.compiledRule as Record<string, unknown>)
+        : {}
+    );
+}
+
+function renderBlock(block: Block, effects: Record<string, unknown>[]) {
+  const hasBoldPrefixEffect = effects.some((effect) => effect.type === "bold_prefix_before_colon");
+  const hasHeadingEmphasis = effects.some((effect) => effect.type === "increase_heading_emphasis");
+
   switch (block.type) {
     case "paragraph":
-      return <p className="text-sm leading-7 text-foreground/90">{block.text}</p>;
+      return (
+        <p className="text-sm leading-7 text-foreground/90">
+          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
+        </p>
+      );
     case "heading": {
       const Tag = `h${Math.min(block.level + 1, 6)}` as keyof JSX.IntrinsicElements;
-      return <Tag className="font-semibold text-foreground">{block.text}</Tag>;
+      return (
+        <Tag className={cn("font-semibold text-foreground", hasHeadingEmphasis ? "text-lg" : null)}>
+          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
+        </Tag>
+      );
     }
     case "list":
       return (
@@ -43,7 +115,7 @@ function renderBlock(block: Block) {
     case "quote":
       return (
         <blockquote className="border-l-2 border-accent pl-4 text-sm italic leading-7 text-foreground/80">
-          {block.text}
+          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
         </blockquote>
       );
     case "code":
@@ -89,6 +161,7 @@ function renderBlock(block: Block) {
 }
 
 export function ReaderView({
+  activeRules,
   adjustModeEnabled,
   conversation,
   onSelectBlock,
@@ -119,6 +192,13 @@ export function ReaderView({
           <div className="space-y-4">
             {message.blocks.map((block, blockIndex) => {
               const blockText = blockToPlainText(block);
+              const blockEffects = resolveBlockEffects(activeRules, message.id, blockIndex, block.type);
+              const hasSpacingEffect = blockEffects.some(
+                (effect) => effect.type === "adjust_block_spacing"
+              );
+              const hasRefineEffect = blockEffects.some(
+                (effect) => effect.type === "refine_selected_block_presentation"
+              );
               const isSelected =
                 selectedBlock?.messageId === message.id && selectedBlock.blockIndex === blockIndex;
 
@@ -127,6 +207,8 @@ export function ReaderView({
                   key={`${message.id}-${block.type}-${blockIndex}`}
                   className={cn(
                     "rounded-2xl transition",
+                    hasSpacingEffect ? "mb-4 md:mb-6" : null,
+                    hasRefineEffect ? "bg-primary/5" : null,
                     adjustModeEnabled
                       ? "cursor-pointer ring-1 ring-transparent hover:bg-primary/5 hover:ring-primary/20"
                       : null,
@@ -149,7 +231,7 @@ export function ReaderView({
                     });
                   }}
                 >
-                  {renderBlock(block)}
+                  {renderBlock(block, blockEffects)}
                 </div>
               );
             })}

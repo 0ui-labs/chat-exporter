@@ -126,6 +126,44 @@ const updateAdjustmentSessionPreviewStatement = db.prepare(`
   WHERE id = @id
 `);
 
+const updateAdjustmentSessionStatusStatement = db.prepare(`
+  UPDATE adjustment_sessions
+  SET
+    status = @status,
+    updated_at = @updated_at
+  WHERE id = @id
+`);
+
+const insertFormatRuleStatement = db.prepare(`
+  INSERT INTO format_rules (
+    id,
+    import_id,
+    target_format,
+    kind,
+    scope,
+    status,
+    selector_json,
+    instruction,
+    compiled_rule_json,
+    source_session_id,
+    created_at,
+    updated_at
+  ) VALUES (
+    @id,
+    @import_id,
+    @target_format,
+    @kind,
+    @scope,
+    @status,
+    @selector_json,
+    @instruction,
+    @compiled_rule_json,
+    @source_session_id,
+    @created_at,
+    @updated_at
+  )
+`);
+
 const listFormatRulesStatement = db.prepare<unknown[], FormatRuleRow>(
   `SELECT * FROM format_rules WHERE import_id = ? ORDER BY created_at DESC`
 );
@@ -254,6 +292,70 @@ export function saveAdjustmentPreview(sessionId: string, preview: AdjustmentPrev
     preview_artifact_json: JSON.stringify(preview),
     updated_at: timestamp
   });
+}
+
+export function applyAdjustmentPreview(sessionId: string) {
+  const session = getAdjustmentSession(sessionId);
+
+  if (!session) {
+    throw new Error("Adjustment session not found.");
+  }
+
+  if (!session.previewArtifact) {
+    throw new Error("Generate a preview before applying a rule.");
+  }
+
+  if (session.status === "applied") {
+    throw new Error("This adjustment session has already been applied.");
+  }
+
+  const timestamp = now();
+  const rule = formatRuleSchema.parse({
+    id: crypto.randomUUID(),
+    importId: session.importId,
+    targetFormat: session.targetFormat,
+    kind: session.previewArtifact.draftRule.kind,
+    scope: session.previewArtifact.draftRule.scope,
+    status: "active",
+    selector: session.previewArtifact.draftRule.selector,
+    instruction: session.previewArtifact.summary,
+    compiledRule: session.previewArtifact.draftRule.effect,
+    sourceSessionId: session.id,
+    createdAt: timestamp,
+    updatedAt: timestamp
+  });
+
+  insertFormatRuleStatement.run({
+    id: rule.id,
+    import_id: rule.importId,
+    target_format: rule.targetFormat,
+    kind: rule.kind,
+    scope: rule.scope,
+    status: rule.status,
+    selector_json: JSON.stringify(rule.selector),
+    instruction: rule.instruction,
+    compiled_rule_json: JSON.stringify(rule.compiledRule),
+    source_session_id: rule.sourceSessionId ?? null,
+    created_at: rule.createdAt,
+    updated_at: rule.updatedAt
+  });
+
+  updateAdjustmentSessionStatusStatement.run({
+    id: sessionId,
+    status: "applied",
+    updated_at: timestamp
+  });
+
+  const nextSession = getAdjustmentSession(sessionId);
+
+  if (!nextSession) {
+    throw new Error("Adjustment session could not be reloaded.");
+  }
+
+  return {
+    rule,
+    session: nextSession
+  };
 }
 
 export function listAdjustmentMessages(sessionId: string) {

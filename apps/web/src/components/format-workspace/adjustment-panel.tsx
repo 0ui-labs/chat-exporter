@@ -10,9 +10,11 @@ import type {
 type AdjustmentPanelProps = {
   draftMessage: string;
   error: string | null;
+  isApplying: boolean;
   isLoading: boolean;
   isPreviewing: boolean;
   isSubmitting: boolean;
+  onApplyPreview: () => void;
   onDraftMessageChange: (value: string) => void;
   onGeneratePreview: () => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
@@ -43,9 +45,11 @@ const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
 export function AdjustmentPanel({
   draftMessage,
   error,
+  isApplying,
   isLoading,
   isPreviewing,
   isSubmitting,
+  onApplyPreview,
   onDraftMessageChange,
   onGeneratePreview,
   onSubmitMessage,
@@ -179,6 +183,21 @@ export function AdjustmentPanel({
                   <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-foreground">
                     <code>{JSON.stringify(preview.draftRule, null, 2)}</code>
                   </pre>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isApplying || sessionDetail.session.status === "applied"}
+                    type="button"
+                    onClick={onApplyPreview}
+                  >
+                    {sessionDetail.session.status === "applied"
+                      ? "Applied"
+                      : isApplying
+                        ? "Applying..."
+                        : "Apply rule"}
+                  </button>
                 </div>
               </div>
             ) : null}

@@ -100,6 +100,11 @@ export const adjustmentSessionDetailSchema = z.object({
   session: adjustmentSessionSchema
 });
 
+export const applyAdjustmentSessionResponseSchema = z.object({
+  rule: z.lazy(() => formatRuleSchema),
+  session: adjustmentSessionSchema
+});
+
 export const formatRuleSchema = z.object({
   id: z.string(),
   importId: z.string(),
@@ -127,4 +132,5 @@ export type AdjustmentPreview = z.infer<typeof adjustmentPreviewSchema>;
 export type AdjustmentSession = z.infer<typeof adjustmentSessionSchema>;
 export type AdjustmentMessage = z.infer<typeof adjustmentMessageSchema>;
 export type AdjustmentSessionDetail = z.infer<typeof adjustmentSessionDetailSchema>;
+export type ApplyAdjustmentSessionResponse = z.infer<typeof applyAdjustmentSessionResponseSchema>;
 export type FormatRule = z.infer<typeof formatRuleSchema>;

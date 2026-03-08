@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import {
+  applyAdjustmentSessionResponseSchema,
   adjustmentSessionDetailSchema,
   appendAdjustmentMessageRequestSchema
 } from "@chat-exporter/shared";
@@ -8,6 +9,7 @@ import {
 import { buildAdjustmentAssistantReply } from "../lib/adjustment-assistant.js";
 import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
 import {
+  applyAdjustmentPreview,
   appendAdjustmentMessage,
   getAdjustmentSessionDetail,
   saveAdjustmentPreview
@@ -112,6 +114,24 @@ export const adjustmentSessionsRoute = new Hono()
             error instanceof Error
               ? error.message
               : "Adjustment preview could not be generated."
+        },
+        400
+      );
+    }
+  })
+  .post("/:id/apply", (c) => {
+    const sessionId = c.req.param("id");
+
+    try {
+      const result = applyAdjustmentPreview(sessionId);
+      return c.json(applyAdjustmentSessionResponseSchema.parse(result), 201);
+    } catch (error) {
+      return c.json(
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Adjustment rule could not be applied."
         },
         400
       );

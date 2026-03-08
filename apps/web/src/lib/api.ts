@@ -1,12 +1,17 @@
 import {
+  applyAdjustmentSessionResponseSchema,
   adjustmentSessionDetailSchema,
   createAdjustmentSessionRequestSchema,
   appendAdjustmentMessageRequestSchema,
+  adjustmentTargetFormatSchema,
+  formatRuleSchema,
   importJobSchema,
   importRequestSchema,
   importSnapshotSchema,
+  type ApplyAdjustmentSessionResponse,
   type AdjustmentSessionDetail,
   type AppendAdjustmentMessageRequest,
+  type FormatRule,
   type CreateAdjustmentSessionRequest,
   type ImportJob,
   type ImportRequest,
@@ -132,4 +137,41 @@ export async function generateAdjustmentPreview(
   }
 
   return adjustmentSessionDetailSchema.parse(await response.json());
+}
+
+export async function applyAdjustmentSession(
+  sessionId: string
+): Promise<ApplyAdjustmentSessionResponse> {
+  const response = await fetch(`/api/adjustment-sessions/${sessionId}/apply`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment rule could not be applied.";
+    throw new Error(message);
+  }
+
+  return applyAdjustmentSessionResponseSchema.parse(await response.json());
+}
+
+export async function getFormatRules(
+  importId: string,
+  targetFormat: "reader" | "markdown" | "handover" | "json"
+): Promise<FormatRule[]> {
+  const parsedTargetFormat = adjustmentTargetFormatSchema.parse(targetFormat);
+  const response = await fetch(`/api/imports/${importId}/format-rules?format=${parsedTargetFormat}`);
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string" ? body.message : "Format rules could not be loaded.";
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as unknown[];
+  return payload.map((rule) => formatRuleSchema.parse(rule));
 }
