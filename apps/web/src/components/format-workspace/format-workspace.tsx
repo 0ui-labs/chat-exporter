@@ -8,9 +8,11 @@ import type {
 } from "@chat-exporter/shared";
 
 import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
+import { AdjustmentPreviewRender } from "@/components/format-workspace/adjustment-preview-render";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
+import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
 import type {
   AdjustmentSelection,
   ViewMode
@@ -56,111 +58,6 @@ function getRuleLabel(rule: FormatRule) {
   }
 
   return `${summary.slice(0, 69).trimEnd()}...`;
-}
-
-function applyMarkdownRules(content: string, rules: FormatRule[]) {
-  const lines = content.split("\n");
-  const nextLines = [...lines];
-
-  for (const rule of rules) {
-    if (rule.status !== "active") {
-      continue;
-    }
-
-    const selector =
-      rule.selector && typeof rule.selector === "object"
-        ? (rule.selector as Record<string, unknown>)
-        : null;
-    const effect =
-      rule.compiledRule && typeof rule.compiledRule === "object"
-        ? (rule.compiledRule as Record<string, unknown>)
-        : null;
-    const strategy = typeof selector?.strategy === "string" ? selector.strategy : "exact";
-
-    if (!selector || !effect) {
-      continue;
-    }
-
-    const effectType = typeof effect.type === "string" ? effect.type : "";
-
-    if (strategy === "prefix_before_colon" && effectType === "bold_prefix_before_colon") {
-      for (let index = 0; index < nextLines.length; index += 1) {
-        const line = nextLines[index] ?? "";
-        nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
-      }
-      continue;
-    }
-
-    if (strategy === "markdown_table" && effectType === "normalize_markdown_table") {
-      for (let index = 0; index < nextLines.length; index += 1) {
-        const line = nextLines[index] ?? "";
-
-        if (!line.includes("|")) {
-          continue;
-        }
-
-        nextLines[index] = line
-          .split("|")
-          .map((cell) => cell.trim())
-          .join(" | ")
-          .trim();
-      }
-      continue;
-    }
-
-    const lineStart = typeof selector.lineStart === "number" ? selector.lineStart : null;
-    const lineEnd = typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
-
-    if (!lineStart || !lineEnd) {
-      continue;
-    }
-
-    const startIndex = Math.max(0, lineStart - 1);
-    const endIndex = Math.min(nextLines.length - 1, lineEnd - 1);
-
-    switch (effectType) {
-      case "promote_to_heading":
-        nextLines[startIndex] = `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
-        break;
-      case "bold_prefix_before_colon":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          const line = nextLines[index] ?? "";
-          nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
-        }
-        break;
-      case "normalize_list_structure":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          const line = nextLines[index] ?? "";
-          const trimmedLine = line.trim();
-
-          if (!trimmedLine) {
-            continue;
-          }
-
-          nextLines[index] = /^[-*]\s/.test(trimmedLine) ? trimmedLine : `- ${trimmedLine}`;
-        }
-        break;
-      case "normalize_markdown_table":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          const line = nextLines[index] ?? "";
-          nextLines[index] = line
-            .split("|")
-            .map((cell) => cell.trim())
-            .join(" | ")
-            .trim();
-        }
-        break;
-      case "reshape_markdown_block":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          nextLines[index] = (nextLines[index] ?? "").trimEnd();
-        }
-        break;
-      default:
-        break;
-    }
-  }
-
-  return nextLines.join("\n");
 }
 
 function getStatusLabel(job: ImportJob) {
@@ -287,6 +184,17 @@ export function FormatWorkspace({
   const isApplying = applyingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
   const isPreviewing = previewingByView[view];
+  const previewContent =
+    (view === "reader" || view === "markdown") &&
+    activeSessionDetail?.session.previewArtifact ? (
+      <AdjustmentPreviewRender
+        activeRules={activeRules}
+        conversation={job.conversation}
+        markdownContent={view === "markdown" ? artifact : ""}
+        preview={activeSessionDetail.session.previewArtifact}
+        selection={activeSessionDetail.session.selection}
+      />
+    ) : null;
 
   useEffect(() => {
     if (!isAdjustableView && isAdjustModeEnabled) {
@@ -714,6 +622,7 @@ export function FormatWorkspace({
               onDraftMessageChange={handleDraftMessageChange}
               onGeneratePreview={handleGeneratePreview}
               onSubmitMessage={handleSubmitMessage}
+              previewContent={previewContent}
               selection={activeSelection}
               sessionDetail={activeSessionDetail}
               view={view}

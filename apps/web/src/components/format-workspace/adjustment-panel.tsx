@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 import type { AdjustmentPreview, AdjustmentSessionDetail } from "@chat-exporter/shared";
 
@@ -18,6 +18,7 @@ type AdjustmentPanelProps = {
   onDraftMessageChange: (value: string) => void;
   onGeneratePreview: () => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
+  previewContent: ReactNode;
   selection: AdjustmentSelection | null;
   sessionDetail: AdjustmentSessionDetail | null;
   view: ViewMode;
@@ -53,6 +54,7 @@ export function AdjustmentPanel({
   onDraftMessageChange,
   onGeneratePreview,
   onSubmitMessage,
+  previewContent,
   selection,
   sessionDetail,
   view
@@ -179,11 +181,16 @@ export function AdjustmentPanel({
                   </div>
                 ) : null}
 
-                <div className="rounded-2xl border border-border/80 bg-background/80 p-3">
-                  <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-foreground">
+                {previewContent}
+
+                <details className="rounded-2xl border border-border/80 bg-background/80 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Rule draft JSON
+                  </summary>
+                  <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words text-xs text-foreground">
                     <code>{JSON.stringify(preview.draftRule, null, 2)}</code>
                   </pre>
-                </div>
+                </details>
 
                 <div className="flex justify-end">
                   <button
