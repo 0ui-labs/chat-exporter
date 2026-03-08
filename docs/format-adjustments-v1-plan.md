@@ -53,6 +53,30 @@ workspaces:
 This keeps the UX real without forcing the team to solve every export format at
 once. The shared data model and API should still be designed for more targets.
 
+## Current Status
+
+As of March 8, 2026, the `codex/format-adjustments-v1` branch has completed the
+full V1 vertical slice for `Reader` and `Markdown`.
+
+Implemented:
+
+- extracted format workspace shell from the route page
+- adjust mode and stable selection anchors for `Reader` and `Markdown`
+- persisted adjustment sessions and mini chat history
+- clarification turns and preview generation
+- rule apply, disable, discard, undo, and "why this exists" flows
+- `Reader` and `Markdown` rule application with before or after previews
+- instrumentation for session, preview, apply, disable, and discard events
+- server tests plus a smoke-test script for the end-to-end workflow
+- AI-backed preview rule compilation with deterministic fallback
+
+Still outside V1:
+
+- `HTML`, `Rich text`, and `JSON` adjustment workspaces
+- reusable `format_profile` or global rules
+- inline rich text AST migration
+- richer manual browser QA beyond the automated smoke flow
+
 ## Non-Goals For V1
 
 - Global rules that affect every import by default
@@ -350,67 +374,75 @@ Reader rules should focus on:
 
 V1 Reader rules should not mutate the canonical conversation.
 
-## Concrete Backlog
+## Concrete Backlog Status
 
-### 1. Extract format workspace shell
+### [x] 1. Extract format workspace shell
 
 - Move tabbed output rendering out of `home-page.tsx`.
 - Introduce `FormatWorkspace` with shared state for the active format.
 - Keep current output parity before adding adjust mode.
 
-### 2. Add adjustment mode UI scaffolding
+### [x] 2. Add adjustment mode UI scaffolding
 
 - Add gear button for supported tabs.
 - Add adjust mode state and selection affordances.
 - Add a temporary side panel for the future mini chat.
 
-### 3. Introduce stable selection anchors
+### [x] 3. Introduce stable selection anchors
 
 - Reader: attach block metadata to rendered blocks.
 - Markdown: produce line and block source mapping.
 - Normalize selection payload shape across both formats.
 
-### 4. Add adjustment session persistence
+### [x] 4. Add adjustment session persistence
 
 - Create SQLite tables and repository functions.
 - Add API endpoints to create sessions and append messages.
 - Return session state to the client after each mutation.
 
-### 5. Implement mini chat orchestration
+### [x] 5. Implement mini chat orchestration
 
 - Send selection context plus user prompt to the server.
 - Persist assistant replies in the session.
 - Support clarification turns before rule compilation.
 
-### 6. Build rule compiler and preview path
+### [x] 6. Build rule compiler and preview path
 
 - Compile assistant output into strict JSON rules.
 - Run preview rendering for the selected format.
 - Return preview metadata for accept or reject actions.
 
-### 7. Apply Reader rules
+### [x] 7. Apply Reader rules
 
 - Add a Reader rule engine over the existing block renderer.
 - Support the first safe effect set.
 - Show before or after preview inside the Reader tab.
 
-### 8. Apply Markdown rules
+### [x] 8. Apply Markdown rules
 
 - Add Markdown adapter and preview renderer.
 - Show text diff or section diff before apply.
 - Support the first Markdown-safe rule set.
 
-### 9. Add rule chips and lifecycle actions
+### [x] 9. Add rule chips and lifecycle actions
 
 - Show active rules per format tab.
 - Support disable, discard, and simple undo flows.
 - Expose a short "why this exists" explanation.
 
-### 10. Add instrumentation and guardrails
+### [x] 10. Add instrumentation and guardrails
 
 - Log rejected rule compilations and preview failures.
 - Keep counts for clarifications, applies, and discards.
 - Add test coverage for rule compilation and selection anchors.
+
+## Next Steps After V1
+
+- Run a manual browser pass against representative imports and capture UX gaps
+  that the smoke test does not catch.
+- Decide whether the next format target should be `HTML` or `Rich text`.
+- Decide whether post-V1 should prioritize better rule quality, reusable format
+  profiles, or new format workspaces first.
 
 ## Suggested Commit Sequence
 
