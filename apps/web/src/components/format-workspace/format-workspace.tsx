@@ -21,6 +21,7 @@ import {
   applyAdjustmentSession,
   appendAdjustmentMessage,
   createAdjustmentSession,
+  discardAdjustmentSession,
   disableFormatRule,
   generateAdjustmentPreview,
   getFormatRules
@@ -150,6 +151,12 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [discardingByView, setDiscardingByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
   const [applyingByView, setApplyingByView] = useState<Record<ViewMode, boolean>>({
     reader: false,
     markdown: false,
@@ -182,6 +189,7 @@ export function FormatWorkspace({
   const activeRuleChips = activeRules.filter((rule) => rule.status === "active");
   const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isApplying = applyingByView[view];
+  const isDiscarding = discardingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
   const isPreviewing = previewingByView[view];
   const previewContent =
@@ -345,6 +353,25 @@ export function FormatWorkspace({
     }));
   }
 
+  function clearCurrentAdjustmentState() {
+    setDraftMessageByView((current) => ({
+      ...current,
+      [view]: ""
+    }));
+    setSelectionByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+    setSessionDetailByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+    setSessionSelectionKeyByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+  }
+
   async function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -465,6 +492,38 @@ export function FormatWorkspace({
       }));
     } finally {
       setApplyingByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
+  }
+
+  async function handleDiscardSession() {
+    if (!activeSessionDetail) {
+      clearCurrentAdjustmentState();
+      return;
+    }
+
+    setDiscardingByView((current) => ({
+      ...current,
+      [view]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    try {
+      await discardAdjustmentSession(activeSessionDetail.session.id);
+      clearCurrentAdjustmentState();
+    } catch (error) {
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]:
+          error instanceof Error ? error.message : "Adjustment session could not be discarded."
+      }));
+    } finally {
+      setDiscardingByView((current) => ({
         ...current,
         [view]: false
       }));
@@ -615,10 +674,12 @@ export function FormatWorkspace({
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isApplying={isApplying}
+              isDiscarding={isDiscarding}
               isLoading={activeSessionLoading}
               isPreviewing={isPreviewing}
               isSubmitting={isSubmittingMessage}
               onApplyPreview={handleApplyPreview}
+              onDiscardSession={handleDiscardSession}
               onDraftMessageChange={handleDraftMessageChange}
               onGeneratePreview={handleGeneratePreview}
               onSubmitMessage={handleSubmitMessage}

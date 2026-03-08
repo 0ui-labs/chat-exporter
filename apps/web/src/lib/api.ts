@@ -158,6 +158,25 @@ export async function applyAdjustmentSession(
   return applyAdjustmentSessionResponseSchema.parse(await response.json());
 }
 
+export async function discardAdjustmentSession(
+  sessionId: string
+): Promise<AdjustmentSessionDetail> {
+  const response = await fetch(`/api/adjustment-sessions/${sessionId}/discard`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment session could not be discarded.";
+    throw new Error(message);
+  }
+
+  return adjustmentSessionDetailSchema.parse(await response.json());
+}
+
 export async function disableFormatRule(ruleId: string): Promise<FormatRule> {
   const response = await fetch(`/api/format-rules/${ruleId}/disable`, {
     method: "POST"

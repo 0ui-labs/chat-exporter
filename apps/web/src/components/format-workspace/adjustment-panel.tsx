@@ -11,10 +11,12 @@ type AdjustmentPanelProps = {
   draftMessage: string;
   error: string | null;
   isApplying: boolean;
+  isDiscarding: boolean;
   isLoading: boolean;
   isPreviewing: boolean;
   isSubmitting: boolean;
   onApplyPreview: () => void;
+  onDiscardSession: () => void;
   onDraftMessageChange: (value: string) => void;
   onGeneratePreview: () => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
@@ -70,10 +72,12 @@ export function AdjustmentPanel({
   draftMessage,
   error,
   isApplying,
+  isDiscarding,
   isLoading,
   isPreviewing,
   isSubmitting,
   onApplyPreview,
+  onDiscardSession,
   onDraftMessageChange,
   onGeneratePreview,
   onSubmitMessage,
@@ -164,18 +168,29 @@ export function AdjustmentPanel({
               </label>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <button
-                  className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={
-                    isPreviewing ||
-                    isLoading ||
-                    sessionDetail.messages.every((message) => message.role !== "user")
-                  }
-                  type="button"
-                  onClick={onGeneratePreview}
-                >
-                  {isPreviewing ? "Building preview..." : "Generate preview"}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={
+                      isPreviewing ||
+                      isLoading ||
+                      sessionDetail.messages.every((message) => message.role !== "user")
+                    }
+                    type="button"
+                    onClick={onGeneratePreview}
+                  >
+                    {isPreviewing ? "Building preview..." : "Generate preview"}
+                  </button>
+
+                  <button
+                    className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDiscarding || sessionDetail.session.status === "applied"}
+                    type="button"
+                    onClick={onDiscardSession}
+                  >
+                    {isDiscarding ? "Discarding..." : "Discard draft"}
+                  </button>
+                </div>
 
                 <button
                   className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"

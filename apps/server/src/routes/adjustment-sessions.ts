@@ -11,6 +11,7 @@ import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
 import {
   applyAdjustmentPreview,
   appendAdjustmentMessage,
+  discardAdjustmentSession,
   getAdjustmentSessionDetail,
   saveAdjustmentPreview
 } from "../lib/adjustment-repository.js";
@@ -132,6 +133,24 @@ export const adjustmentSessionsRoute = new Hono()
             error instanceof Error
               ? error.message
               : "Adjustment rule could not be applied."
+        },
+        400
+      );
+    }
+  })
+  .post("/:id/discard", (c) => {
+    const sessionId = c.req.param("id");
+
+    try {
+      const detail = discardAdjustmentSession(sessionId);
+      return c.json(adjustmentSessionDetailSchema.parse(detail));
+    } catch (error) {
+      return c.json(
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Adjustment session could not be discarded."
         },
         400
       );

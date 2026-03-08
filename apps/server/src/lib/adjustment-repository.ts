@@ -370,6 +370,38 @@ export function applyAdjustmentPreview(sessionId: string) {
   };
 }
 
+export function discardAdjustmentSession(sessionId: string) {
+  const session = getAdjustmentSession(sessionId);
+
+  if (!session) {
+    throw new Error("Adjustment session not found.");
+  }
+
+  if (session.status === "applied") {
+    throw new Error("Applied adjustment sessions cannot be discarded.");
+  }
+
+  if (session.status === "discarded") {
+    throw new Error("This adjustment session has already been discarded.");
+  }
+
+  const timestamp = now();
+
+  updateAdjustmentSessionStatusStatement.run({
+    id: sessionId,
+    status: "discarded",
+    updated_at: timestamp
+  });
+
+  const nextDetail = getAdjustmentSessionDetail(sessionId);
+
+  if (!nextDetail) {
+    throw new Error("Adjustment session could not be reloaded.");
+  }
+
+  return nextDetail;
+}
+
 export function listAdjustmentMessages(sessionId: string) {
   return listAdjustmentMessagesStatement.all(sessionId).map(deserializeAdjustmentMessage);
 }
