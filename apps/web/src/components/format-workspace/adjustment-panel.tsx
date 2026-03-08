@@ -43,6 +43,29 @@ const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
   }
 };
 
+function describePreviewScope(
+  preview: AdjustmentPreview,
+  selection: AdjustmentSelection,
+  view: ViewMode
+) {
+  const selector =
+    preview.draftRule.selector && typeof preview.draftRule.selector === "object"
+      ? (preview.draftRule.selector as Record<string, unknown>)
+      : null;
+  const strategy = typeof selector?.strategy === "string" ? selector.strategy : "exact";
+
+  switch (strategy) {
+    case "block_type":
+      return `This rule will affect similar ${selection.blockType} blocks in the ${view} output for this import.`;
+    case "prefix_before_colon":
+      return `This rule will affect similar label-style prefixes in the ${view} output for this import.`;
+    case "markdown_table":
+      return "This rule will affect matching Markdown tables in this import.";
+    default:
+      return "This rule applies only to the current selection.";
+  }
+}
+
 export function AdjustmentPanel({
   draftMessage,
   error,
@@ -61,6 +84,8 @@ export function AdjustmentPanel({
 }: AdjustmentPanelProps) {
   const copy = formatCopy[view];
   const preview = sessionDetail?.session.previewArtifact as AdjustmentPreview | undefined;
+  const previewScope =
+    preview && selection ? describePreviewScope(preview, selection, view) : null;
 
   return (
     <div className="rounded-[1.4rem] border border-dashed border-primary/35 bg-primary/5 px-4 py-4">
@@ -170,6 +195,11 @@ export function AdjustmentPanel({
                 </div>
                 <p className="text-sm font-medium text-foreground">{preview.summary}</p>
                 <p className="text-sm text-muted-foreground">{preview.rationale}</p>
+                {previewScope ? (
+                  <div className="rounded-2xl border border-primary/20 bg-background/80 px-3 py-2 text-sm text-foreground">
+                    {previewScope}
+                  </div>
+                ) : null}
 
                 {preview.limitations.length > 0 ? (
                   <div className="space-y-1">
