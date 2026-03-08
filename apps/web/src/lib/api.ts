@@ -114,3 +114,22 @@ export async function appendAdjustmentMessage(
 
   return adjustmentSessionDetailSchema.parse(await response.json());
 }
+
+export async function generateAdjustmentPreview(
+  sessionId: string
+): Promise<AdjustmentSessionDetail> {
+  const response = await fetch(`/api/adjustment-sessions/${sessionId}/preview`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment preview could not be generated.";
+    throw new Error(message);
+  }
+
+  return adjustmentSessionDetailSchema.parse(await response.json());
+}

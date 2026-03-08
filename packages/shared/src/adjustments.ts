@@ -62,13 +62,27 @@ export const appendAdjustmentMessageRequestSchema = z.object({
   content: z.string().trim().min(1)
 });
 
+export const adjustmentPreviewSchema = z.object({
+  draftRule: z.object({
+    effect: z.record(z.unknown()),
+    kind: formatRuleKindSchema,
+    scope: formatRuleScopeSchema,
+    selector: z.record(z.unknown())
+  }),
+  limitations: z.array(z.string()),
+  rationale: z.string(),
+  sessionId: z.string(),
+  summary: z.string(),
+  targetFormat: adjustmentTargetFormatSchema
+});
+
 export const adjustmentSessionSchema = z.object({
   id: z.string(),
   importId: z.string(),
   targetFormat: adjustmentTargetFormatSchema,
   status: adjustmentSessionStatusSchema,
   selection: adjustmentSelectionSchema,
-  previewArtifact: z.unknown().optional(),
+  previewArtifact: adjustmentPreviewSchema.optional(),
   createdAt: z.string(),
   updatedAt: z.string()
 });
@@ -109,6 +123,7 @@ export type FormatRuleStatus = z.infer<typeof formatRuleStatusSchema>;
 export type AdjustmentSelection = z.infer<typeof adjustmentSelectionSchema>;
 export type CreateAdjustmentSessionRequest = z.infer<typeof createAdjustmentSessionRequestSchema>;
 export type AppendAdjustmentMessageRequest = z.infer<typeof appendAdjustmentMessageRequestSchema>;
+export type AdjustmentPreview = z.infer<typeof adjustmentPreviewSchema>;
 export type AdjustmentSession = z.infer<typeof adjustmentSessionSchema>;
 export type AdjustmentMessage = z.infer<typeof adjustmentMessageSchema>;
 export type AdjustmentSessionDetail = z.infer<typeof adjustmentSessionDetailSchema>;

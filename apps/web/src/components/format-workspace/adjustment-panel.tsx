@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 
-import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
+import type { AdjustmentPreview, AdjustmentSessionDetail } from "@chat-exporter/shared";
 
 import type {
   AdjustmentSelection,
@@ -11,8 +11,10 @@ type AdjustmentPanelProps = {
   draftMessage: string;
   error: string | null;
   isLoading: boolean;
+  isPreviewing: boolean;
   isSubmitting: boolean;
   onDraftMessageChange: (value: string) => void;
+  onGeneratePreview: () => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
   selection: AdjustmentSelection | null;
   sessionDetail: AdjustmentSessionDetail | null;
@@ -42,14 +44,17 @@ export function AdjustmentPanel({
   draftMessage,
   error,
   isLoading,
+  isPreviewing,
   isSubmitting,
   onDraftMessageChange,
+  onGeneratePreview,
   onSubmitMessage,
   selection,
   sessionDetail,
   view
 }: AdjustmentPanelProps) {
   const copy = formatCopy[view];
+  const preview = sessionDetail?.session.previewArtifact as AdjustmentPreview | undefined;
 
   return (
     <div className="rounded-[1.4rem] border border-dashed border-primary/35 bg-primary/5 px-4 py-4">
@@ -127,7 +132,20 @@ export function AdjustmentPanel({
                 />
               </label>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={
+                    isPreviewing ||
+                    isLoading ||
+                    sessionDetail.messages.every((message) => message.role !== "user")
+                  }
+                  type="button"
+                  onClick={onGeneratePreview}
+                >
+                  {isPreviewing ? "Building preview..." : "Generate preview"}
+                </button>
+
                 <button
                   className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isSubmitting || draftMessage.trim().length === 0}
@@ -137,6 +155,33 @@ export function AdjustmentPanel({
                 </button>
               </div>
             </form>
+
+            {preview ? (
+              <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-primary">
+                  <span>Preview</span>
+                  <span>{preview.draftRule.kind}</span>
+                </div>
+                <p className="text-sm font-medium text-foreground">{preview.summary}</p>
+                <p className="text-sm text-muted-foreground">{preview.rationale}</p>
+
+                {preview.limitations.length > 0 ? (
+                  <div className="space-y-1">
+                    {preview.limitations.map((limitation) => (
+                      <p key={limitation} className="text-sm text-muted-foreground">
+                        {limitation}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="rounded-2xl border border-border/80 bg-background/80 p-3">
+                  <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-foreground">
+                    <code>{JSON.stringify(preview.draftRule, null, 2)}</code>
+                  </pre>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

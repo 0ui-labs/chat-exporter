@@ -11,7 +11,11 @@ import type {
   AdjustmentSelection,
   ViewMode
 } from "@/components/format-workspace/types";
-import { appendAdjustmentMessage, createAdjustmentSession } from "@/lib/api";
+import {
+  appendAdjustmentMessage,
+  createAdjustmentSession,
+  generateAdjustmentPreview
+} from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -121,6 +125,12 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [previewingByView, setPreviewingByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
   const [selectionByView, setSelectionByView] = useState<Record<ViewMode, AdjustmentSelection | null>>({
     reader: null,
     markdown: null,
@@ -137,6 +147,7 @@ export function FormatWorkspace({
   const activeSelection = selectionByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
+  const isPreviewing = previewingByView[view];
 
   useEffect(() => {
     if (!isAdjustableView && isAdjustModeEnabled) {
@@ -302,6 +313,41 @@ export function FormatWorkspace({
     }
   }
 
+  async function handleGeneratePreview() {
+    if (!activeSessionDetail) {
+      return;
+    }
+
+    setPreviewingByView((current) => ({
+      ...current,
+      [view]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    try {
+      const nextDetail = await generateAdjustmentPreview(activeSessionDetail.session.id);
+
+      setSessionDetailByView((current) => ({
+        ...current,
+        [view]: nextDetail
+      }));
+    } catch (error) {
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]:
+          error instanceof Error ? error.message : "Adjustment preview could not be generated."
+      }));
+    } finally {
+      setPreviewingByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -384,8 +430,10 @@ export function FormatWorkspace({
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isLoading={activeSessionLoading}
+              isPreviewing={isPreviewing}
               isSubmitting={isSubmittingMessage}
               onDraftMessageChange={handleDraftMessageChange}
+              onGeneratePreview={handleGeneratePreview}
               onSubmitMessage={handleSubmitMessage}
               selection={activeSelection}
               sessionDetail={activeSessionDetail}

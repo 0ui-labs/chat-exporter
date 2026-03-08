@@ -1,5 +1,6 @@
 import type {
   AdjustmentMessage,
+  AdjustmentPreview,
   AdjustmentSession,
   AdjustmentSessionDetail,
   AdjustmentSelection,
@@ -113,6 +114,15 @@ const listAdjustmentMessagesStatement = db.prepare<unknown[], AdjustmentMessageR
 const updateAdjustmentSessionTimestampStatement = db.prepare(`
   UPDATE adjustment_sessions
   SET updated_at = @updated_at
+  WHERE id = @id
+`);
+
+const updateAdjustmentSessionPreviewStatement = db.prepare(`
+  UPDATE adjustment_sessions
+  SET
+    status = @status,
+    preview_artifact_json = @preview_artifact_json,
+    updated_at = @updated_at
   WHERE id = @id
 `);
 
@@ -233,6 +243,17 @@ export function appendAdjustmentMessage(sessionId: string, role: Role, content: 
 
   const row = listAdjustmentMessagesStatement.all(sessionId).at(-1);
   return row ? deserializeAdjustmentMessage(row) : undefined;
+}
+
+export function saveAdjustmentPreview(sessionId: string, preview: AdjustmentPreview) {
+  const timestamp = now();
+
+  updateAdjustmentSessionPreviewStatement.run({
+    id: sessionId,
+    status: "preview_ready",
+    preview_artifact_json: JSON.stringify(preview),
+    updated_at: timestamp
+  });
 }
 
 export function listAdjustmentMessages(sessionId: string) {

@@ -6,9 +6,11 @@ import {
 } from "@chat-exporter/shared";
 
 import { buildAdjustmentAssistantReply } from "../lib/adjustment-assistant.js";
+import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
 import {
   appendAdjustmentMessage,
-  getAdjustmentSessionDetail
+  getAdjustmentSessionDetail,
+  saveAdjustmentPreview
 } from "../lib/adjustment-repository.js";
 
 export const adjustmentSessionsRoute = new Hono()
@@ -74,4 +76,44 @@ export const adjustmentSessionsRoute = new Hono()
     }
 
     return c.json(adjustmentSessionDetailSchema.parse(nextDetail), 201);
+  })
+  .post("/:id/preview", (c) => {
+    const sessionId = c.req.param("id");
+    const detail = getAdjustmentSessionDetail(sessionId);
+
+    if (!detail) {
+      return c.json(
+        {
+          message: "Adjustment session not found."
+        },
+        404
+      );
+    }
+
+    try {
+      const preview = buildAdjustmentPreview(detail);
+      saveAdjustmentPreview(sessionId, preview);
+      const nextDetail = getAdjustmentSessionDetail(sessionId);
+
+      if (!nextDetail) {
+        return c.json(
+          {
+            message: "Adjustment session could not be reloaded."
+          },
+          500
+        );
+      }
+
+      return c.json(adjustmentSessionDetailSchema.parse(nextDetail));
+    } catch (error) {
+      return c.json(
+        {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Adjustment preview could not be generated."
+        },
+        400
+      );
+    }
   });
