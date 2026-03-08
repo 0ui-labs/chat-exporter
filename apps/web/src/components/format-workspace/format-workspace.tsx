@@ -5,6 +5,7 @@ import type { ImportJob } from "@chat-exporter/shared";
 
 import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
+import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
 import type {
   AdjustmentSelection,
@@ -204,6 +205,13 @@ export function FormatWorkspace({
               adjustModeEnabled={isAdjustModeEnabled}
               selectedBlock={view === "reader" ? activeSelection : null}
               onSelectBlock={handleSelectionChange}
+            />
+          ) : view === "markdown" ? (
+            <MarkdownView
+              content={artifact}
+              adjustModeEnabled={isAdjustModeEnabled}
+              selectedRange={activeSelection}
+              onSelectLines={handleSelectionChange}
             />
           ) : (
             <ArtifactView content={artifact} />

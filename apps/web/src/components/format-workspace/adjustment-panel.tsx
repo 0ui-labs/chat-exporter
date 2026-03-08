@@ -43,7 +43,9 @@ export function AdjustmentPanel({ selection, view }: AdjustmentPanelProps) {
               Current selection
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {selection.messageRole} message {selection.messageIndex + 1} · {selection.blockType}
+              {selection.lineStart && selection.lineEnd
+                ? `markdown lines ${selection.lineStart}-${selection.lineEnd}`
+                : `${selection.messageRole} message ${selection.messageIndex + 1} · ${selection.blockType}`}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">{selection.textQuote}</p>
           </div>
