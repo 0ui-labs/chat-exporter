@@ -5,6 +5,7 @@ import {
   appendAdjustmentMessageRequestSchema
 } from "@chat-exporter/shared";
 
+import { buildAdjustmentAssistantReply } from "../lib/adjustment-assistant.js";
 import {
   appendAdjustmentMessage,
   getAdjustmentSessionDetail
@@ -51,7 +52,16 @@ export const adjustmentSessionsRoute = new Hono()
       );
     }
 
-    appendAdjustmentMessage(sessionId, parsed.data.content);
+    appendAdjustmentMessage(sessionId, "user", parsed.data.content);
+    appendAdjustmentMessage(
+      sessionId,
+      "assistant",
+      buildAdjustmentAssistantReply({
+        selection: detail.session.selection,
+        targetFormat: detail.session.targetFormat,
+        userMessage: parsed.data.content
+      })
+    );
     const nextDetail = getAdjustmentSessionDetail(sessionId);
 
     if (!nextDetail) {

@@ -4,7 +4,8 @@ import type {
   AdjustmentSessionDetail,
   AdjustmentSelection,
   AdjustmentTargetFormat,
-  FormatRule
+  FormatRule,
+  Role
 } from "@chat-exporter/shared";
 import {
   adjustmentMessageSchema,
@@ -214,13 +215,13 @@ export function listAdjustmentSessions(importId: string, targetFormat?: Adjustme
   return rows.map(deserializeAdjustmentSession);
 }
 
-export function appendAdjustmentMessage(sessionId: string, content: string) {
+export function appendAdjustmentMessage(sessionId: string, role: Role, content: string) {
   const timestamp = now();
 
   insertAdjustmentMessageStatement.run({
     id: crypto.randomUUID(),
     session_id: sessionId,
-    role: "user",
+    role,
     content,
     created_at: timestamp
   });
