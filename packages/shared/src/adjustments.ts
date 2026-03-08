@@ -41,6 +41,16 @@ export const formatRuleStatusSchema = z.enum([
   "rejected"
 ]);
 
+export const adjustmentEventTypeSchema = z.enum([
+  "session_created",
+  "clarification_requested",
+  "preview_generated",
+  "preview_failed",
+  "rule_applied",
+  "rule_disabled",
+  "session_discarded"
+]);
+
 export const adjustmentSelectionSchema = z.object({
   blockIndex: z.number().int().nonnegative(),
   blockType: z.string(),
@@ -120,11 +130,27 @@ export const formatRuleSchema = z.object({
   updatedAt: z.string()
 });
 
+export const adjustmentMetricsSchema = z.object({
+  counts: z.object({
+    clarifications: z.number().int().nonnegative(),
+    previewFailures: z.number().int().nonnegative(),
+    previewsGenerated: z.number().int().nonnegative(),
+    rulesApplied: z.number().int().nonnegative(),
+    rulesDisabled: z.number().int().nonnegative(),
+    sessionsCreated: z.number().int().nonnegative(),
+    sessionsDiscarded: z.number().int().nonnegative()
+  }),
+  importId: z.string(),
+  targetFormat: adjustmentTargetFormatSchema,
+  updatedAt: z.string().nullable()
+});
+
 export type AdjustmentTargetFormat = z.infer<typeof adjustmentTargetFormatSchema>;
 export type AdjustmentSessionStatus = z.infer<typeof adjustmentSessionStatusSchema>;
 export type FormatRuleKind = z.infer<typeof formatRuleKindSchema>;
 export type FormatRuleScope = z.infer<typeof formatRuleScopeSchema>;
 export type FormatRuleStatus = z.infer<typeof formatRuleStatusSchema>;
+export type AdjustmentEventType = z.infer<typeof adjustmentEventTypeSchema>;
 export type AdjustmentSelection = z.infer<typeof adjustmentSelectionSchema>;
 export type CreateAdjustmentSessionRequest = z.infer<typeof createAdjustmentSessionRequestSchema>;
 export type AppendAdjustmentMessageRequest = z.infer<typeof appendAdjustmentMessageRequestSchema>;
@@ -134,3 +160,4 @@ export type AdjustmentMessage = z.infer<typeof adjustmentMessageSchema>;
 export type AdjustmentSessionDetail = z.infer<typeof adjustmentSessionDetailSchema>;
 export type ApplyAdjustmentSessionResponse = z.infer<typeof applyAdjustmentSessionResponseSchema>;
 export type FormatRule = z.infer<typeof formatRuleSchema>;
+export type AdjustmentMetrics = z.infer<typeof adjustmentMetricsSchema>;

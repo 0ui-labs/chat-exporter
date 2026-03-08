@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
 import type {
+  AdjustmentMetrics,
   AdjustmentSessionDetail,
   FormatRule,
   ImportJob
@@ -19,6 +20,7 @@ import type {
 } from "@/components/format-workspace/types";
 import {
   getAdjustmentSessionDetail,
+  getAdjustmentMetrics,
   applyAdjustmentSession,
   appendAdjustmentMessage,
   createAdjustmentSession,
@@ -61,6 +63,32 @@ function getRuleLabel(rule: FormatRule) {
   }
 
   return `${summary.slice(0, 69).trimEnd()}...`;
+}
+
+function formatMetricsSummary(metrics: AdjustmentMetrics) {
+  const parts: string[] = [];
+
+  if (metrics.counts.rulesApplied > 0) {
+    parts.push(`${metrics.counts.rulesApplied} applied`);
+  }
+
+  if (metrics.counts.rulesDisabled > 0) {
+    parts.push(`${metrics.counts.rulesDisabled} undone`);
+  }
+
+  if (metrics.counts.sessionsDiscarded > 0) {
+    parts.push(`${metrics.counts.sessionsDiscarded} discarded`);
+  }
+
+  if (metrics.counts.clarifications > 0) {
+    parts.push(`${metrics.counts.clarifications} clarifications`);
+  }
+
+  if (metrics.counts.previewFailures > 0) {
+    parts.push(`${metrics.counts.previewFailures} preview failures`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "No adjustments applied in this format yet.";
 }
 
 function describeSelectionLabel(selection: AdjustmentSelection) {
@@ -194,6 +222,12 @@ export function FormatWorkspace({
     handover: null,
     json: null
   });
+  const [metricsByView, setMetricsByView] = useState<Record<ViewMode, AdjustmentMetrics | null>>({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
   const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
     reader: [],
     markdown: [],
@@ -229,6 +263,7 @@ export function FormatWorkspace({
     ? Boolean(loadingExplanationBySessionId[explainedSessionId])
     : false;
   const explainedRuleError = ruleExplanationErrorByView[view];
+  const activeMetrics = metricsByView[view];
   const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isApplying = applyingByView[view];
   const isDiscarding = discardingByView[view];
@@ -245,6 +280,25 @@ export function FormatWorkspace({
         selection={activeSessionDetail.session.selection}
       />
     ) : null;
+
+  async function refreshAdjustmentMetrics(targetView: ViewMode) {
+    if (!adjustableViews.has(targetView)) {
+      return;
+    }
+
+    try {
+      const metrics = await getAdjustmentMetrics(job.id, targetView);
+      setMetricsByView((current) => ({
+        ...current,
+        [targetView]: metrics
+      }));
+    } catch {
+      setMetricsByView((current) => ({
+        ...current,
+        [targetView]: null
+      }));
+    }
+  }
 
   useEffect(() => {
     if (!isAdjustableView && isAdjustModeEnabled) {
@@ -290,6 +344,14 @@ export function FormatWorkspace({
   }, [isAdjustableView, job.id, view]);
 
   useEffect(() => {
+    if (!isAdjustableView) {
+      return;
+    }
+
+    void refreshAdjustmentMetrics(view);
+  }, [isAdjustableView, job.id, view]);
+
+  useEffect(() => {
     if (!isAdjustModeEnabled || !isAdjustableView || !activeSelection) {
       return;
     }
@@ -332,6 +394,7 @@ export function FormatWorkspace({
           ...current,
           [view]: nextSelectionKey
         }));
+        void refreshAdjustmentMetrics(view);
       })
       .catch((error) => {
         if (cancelled) {
@@ -449,6 +512,7 @@ export function FormatWorkspace({
         ...current,
         [view]: nextDetail
       }));
+      void refreshAdjustmentMetrics(view);
       setDraftMessageByView((current) => ({
         ...current,
         [view]: ""
@@ -488,12 +552,14 @@ export function FormatWorkspace({
         ...current,
         [view]: nextDetail
       }));
+      void refreshAdjustmentMetrics(view);
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
           error instanceof Error ? error.message : "Adjustment preview could not be generated."
       }));
+      void refreshAdjustmentMetrics(view);
     } finally {
       setPreviewingByView((current) => ({
         ...current,
@@ -530,6 +596,7 @@ export function FormatWorkspace({
         ...current,
         [view]: [result.rule, ...current[view]]
       }));
+      void refreshAdjustmentMetrics(view);
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
@@ -562,6 +629,7 @@ export function FormatWorkspace({
     try {
       await discardAdjustmentSession(activeSessionDetail.session.id);
       clearCurrentAdjustmentState();
+      void refreshAdjustmentMetrics(view);
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
@@ -601,6 +669,7 @@ export function FormatWorkspace({
         ...current,
         [view]: null
       }));
+      void refreshAdjustmentMetrics(view);
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
@@ -745,6 +814,12 @@ export function FormatWorkspace({
               </Button>
             ) : null}
           </div>
+
+          {isAdjustableView && activeMetrics ? (
+            <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-3 text-sm text-muted-foreground">
+              {formatMetricsSummary(activeMetrics)}
+            </div>
+          ) : null}
 
           {activeRuleChips.length > 0 ? (
             <div className="flex flex-wrap gap-2">

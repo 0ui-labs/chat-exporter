@@ -1,4 +1,5 @@
 import {
+  adjustmentMetricsSchema,
   applyAdjustmentSessionResponseSchema,
   adjustmentSessionDetailSchema,
   createAdjustmentSessionRequestSchema,
@@ -10,6 +11,7 @@ import {
   importSnapshotSchema,
   type ApplyAdjustmentSessionResponse,
   type AdjustmentSessionDetail,
+  type AdjustmentMetrics,
   type AppendAdjustmentMessageRequest,
   type FormatRule,
   type CreateAdjustmentSessionRequest,
@@ -225,4 +227,23 @@ export async function getFormatRules(
 
   const payload = (await response.json()) as unknown[];
   return payload.map((rule) => formatRuleSchema.parse(rule));
+}
+
+export async function getAdjustmentMetrics(
+  importId: string,
+  targetFormat: "reader" | "markdown" | "handover" | "json"
+): Promise<AdjustmentMetrics> {
+  const parsedTargetFormat = adjustmentTargetFormatSchema.parse(targetFormat);
+  const response = await fetch(
+    `/api/imports/${importId}/adjustment-metrics?format=${parsedTargetFormat}`
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string" ? body.message : "Adjustment metrics could not be loaded.";
+    throw new Error(message);
+  }
+
+  return adjustmentMetricsSchema.parse(await response.json());
 }

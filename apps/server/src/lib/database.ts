@@ -101,4 +101,20 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_format_rules_import_id
     ON format_rules (import_id, target_format, status, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS adjustment_events (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    session_id TEXT REFERENCES adjustment_sessions(id) ON DELETE SET NULL,
+    rule_id TEXT REFERENCES format_rules(id) ON DELETE SET NULL,
+    target_format TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload_json TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_adjustment_events_import_id
+    ON adjustment_events (import_id, target_format, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_adjustment_events_session_id
+    ON adjustment_events (session_id, created_at DESC);
 `);

@@ -1,4 +1,6 @@
 import type {
+  AdjustmentEventType,
+  AdjustmentMetrics,
   AdjustmentMessage,
   AdjustmentPreview,
   AdjustmentSession,
@@ -9,6 +11,7 @@ import type {
   Role
 } from "@chat-exporter/shared";
 import {
+  adjustmentMetricsSchema,
   adjustmentMessageSchema,
   adjustmentSessionDetailSchema,
   adjustmentSessionSchema,
@@ -51,10 +54,30 @@ type FormatRuleRow = {
   updated_at: string;
 };
 
+type AdjustmentMetricsRow = {
+  clarifications: number | null;
+  preview_failures: number | null;
+  previews_generated: number | null;
+  rules_applied: number | null;
+  rules_disabled: number | null;
+  sessions_created: number | null;
+  sessions_discarded: number | null;
+  updated_at: string | null;
+};
+
 type CreateAdjustmentSessionInput = {
   importId: string;
   selection: AdjustmentSelection;
   targetFormat: AdjustmentTargetFormat;
+};
+
+type RecordAdjustmentEventInput = {
+  importId: string;
+  payload?: unknown;
+  ruleId?: string;
+  sessionId?: string;
+  targetFormat: AdjustmentTargetFormat;
+  type: AdjustmentEventType;
 };
 
 const insertAdjustmentSessionStatement = db.prepare(`
@@ -164,6 +187,28 @@ const insertFormatRuleStatement = db.prepare(`
   )
 `);
 
+const insertAdjustmentEventStatement = db.prepare(`
+  INSERT INTO adjustment_events (
+    id,
+    import_id,
+    session_id,
+    rule_id,
+    target_format,
+    event_type,
+    payload_json,
+    created_at
+  ) VALUES (
+    @id,
+    @import_id,
+    @session_id,
+    @rule_id,
+    @target_format,
+    @event_type,
+    @payload_json,
+    @created_at
+  )
+`);
+
 const selectFormatRuleStatement = db.prepare<unknown[], FormatRuleRow>(
   `SELECT * FROM format_rules WHERE id = ?`
 );
@@ -183,6 +228,23 @@ const listFormatRulesStatement = db.prepare<unknown[], FormatRuleRow>(
 const listFormatRulesByFormatStatement = db.prepare<unknown[], FormatRuleRow>(
   `SELECT * FROM format_rules WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`
 );
+
+const summarizeAdjustmentMetricsStatement = db.prepare<
+  [string, string],
+  AdjustmentMetricsRow
+>(`
+  SELECT
+    SUM(CASE WHEN event_type = 'session_created' THEN 1 ELSE 0 END) AS sessions_created,
+    SUM(CASE WHEN event_type = 'clarification_requested' THEN 1 ELSE 0 END) AS clarifications,
+    SUM(CASE WHEN event_type = 'preview_generated' THEN 1 ELSE 0 END) AS previews_generated,
+    SUM(CASE WHEN event_type = 'preview_failed' THEN 1 ELSE 0 END) AS preview_failures,
+    SUM(CASE WHEN event_type = 'rule_applied' THEN 1 ELSE 0 END) AS rules_applied,
+    SUM(CASE WHEN event_type = 'rule_disabled' THEN 1 ELSE 0 END) AS rules_disabled,
+    SUM(CASE WHEN event_type = 'session_discarded' THEN 1 ELSE 0 END) AS sessions_discarded,
+    MAX(created_at) AS updated_at
+  FROM adjustment_events
+  WHERE import_id = ? AND target_format = ?
+`);
 
 function now() {
   return new Date().toISOString();
@@ -236,6 +298,25 @@ function deserializeFormatRule(row: FormatRuleRow): FormatRule {
   });
 }
 
+function toCount(value: number | null) {
+  return value ?? 0;
+}
+
+export function recordAdjustmentEvent(input: RecordAdjustmentEventInput) {
+  const timestamp = now();
+
+  insertAdjustmentEventStatement.run({
+    id: crypto.randomUUID(),
+    import_id: input.importId,
+    session_id: input.sessionId ?? null,
+    rule_id: input.ruleId ?? null,
+    target_format: input.targetFormat,
+    event_type: input.type,
+    payload_json: input.payload === undefined ? null : JSON.stringify(input.payload),
+    created_at: timestamp
+  });
+}
+
 export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
   const timestamp = now();
   const session: AdjustmentSession = adjustmentSessionSchema.parse({
@@ -257,6 +338,13 @@ export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
     preview_artifact_json: null,
     created_at: session.createdAt,
     updated_at: session.updatedAt
+  });
+
+  recordAdjustmentEvent({
+    importId: session.importId,
+    sessionId: session.id,
+    targetFormat: session.targetFormat,
+    type: "session_created"
   });
 
   return session;
@@ -364,6 +452,14 @@ export function applyAdjustmentPreview(sessionId: string) {
     throw new Error("Adjustment session could not be reloaded.");
   }
 
+  recordAdjustmentEvent({
+    importId: session.importId,
+    ruleId: rule.id,
+    sessionId: session.id,
+    targetFormat: session.targetFormat,
+    type: "rule_applied"
+  });
+
   return {
     rule,
     session: nextSession
@@ -399,6 +495,13 @@ export function discardAdjustmentSession(sessionId: string) {
     throw new Error("Adjustment session could not be reloaded.");
   }
 
+  recordAdjustmentEvent({
+    importId: session.importId,
+    sessionId: session.id,
+    targetFormat: session.targetFormat,
+    type: "session_discarded"
+  });
+
   return nextDetail;
 }
 
@@ -430,6 +533,28 @@ export function listFormatRules(importId: string, targetFormat?: AdjustmentTarge
     : listFormatRulesStatement.all(importId);
 
   return rows.map(deserializeFormatRule);
+}
+
+export function getAdjustmentMetrics(
+  importId: string,
+  targetFormat: AdjustmentTargetFormat
+): AdjustmentMetrics {
+  const row = summarizeAdjustmentMetricsStatement.get(importId, targetFormat);
+
+  return adjustmentMetricsSchema.parse({
+    counts: {
+      clarifications: toCount(row?.clarifications ?? 0),
+      previewFailures: toCount(row?.preview_failures ?? 0),
+      previewsGenerated: toCount(row?.previews_generated ?? 0),
+      rulesApplied: toCount(row?.rules_applied ?? 0),
+      rulesDisabled: toCount(row?.rules_disabled ?? 0),
+      sessionsCreated: toCount(row?.sessions_created ?? 0),
+      sessionsDiscarded: toCount(row?.sessions_discarded ?? 0)
+    },
+    importId,
+    targetFormat,
+    updatedAt: row?.updated_at ?? null
+  });
 }
 
 export function updateFormatRuleStatus(ruleId: string, status: FormatRule["status"]) {
@@ -467,5 +592,15 @@ export function disableFormatRule(ruleId: string) {
     throw new Error("Only active rules can be disabled.");
   }
 
-  return updateFormatRuleStatus(ruleId, "disabled");
+  const nextRule = updateFormatRuleStatus(ruleId, "disabled");
+
+  recordAdjustmentEvent({
+    importId: nextRule.importId,
+    ruleId: nextRule.id,
+    sessionId: nextRule.sourceSessionId,
+    targetFormat: nextRule.targetFormat,
+    type: "rule_disabled"
+  });
+
+  return nextRule;
 }

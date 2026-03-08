@@ -13,6 +13,7 @@ import {
   appendAdjustmentMessage,
   discardAdjustmentSession,
   getAdjustmentSessionDetail,
+  recordAdjustmentEvent,
   saveAdjustmentPreview
 } from "../lib/adjustment-repository.js";
 
@@ -67,6 +68,12 @@ export const adjustmentSessionsRoute = new Hono()
         userMessage: parsed.data.content
       })
     );
+    recordAdjustmentEvent({
+      importId: detail.session.importId,
+      sessionId,
+      targetFormat: detail.session.targetFormat,
+      type: "clarification_requested"
+    });
     const nextDetail = getAdjustmentSessionDetail(sessionId);
 
     if (!nextDetail) {
@@ -96,6 +103,12 @@ export const adjustmentSessionsRoute = new Hono()
     try {
       const preview = buildAdjustmentPreview(detail);
       saveAdjustmentPreview(sessionId, preview);
+      recordAdjustmentEvent({
+        importId: detail.session.importId,
+        sessionId,
+        targetFormat: detail.session.targetFormat,
+        type: "preview_generated"
+      });
       const nextDetail = getAdjustmentSessionDetail(sessionId);
 
       if (!nextDetail) {
@@ -109,6 +122,18 @@ export const adjustmentSessionsRoute = new Hono()
 
       return c.json(adjustmentSessionDetailSchema.parse(nextDetail));
     } catch (error) {
+      recordAdjustmentEvent({
+        importId: detail.session.importId,
+        payload: {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Adjustment preview could not be generated."
+        },
+        sessionId,
+        targetFormat: detail.session.targetFormat,
+        type: "preview_failed"
+      });
       return c.json(
         {
           message:

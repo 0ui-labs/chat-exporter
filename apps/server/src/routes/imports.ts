@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import {
+  adjustmentMetricsSchema,
   adjustmentSessionDetailSchema,
   adjustmentTargetFormatSchema,
   createAdjustmentSessionRequestSchema,
@@ -12,6 +13,7 @@ import {
 import {
   createAdjustmentSession,
   getAdjustmentSessionDetail,
+  getAdjustmentMetrics,
   listAdjustmentSessions,
   appendAdjustmentMessage,
   listFormatRules
@@ -185,6 +187,34 @@ export const importsRoute = new Hono()
     }
 
     return c.json(listFormatRules(importId, parsedFormat?.data).map((rule) => formatRuleSchema.parse(rule)));
+  })
+  .get("/:id/adjustment-metrics", (c) => {
+    const importId = c.req.param("id");
+    const job = getImportJob(importId);
+
+    if (!job) {
+      return c.json(
+        {
+          message: "Import job not found."
+        },
+        404
+      );
+    }
+
+    const formatQuery = c.req.query("format");
+    const parsedFormat = adjustmentTargetFormatSchema.safeParse(formatQuery);
+
+    if (!parsedFormat.success) {
+      return c.json(
+        {
+          message: "Unsupported adjustment metrics target.",
+          issues: parsedFormat.error.flatten()
+        },
+        400
+      );
+    }
+
+    return c.json(adjustmentMetricsSchema.parse(getAdjustmentMetrics(importId, parsedFormat.data)));
   })
   .get("/:id/snapshot", (c) => {
     const snapshot = getPersistedImportSnapshot(c.req.param("id"));
