@@ -13,9 +13,11 @@ import {
   appendAdjustmentMessage,
   discardAdjustmentSession,
   getAdjustmentSessionDetail,
+  listFormatRules,
   recordAdjustmentEvent,
   saveAdjustmentPreview
 } from "../lib/adjustment-repository.js";
+import { getImportJob } from "../lib/import-store.js";
 
 export const adjustmentSessionsRoute = new Hono()
   .get("/:id", (c) => {
@@ -87,7 +89,7 @@ export const adjustmentSessionsRoute = new Hono()
 
     return c.json(adjustmentSessionDetailSchema.parse(nextDetail), 201);
   })
-  .post("/:id/preview", (c) => {
+  .post("/:id/preview", async (c) => {
     const sessionId = c.req.param("id");
     const detail = getAdjustmentSessionDetail(sessionId);
 
@@ -101,7 +103,15 @@ export const adjustmentSessionsRoute = new Hono()
     }
 
     try {
-      const preview = buildAdjustmentPreview(detail);
+      const job = getImportJob(detail.session.importId);
+      const activeRules = listFormatRules(detail.session.importId, detail.session.targetFormat).filter(
+        (rule) => rule.status === "active"
+      );
+      const preview = await buildAdjustmentPreview({
+        activeRules,
+        job,
+        sessionDetail: detail
+      });
       saveAdjustmentPreview(sessionId, preview);
       recordAdjustmentEvent({
         importId: detail.session.importId,

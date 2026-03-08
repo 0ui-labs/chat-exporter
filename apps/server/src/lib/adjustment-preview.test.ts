@@ -4,11 +4,28 @@ import test from "node:test";
 import type {
   AdjustmentSelection,
   AdjustmentSessionDetail,
-  AdjustmentTargetFormat,
+  FormatRule,
+  ImportJob,
   Role
 } from "@chat-exporter/shared";
 
-import { buildAdjustmentPreview } from "./adjustment-preview.js";
+import {
+  conversationToHandover,
+  conversationToMarkdown,
+  conversationWordCount
+} from "./conversation-artifacts.js";
+import {
+  buildAdjustmentPreview,
+  buildDeterministicAdjustmentPreview
+} from "./adjustment-preview.js";
+
+const compilerEnvKeys = [
+  "ADJUSTMENT_RULE_COMPILATION_ENABLED",
+  "ADJUSTMENT_RULE_COMPILATION_PROVIDER",
+  "ADJUSTMENT_RULE_COMPILATION_MODEL",
+  "OPENAI_API_KEY",
+  "OPENAI_API_BASE_URL"
+] as const;
 
 function createSelection(overrides: Partial<AdjustmentSelection> = {}): AdjustmentSelection {
   return {
@@ -25,7 +42,7 @@ function createSelection(overrides: Partial<AdjustmentSelection> = {}): Adjustme
 
 function createSessionDetail(params: {
   selection: AdjustmentSelection;
-  targetFormat: AdjustmentTargetFormat;
+  targetFormat: "reader" | "markdown";
   userMessage: string;
 }): AdjustmentSessionDetail {
   const { selection, targetFormat, userMessage } = params;
@@ -59,8 +76,82 @@ function createSessionDetail(params: {
   };
 }
 
+function createImportJob(): ImportJob {
+  const conversation = {
+    id: "conversation-1",
+    title: "Adjustment preview test fixture",
+    source: {
+      platform: "chatgpt" as const,
+      url: "https://chatgpt.com/share/preview-test"
+    },
+    messages: [
+      {
+        blocks: [
+          {
+            text: "Please draft the rollout checklist.",
+            type: "paragraph" as const
+          }
+        ],
+        id: "user-1",
+        role: "user" as const
+      },
+      {
+        blocks: [
+          {
+            level: 2,
+            text: "Project plan",
+            type: "heading" as const
+          },
+          {
+            text: "Important: check the logs before deploying.",
+            type: "paragraph" as const
+          }
+        ],
+        id: "assistant-1",
+        role: "assistant" as const
+      }
+    ]
+  };
+  const createdAt = "2026-03-08T12:00:00.000Z";
+
+  return {
+    artifacts: {
+      handover: conversationToHandover(conversation),
+      json: JSON.stringify(conversation, null, 2),
+      markdown: conversationToMarkdown(conversation)
+    },
+    conversation,
+    createdAt,
+    currentStage: "done",
+    id: "import-1",
+    mode: "archive",
+    sourcePlatform: "chatgpt",
+    sourceUrl: conversation.source.url,
+    status: "completed",
+    summary: {
+      messageCount: conversation.messages.length,
+      transcriptWords: conversationWordCount(conversation)
+    },
+    updatedAt: createdAt,
+    warnings: []
+  };
+}
+
+function restoreCompilerEnv(snapshot: Partial<Record<(typeof compilerEnvKeys)[number], string | undefined>>) {
+  for (const key of compilerEnvKeys) {
+    const value = snapshot[key];
+
+    if (value === undefined) {
+      delete process.env[key];
+      continue;
+    }
+
+    process.env[key] = value;
+  }
+}
+
 test("reader heading spacing generalizes to matching block types", () => {
-  const preview = buildAdjustmentPreview(
+  const preview = buildDeterministicAdjustmentPreview(
     createSessionDetail({
       selection: createSelection({
         blockType: "heading",
@@ -86,7 +177,7 @@ test("reader heading spacing generalizes to matching block types", () => {
 });
 
 test("markdown colon labels compile into a reusable inline rule", () => {
-  const preview = buildAdjustmentPreview(
+  const preview = buildDeterministicAdjustmentPreview(
     createSessionDetail({
       selection: createSelection({
         blockIndex: 12,
@@ -114,7 +205,7 @@ test("markdown colon labels compile into a reusable inline rule", () => {
 });
 
 test("markdown size requests are redirected into heading structure with limits", () => {
-  const preview = buildAdjustmentPreview(
+  const preview = buildDeterministicAdjustmentPreview(
     createSessionDetail({
       selection: createSelection({
         blockType: "markdown-lines",
@@ -136,4 +227,173 @@ test("markdown size requests are redirected into heading structure with limits",
     type: "promote_to_heading"
   });
   assert.match(preview.limitations.join(" "), /font sizes are not portable in Markdown/i);
+});
+
+test("preview compilation uses AI output when a provider is configured", async () => {
+  const sessionDetail = createSessionDetail({
+    selection: createSelection({
+      blockIndex: 8,
+      blockType: "markdown-lines",
+      lineEnd: 8,
+      lineStart: 8,
+      messageId: "markdown:8-8",
+      messageRole: "markdown",
+      selectedText: "Important: check the logs",
+      textQuote: "Important: check the logs"
+    }),
+    targetFormat: "markdown",
+    userMessage: "Labels with a colon should always be bold everywhere."
+  });
+  const activeRules: FormatRule[] = [
+    {
+      compiledRule: {
+        type: "adjust_block_spacing"
+      },
+      createdAt: "2026-03-08T12:00:00.000Z",
+      id: "rule-1",
+      importId: "import-1",
+      instruction: "Keep extra space under headings",
+      kind: "render",
+      scope: "import_local",
+      selector: {
+        blockType: "heading",
+        strategy: "block_type"
+      },
+      sourceSessionId: "session-0",
+      status: "active",
+      targetFormat: "markdown",
+      updatedAt: "2026-03-08T12:00:00.000Z"
+    }
+  ];
+  const envSnapshot = Object.fromEntries(
+    compilerEnvKeys.map((key) => [key, process.env[key]])
+  ) as Partial<Record<(typeof compilerEnvKeys)[number], string | undefined>>;
+  const originalFetch = globalThis.fetch;
+
+  process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED = "1";
+  process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER = "openai";
+  process.env.ADJUSTMENT_RULE_COMPILATION_MODEL = "gpt-5-mini";
+  process.env.OPENAI_API_BASE_URL = "https://example.test/v1";
+  process.env.OPENAI_API_KEY = "test-key";
+
+  globalThis.fetch = async (url, init) => {
+    assert.equal(url, "https://example.test/v1/responses");
+    const body = JSON.parse(String(init?.body));
+    const prompt = body.input[1].content[0].text as string;
+
+    assert.match(prompt, /Labels with a colon should always be bold everywhere\./);
+    assert.match(prompt, /Keep extra space under headings/);
+    assert.match(prompt, /Important: check the logs/);
+
+    return new Response(
+      JSON.stringify({
+        output_text: JSON.stringify({
+          draftRule: {
+            effect: {
+              type: "bold_prefix_before_colon"
+            },
+            kind: "inline_semantics",
+            scope: "import_local",
+            selector: {
+              strategy: "prefix_before_colon"
+            }
+          },
+          limitations: [],
+          rationale: "The selected line is a reusable Markdown label pattern.",
+          summary: "Bold label-style prefixes ending with a colon across matching Markdown lines."
+        })
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        status: 200
+      }
+    );
+  };
+
+  try {
+    const preview = await buildAdjustmentPreview({
+      activeRules,
+      job: createImportJob(),
+      sessionDetail
+    });
+
+    assert.equal(preview.summary, "Bold label-style prefixes ending with a colon across matching Markdown lines.");
+    assert.deepEqual(preview.draftRule.selector, {
+      strategy: "prefix_before_colon"
+    });
+    assert.deepEqual(preview.draftRule.effect, {
+      type: "bold_prefix_before_colon"
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreCompilerEnv(envSnapshot);
+  }
+});
+
+test("preview compilation falls back to deterministic rules when AI output is invalid", async () => {
+  const sessionDetail = createSessionDetail({
+    selection: createSelection({
+      blockType: "heading",
+      selectedText: "Project plan",
+      textQuote: "Project plan"
+    }),
+    targetFormat: "reader",
+    userMessage: "Please add more spacing under headings here."
+  });
+  const envSnapshot = Object.fromEntries(
+    compilerEnvKeys.map((key) => [key, process.env[key]])
+  ) as Partial<Record<(typeof compilerEnvKeys)[number], string | undefined>>;
+  const originalFetch = globalThis.fetch;
+
+  process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED = "1";
+  process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER = "openai";
+  process.env.ADJUSTMENT_RULE_COMPILATION_MODEL = "gpt-5-mini";
+  process.env.OPENAI_API_BASE_URL = "https://example.test/v1";
+  process.env.OPENAI_API_KEY = "test-key";
+
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        output_text: JSON.stringify({
+          draftRule: {
+            effect: {
+              type: "not_supported"
+            },
+            kind: "render",
+            scope: "import_local",
+            selector: {
+              messageId: "assistant-1"
+            }
+          },
+          limitations: [],
+          rationale: "Invalid for test fallback.",
+          summary: "Broken rule"
+        })
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        status: 200
+      }
+    );
+
+  try {
+    const preview = await buildAdjustmentPreview({
+      activeRules: [],
+      job: createImportJob(),
+      sessionDetail
+    });
+
+    assert.equal(preview.summary, "Increase spacing around heading blocks in the Reader.");
+    assert.deepEqual(preview.draftRule.selector, {
+      blockType: "heading",
+      strategy: "block_type"
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    restoreCompilerEnv(envSnapshot);
+  }
 });

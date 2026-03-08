@@ -3,9 +3,19 @@ import type {
   AdjustmentSelection,
   AdjustmentSessionDetail,
   AdjustmentTargetFormat,
-  FormatRuleKind
+  FormatRule,
+  FormatRuleKind,
+  ImportJob
 } from "@chat-exporter/shared";
 import { adjustmentPreviewSchema } from "@chat-exporter/shared";
+
+import { compileAdjustmentPreviewWithAi } from "./adjustment-rule-compiler.js";
+
+type BuildAdjustmentPreviewInput = {
+  activeRules: FormatRule[];
+  job?: ImportJob;
+  sessionDetail: AdjustmentSessionDetail;
+};
 
 function mentions(input: string, pattern: RegExp) {
   return pattern.test(input);
@@ -208,7 +218,9 @@ function readerPreview(selection: AdjustmentSelection, userMessage: string): Adj
   });
 }
 
-export function buildAdjustmentPreview(sessionDetail: AdjustmentSessionDetail) {
+export function buildDeterministicAdjustmentPreview(
+  sessionDetail: AdjustmentSessionDetail
+): AdjustmentPreview {
   const lastUserMessage = [...sessionDetail.messages]
     .reverse()
     .find((message) => message.role === "user");
@@ -227,4 +239,23 @@ export function buildAdjustmentPreview(sessionDetail: AdjustmentSessionDetail) {
     sessionId: sessionDetail.session.id,
     targetFormat: sessionDetail.session.targetFormat as AdjustmentTargetFormat
   });
+}
+
+export async function buildAdjustmentPreview(
+  input: BuildAdjustmentPreviewInput
+): Promise<AdjustmentPreview> {
+  try {
+    const compiledPreview = await compileAdjustmentPreviewWithAi(input);
+
+    if (compiledPreview) {
+      return compiledPreview;
+    }
+  } catch (error) {
+    console.warn(
+      "[adjustment-preview] Falling back to deterministic preview compilation.",
+      error
+    );
+  }
+
+  return buildDeterministicAdjustmentPreview(input.sessionDetail);
 }
