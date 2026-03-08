@@ -164,6 +164,18 @@ const insertFormatRuleStatement = db.prepare(`
   )
 `);
 
+const selectFormatRuleStatement = db.prepare<unknown[], FormatRuleRow>(
+  `SELECT * FROM format_rules WHERE id = ?`
+);
+
+const updateFormatRuleStatusStatement = db.prepare(`
+  UPDATE format_rules
+  SET
+    status = @status,
+    updated_at = @updated_at
+  WHERE id = @id
+`);
+
 const listFormatRulesStatement = db.prepare<unknown[], FormatRuleRow>(
   `SELECT * FROM format_rules WHERE import_id = ? ORDER BY created_at DESC`
 );
@@ -362,6 +374,11 @@ export function listAdjustmentMessages(sessionId: string) {
   return listAdjustmentMessagesStatement.all(sessionId).map(deserializeAdjustmentMessage);
 }
 
+export function getFormatRule(ruleId: string) {
+  const row = selectFormatRuleStatement.get(ruleId);
+  return row ? deserializeFormatRule(row) : undefined;
+}
+
 export function getAdjustmentSessionDetail(sessionId: string): AdjustmentSessionDetail | undefined {
   const session = getAdjustmentSession(sessionId);
 
@@ -381,4 +398,42 @@ export function listFormatRules(importId: string, targetFormat?: AdjustmentTarge
     : listFormatRulesStatement.all(importId);
 
   return rows.map(deserializeFormatRule);
+}
+
+export function updateFormatRuleStatus(ruleId: string, status: FormatRule["status"]) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Format rule not found.");
+  }
+
+  const timestamp = now();
+
+  updateFormatRuleStatusStatement.run({
+    id: ruleId,
+    status,
+    updated_at: timestamp
+  });
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Format rule could not be reloaded.");
+  }
+
+  return nextRule;
+}
+
+export function disableFormatRule(ruleId: string) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Format rule not found.");
+  }
+
+  if (existingRule.status !== "active") {
+    throw new Error("Only active rules can be disabled.");
+  }
+
+  return updateFormatRuleStatus(ruleId, "disabled");
 }

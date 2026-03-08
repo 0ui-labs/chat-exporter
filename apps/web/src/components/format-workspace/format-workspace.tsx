@@ -19,6 +19,7 @@ import {
   applyAdjustmentSession,
   appendAdjustmentMessage,
   createAdjustmentSession,
+  disableFormatRule,
   generateAdjustmentPreview,
   getFormatRules
 } from "@/lib/api";
@@ -46,6 +47,16 @@ const outputViews: { value: ViewMode; label: string }[] = [
 ];
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+
+function getRuleLabel(rule: FormatRule) {
+  const summary = rule.instruction.trim();
+
+  if (summary.length <= 72) {
+    return summary;
+  }
+
+  return `${summary.slice(0, 69).trimEnd()}...`;
+}
 
 function applyMarkdownRules(content: string, rules: FormatRule[]) {
   const lines = content.split("\n");
@@ -221,6 +232,7 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [disablingRuleById, setDisablingRuleById] = useState<Record<string, boolean>>({});
   const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
     reader: [],
     markdown: [],
@@ -243,6 +255,7 @@ export function FormatWorkspace({
   const activeSelection = selectionByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
   const activeRules = rulesByView[view];
+  const activeRuleChips = activeRules.filter((rule) => rule.status === "active");
   const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isApplying = applyingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
@@ -523,6 +536,37 @@ export function FormatWorkspace({
     }
   }
 
+  async function handleDisableRule(ruleId: string) {
+    setDisablingRuleById((current) => ({
+      ...current,
+      [ruleId]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    try {
+      const nextRule = await disableFormatRule(ruleId);
+
+      setRulesByView((current) => ({
+        ...current,
+        [view]: current[view].map((rule) => (rule.id === nextRule.id ? nextRule : rule))
+      }));
+    } catch (error) {
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]: error instanceof Error ? error.message : "Format rule could not be disabled."
+      }));
+    } finally {
+      setDisablingRuleById((current) => {
+        const nextState = { ...current };
+        delete nextState[ruleId];
+        return nextState;
+      });
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -600,13 +644,34 @@ export function FormatWorkspace({
             ) : null}
           </div>
 
-          {activeRules.length > 0 ? (
+          {activeRuleChips.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {activeRules.map((rule) => (
-                <Badge key={rule.id} variant="secondary">
-                  {rule.kind}
-                </Badge>
+              {activeRuleChips.map((rule) => (
+                <div
+                  key={rule.id}
+                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-secondary-foreground"
+                >
+                  <span className="max-w-[24rem] truncate font-medium text-foreground">
+                    {getRuleLabel(rule)}
+                  </span>
+                  <button
+                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={Boolean(disablingRuleById[rule.id])}
+                    type="button"
+                    onClick={() => {
+                      void handleDisableRule(rule.id);
+                    }}
+                  >
+                    {disablingRuleById[rule.id] ? "Undoing..." : "Undo"}
+                  </button>
+                </div>
               ))}
+            </div>
+          ) : null}
+
+          {activeSessionError && !isAdjustModeEnabled ? (
+            <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
+              {activeSessionError}
             </div>
           ) : null}
 

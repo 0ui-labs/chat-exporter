@@ -158,6 +158,21 @@ export async function applyAdjustmentSession(
   return applyAdjustmentSessionResponseSchema.parse(await response.json());
 }
 
+export async function disableFormatRule(ruleId: string): Promise<FormatRule> {
+  const response = await fetch(`/api/format-rules/${ruleId}/disable`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string" ? body.message : "Format rule could not be disabled.";
+    throw new Error(message);
+  }
+
+  return formatRuleSchema.parse(await response.json());
+}
+
 export async function getFormatRules(
   importId: string,
   targetFormat: "reader" | "markdown" | "handover" | "json"
