@@ -1,7 +1,13 @@
 import {
+  adjustmentSessionDetailSchema,
+  createAdjustmentSessionRequestSchema,
+  appendAdjustmentMessageRequestSchema,
   importJobSchema,
   importRequestSchema,
   importSnapshotSchema,
+  type AdjustmentSessionDetail,
+  type AppendAdjustmentMessageRequest,
+  type CreateAdjustmentSessionRequest,
   type ImportJob,
   type ImportRequest,
   type ImportSnapshot
@@ -57,4 +63,54 @@ export async function getImportSnapshot(importId: string): Promise<ImportSnapsho
   }
 
   return importSnapshotSchema.parse(await response.json());
+}
+
+export async function createAdjustmentSession(
+  importId: string,
+  payload: CreateAdjustmentSessionRequest
+): Promise<AdjustmentSessionDetail> {
+  const parsedPayload = createAdjustmentSessionRequestSchema.parse(payload);
+  const response = await fetch(`/api/imports/${importId}/adjustment-sessions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(parsedPayload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment session could not be created.";
+    throw new Error(message);
+  }
+
+  return adjustmentSessionDetailSchema.parse(await response.json());
+}
+
+export async function appendAdjustmentMessage(
+  sessionId: string,
+  payload: AppendAdjustmentMessageRequest
+): Promise<AdjustmentSessionDetail> {
+  const parsedPayload = appendAdjustmentMessageRequestSchema.parse(payload);
+  const response = await fetch(`/api/adjustment-sessions/${sessionId}/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(parsedPayload)
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment message could not be saved.";
+    throw new Error(message);
+  }
+
+  return adjustmentSessionDetailSchema.parse(await response.json());
 }

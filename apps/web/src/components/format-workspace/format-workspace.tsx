@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
-import type { ImportJob } from "@chat-exporter/shared";
+import type { AdjustmentSessionDetail, ImportJob } from "@chat-exporter/shared";
 
 import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
@@ -11,6 +11,7 @@ import type {
   AdjustmentSelection,
   ViewMode
 } from "@/components/format-workspace/types";
+import { appendAdjustmentMessage, createAdjustmentSession } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -74,7 +75,47 @@ export function FormatWorkspace({
   view,
   onViewChange
 }: FormatWorkspaceProps) {
+  const [draftMessageByView, setDraftMessageByView] = useState<Record<ViewMode, string>>({
+    reader: "",
+    markdown: "",
+    handover: "",
+    json: ""
+  });
   const [adjustModeByView, setAdjustModeByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
+  const [sessionDetailByView, setSessionDetailByView] = useState<
+    Record<ViewMode, AdjustmentSessionDetail | null>
+  >({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
+  const [sessionErrorByView, setSessionErrorByView] = useState<Record<ViewMode, string | null>>({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
+  const [sessionLoadingByView, setSessionLoadingByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
+  const [sessionSelectionKeyByView, setSessionSelectionKeyByView] = useState<
+    Record<ViewMode, string | null>
+  >({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
+  const [submittingMessageByView, setSubmittingMessageByView] = useState<Record<ViewMode, boolean>>({
     reader: false,
     markdown: false,
     handover: false,
@@ -89,7 +130,13 @@ export function FormatWorkspace({
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
   const isAdjustableView = adjustableViews.has(view);
   const isAdjustModeEnabled = adjustModeByView[view];
+  const activeDraftMessage = draftMessageByView[view];
+  const activeSessionDetail = sessionDetailByView[view];
+  const activeSessionError = sessionErrorByView[view];
+  const activeSessionLoading = sessionLoadingByView[view];
   const activeSelection = selectionByView[view];
+  const activeSelectionKey = sessionSelectionKeyByView[view];
+  const isSubmittingMessage = submittingMessageByView[view];
 
   useEffect(() => {
     if (!isAdjustableView && isAdjustModeEnabled) {
@@ -99,6 +146,87 @@ export function FormatWorkspace({
       }));
     }
   }, [isAdjustModeEnabled, isAdjustableView, view]);
+
+  useEffect(() => {
+    if (!isAdjustModeEnabled || !isAdjustableView || !activeSelection) {
+      return;
+    }
+
+    const nextSelectionKey = JSON.stringify(activeSelection);
+
+    if (
+      activeSelectionKey === nextSelectionKey &&
+      activeSessionDetail &&
+      activeSessionDetail.session.importId === job.id
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    setSessionLoadingByView((current) => ({
+      ...current,
+      [view]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    void createAdjustmentSession(job.id, {
+      selection: activeSelection,
+      targetFormat: view
+    })
+      .then((detail) => {
+        if (cancelled) {
+          return;
+        }
+
+        setSessionDetailByView((current) => ({
+          ...current,
+          [view]: detail
+        }));
+        setSessionSelectionKeyByView((current) => ({
+          ...current,
+          [view]: nextSelectionKey
+        }));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setSessionErrorByView((current) => ({
+          ...current,
+          [view]:
+            error instanceof Error
+              ? error.message
+              : "Adjustment session could not be created."
+        }));
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setSessionLoadingByView((current) => ({
+          ...current,
+          [view]: false
+        }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeSelection,
+    activeSelectionKey,
+    activeSessionDetail,
+    isAdjustModeEnabled,
+    isAdjustableView,
+    job.id,
+    view
+  ]);
 
   function toggleAdjustMode() {
     if (!isAdjustableView) {
@@ -116,6 +244,62 @@ export function FormatWorkspace({
       ...current,
       [view]: selection
     }));
+  }
+
+  function handleDraftMessageChange(value: string) {
+    setDraftMessageByView((current) => ({
+      ...current,
+      [view]: value
+    }));
+  }
+
+  async function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activeSessionDetail) {
+      return;
+    }
+
+    const content = activeDraftMessage.trim();
+
+    if (!content) {
+      return;
+    }
+
+    setSubmittingMessageByView((current) => ({
+      ...current,
+      [view]: true
+    }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    try {
+      const nextDetail = await appendAdjustmentMessage(activeSessionDetail.session.id, {
+        content
+      });
+
+      setSessionDetailByView((current) => ({
+        ...current,
+        [view]: nextDetail
+      }));
+      setDraftMessageByView((current) => ({
+        ...current,
+        [view]: ""
+      }));
+    } catch (error) {
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]:
+          error instanceof Error ? error.message : "Adjustment message could not be saved."
+      }));
+    } finally {
+      setSubmittingMessageByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
   }
 
   return (
@@ -196,7 +380,17 @@ export function FormatWorkspace({
           </div>
 
           {isAdjustModeEnabled ? (
-            <AdjustmentPanel selection={activeSelection} view={view} />
+            <AdjustmentPanel
+              draftMessage={activeDraftMessage}
+              error={activeSessionError}
+              isLoading={activeSessionLoading}
+              isSubmitting={isSubmittingMessage}
+              onDraftMessageChange={handleDraftMessageChange}
+              onSubmitMessage={handleSubmitMessage}
+              selection={activeSelection}
+              sessionDetail={activeSessionDetail}
+              view={view}
+            />
           ) : null}
 
           {view === "reader" ? (
