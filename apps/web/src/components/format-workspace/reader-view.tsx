@@ -45,7 +45,8 @@ function matchesRule(
   rule: FormatRule,
   messageId: string,
   blockIndex: number,
-  blockType: Block["type"]
+  blockType: Block["type"],
+  blockText: string
 ) {
   const selector =
     rule.selector && typeof rule.selector === "object"
@@ -62,6 +63,19 @@ function matchesRule(
     typeof selector.blockIndex === "number" ? selector.blockIndex : undefined;
   const selectorBlockType =
     typeof selector.blockType === "string" ? selector.blockType : undefined;
+  const selectorStrategy =
+    typeof selector.strategy === "string" ? selector.strategy : undefined;
+
+  if (selectorStrategy === "block_type") {
+    return selectorBlockType === blockType;
+  }
+
+  if (selectorStrategy === "prefix_before_colon") {
+    return (
+      selectorBlockType === blockType &&
+      /^([^:\n]{1,120}:)(\s*)(.*)$/.test(blockText)
+    );
+  }
 
   return (
     selectorMessageId === messageId &&
@@ -74,10 +88,15 @@ function resolveBlockEffects(
   rules: FormatRule[],
   messageId: string,
   blockIndex: number,
-  blockType: Block["type"]
+  blockType: Block["type"],
+  blockText: string
 ) {
   return rules
-    .filter((rule) => rule.status === "active" && matchesRule(rule, messageId, blockIndex, blockType))
+    .filter(
+      (rule) =>
+        rule.status === "active" &&
+        matchesRule(rule, messageId, blockIndex, blockType, blockText)
+    )
     .map((rule) =>
       rule.compiledRule && typeof rule.compiledRule === "object"
         ? (rule.compiledRule as Record<string, unknown>)
@@ -192,7 +211,13 @@ export function ReaderView({
           <div className="space-y-4">
             {message.blocks.map((block, blockIndex) => {
               const blockText = blockToPlainText(block);
-              const blockEffects = resolveBlockEffects(activeRules, message.id, blockIndex, block.type);
+              const blockEffects = resolveBlockEffects(
+                activeRules,
+                message.id,
+                blockIndex,
+                block.type,
+                blockText
+              );
               const hasSpacingEffect = blockEffects.some(
                 (effect) => effect.type === "adjust_block_spacing"
               );

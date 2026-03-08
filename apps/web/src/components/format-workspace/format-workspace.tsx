@@ -75,8 +75,36 @@ function applyMarkdownRules(content: string, rules: FormatRule[]) {
       rule.compiledRule && typeof rule.compiledRule === "object"
         ? (rule.compiledRule as Record<string, unknown>)
         : null;
+    const strategy = typeof selector?.strategy === "string" ? selector.strategy : "exact";
 
     if (!selector || !effect) {
+      continue;
+    }
+
+    const effectType = typeof effect.type === "string" ? effect.type : "";
+
+    if (strategy === "prefix_before_colon" && effectType === "bold_prefix_before_colon") {
+      for (let index = 0; index < nextLines.length; index += 1) {
+        const line = nextLines[index] ?? "";
+        nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
+      }
+      continue;
+    }
+
+    if (strategy === "markdown_table" && effectType === "normalize_markdown_table") {
+      for (let index = 0; index < nextLines.length; index += 1) {
+        const line = nextLines[index] ?? "";
+
+        if (!line.includes("|")) {
+          continue;
+        }
+
+        nextLines[index] = line
+          .split("|")
+          .map((cell) => cell.trim())
+          .join(" | ")
+          .trim();
+      }
       continue;
     }
 
@@ -89,7 +117,6 @@ function applyMarkdownRules(content: string, rules: FormatRule[]) {
 
     const startIndex = Math.max(0, lineStart - 1);
     const endIndex = Math.min(nextLines.length - 1, lineEnd - 1);
-    const effectType = typeof effect.type === "string" ? effect.type : "";
 
     switch (effectType) {
       case "promote_to_heading":
