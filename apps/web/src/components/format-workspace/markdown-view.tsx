@@ -1,15 +1,28 @@
-import type { AdjustmentSelection } from "@/components/format-workspace/types";
+import type {
+  AdjustmentSelection,
+  FloatingAdjustmentAnchor
+} from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
 type MarkdownViewProps = {
   adjustModeEnabled: boolean;
   content: string;
-  onSelectLines: (selection: AdjustmentSelection) => void;
+  onSelectLines: (selection: AdjustmentSelection, anchor: FloatingAdjustmentAnchor) => void;
   selectedRange: AdjustmentSelection | null;
 };
 
 function formatLineNumber(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function toFloatingAnchor(rect: DOMRect): FloatingAdjustmentAnchor {
+  return {
+    bottom: rect.bottom,
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width
+  };
 }
 
 export function MarkdownView({
@@ -43,7 +56,7 @@ export function MarkdownView({
                 isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null
               )}
               type="button"
-              onClick={() => {
+              onClick={(event) => {
                 if (!adjustModeEnabled) {
                   return;
                 }
@@ -62,20 +75,23 @@ export function MarkdownView({
                   : lineNumber;
                 const selectedLines = lines.slice(nextStart - 1, nextEnd).join("\n");
 
-                onSelectLines({
-                  blockIndex: nextStart - 1,
-                  blockType: "markdown-lines",
-                  lineStart: nextStart,
-                  lineEnd: nextEnd,
-                  messageId: `markdown:${nextStart}-${nextEnd}`,
-                  messageIndex: 0,
-                  messageRole: "markdown",
-                  selectedText: selectedLines,
-                  textQuote:
-                    selectedLines.length > 180
-                      ? `${selectedLines.slice(0, 177).trimEnd()}...`
-                      : selectedLines
-                });
+                onSelectLines(
+                  {
+                    blockIndex: nextStart - 1,
+                    blockType: "markdown-lines",
+                    lineStart: nextStart,
+                    lineEnd: nextEnd,
+                    messageId: `markdown:${nextStart}-${nextEnd}`,
+                    messageIndex: 0,
+                    messageRole: "markdown",
+                    selectedText: selectedLines,
+                    textQuote:
+                      selectedLines.length > 180
+                        ? `${selectedLines.slice(0, 177).trimEnd()}...`
+                        : selectedLines
+                  },
+                  toFloatingAnchor(event.currentTarget.getBoundingClientRect())
+                );
               }}
             >
               <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">

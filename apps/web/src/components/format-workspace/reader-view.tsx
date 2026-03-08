@@ -7,16 +7,33 @@ import {
   renderReaderBlock,
   resolveReaderBlockEffects
 } from "@/components/format-workspace/rule-engine";
-import type { AdjustmentSelection } from "@/components/format-workspace/types";
+import type {
+  AdjustmentSelection,
+  FloatingAdjustmentAnchor
+} from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
 type ReaderViewProps = {
   activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
-  onSelectBlock: (selection: AdjustmentSelection) => void;
+  onSelectBlock: (selection: AdjustmentSelection, anchor: FloatingAdjustmentAnchor) => void;
   selectedBlock: AdjustmentSelection | null;
 };
+
+function truncateSelectionText(value: string) {
+  return value.length > 180 ? `${value.slice(0, 177).trimEnd()}...` : value;
+}
+
+function toFloatingAnchor(rect: DOMRect): FloatingAdjustmentAnchor {
+  return {
+    bottom: rect.bottom,
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width
+  };
+}
 
 export function ReaderView({
   activeRules,
@@ -70,21 +87,46 @@ export function ReaderView({
                     isSelected
                   })}
                   data-selected={isSelected ? "true" : "false"}
-                  onClick={() => {
+                  onMouseUp={(event) => {
                     if (!adjustModeEnabled) {
                       return;
                     }
 
-                    onSelectBlock({
-                      blockIndex,
-                      blockType: block.type,
-                      messageId: message.id,
-                      messageIndex: index,
-                      messageRole: message.role,
-                      selectedText: blockText,
-                      textQuote:
-                        blockText.length > 180 ? `${blockText.slice(0, 177).trimEnd()}...` : blockText
-                    });
+                    const selection = window.getSelection();
+                    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                    const selectedText = selection?.toString().trim() ?? "";
+                    const container = event.currentTarget;
+                    const rangeStartContainer = range?.startContainer ?? null;
+                    const rangeEndContainer = range?.endContainer ?? null;
+                    const hasLocalTextSelection =
+                      Boolean(selectedText) &&
+                      Boolean(rangeStartContainer) &&
+                      Boolean(rangeEndContainer) &&
+                      container.contains(rangeStartContainer) &&
+                      container.contains(rangeEndContainer);
+                    const anchorRect =
+                      hasLocalTextSelection && range
+                        ? range.getBoundingClientRect()
+                        : container.getBoundingClientRect();
+
+                    onSelectBlock(
+                      {
+                        blockIndex,
+                        blockType: block.type,
+                        messageId: message.id,
+                        messageIndex: index,
+                        messageRole: message.role,
+                        selectedText: hasLocalTextSelection ? selectedText : blockText,
+                        textQuote: truncateSelectionText(
+                          hasLocalTextSelection ? selectedText : blockText
+                        )
+                      },
+                      toFloatingAnchor(anchorRect)
+                    );
+
+                    if (selection && hasLocalTextSelection) {
+                      selection.removeAllRanges();
+                    }
                   }}
                 >
                   {renderReaderBlock(block, blockEffects)}

@@ -9,3 +9,11 @@ export type ViewMode = Extract<
 >;
 
 export type AdjustmentSelection = SharedAdjustmentSelection;
+
+export type FloatingAdjustmentAnchor = {
+  bottom: number;
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};

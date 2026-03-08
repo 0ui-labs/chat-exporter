@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import http from "node:http";
 import path from "node:path";
 import net from "node:net";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -27,6 +28,7 @@ const serverEntryPath = path.join(projectRoot, "apps/server/src/index.ts");
 const viteCliPath = path.join(projectRoot, "apps/web/node_modules/vite/bin/vite.js");
 const serverPort = Number(process.env.SMOKE_SERVER_PORT ?? 8791);
 const webPort = Number(process.env.SMOKE_WEB_PORT ?? 4176);
+const mockOpenAiPort = Number(process.env.SMOKE_OPENAI_PORT ?? 8793);
 const serverUrl = `http://127.0.0.1:${serverPort}`;
 const webUrl = `http://127.0.0.1:${webPort}`;
 const fixtureImportId = "smoke-format-adjustments-v1";
@@ -35,6 +37,11 @@ type ManagedChild = {
   label: string;
   process: ChildProcessWithoutNullStreams;
   tail: string[];
+};
+
+type ManagedMockServer = {
+  close: () => Promise<void>;
+  url: string;
 };
 
 function createFixtureConversation(): Conversation {
@@ -197,6 +204,222 @@ function spawnManagedProcess(
   return managedChild;
 }
 
+function readRequestBody(request: http.IncomingMessage) {
+  return new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    request.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+    });
+    request.once("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    request.once("error", reject);
+  });
+}
+
+function buildMockPreviewResponse(body: Record<string, unknown>) {
+  const prompt =
+    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[1]?.content?.[0]?.text ===
+    "string"
+      ? ((body.input as Array<Record<string, unknown>>)[1]?.content?.[0]?.text as string)
+      : "";
+
+  if (/mehr Abstand unter ähnlichen Überschriften/i.test(prompt)) {
+    return {
+      draftRule: {
+        effect: {
+          amount: "lg",
+          direction: "after",
+          type: "adjust_block_spacing"
+        },
+        kind: "render",
+        scope: "import_local",
+        selector: {
+          blockType: "heading",
+          strategy: "block_type"
+        }
+      },
+      limitations: [],
+      rationale: "Die Anfrage nennt klar mehr Abstand unter Überschriften im Reader.",
+      summary: "Vergrößere den Abstand rund um ähnliche Überschriften im Reader."
+    };
+  }
+
+  if (/markdown-fettdruck-markierungen/i.test(prompt)) {
+    return {
+      draftRule: {
+        effect: {
+          type: "render_markdown_strong"
+        },
+        kind: "inline_semantics",
+        scope: "import_local",
+        selector: {
+          blockIndex: 4,
+          blockType: "paragraph",
+          messageId: "assistant-1"
+        }
+      },
+      limitations: [],
+      rationale:
+        "Die Auswahl enthält wörtliche Markdown-Fettdruck-Markierungen und soll im Reader korrekt gerendert werden.",
+      summary: "Rendere vorhandene Markdown-Fettdruck-Markierungen im ausgewählten Reader-Block korrekt."
+    };
+  }
+
+  return {
+    draftRule: {
+      effect: {
+        type: "bold_prefix_before_colon"
+      },
+      kind: "inline_semantics",
+      scope: "import_local",
+      selector: {
+        strategy: "prefix_before_colon"
+      }
+    },
+    limitations: [],
+    rationale: "Die Anfrage beschreibt ein wiederkehrendes Markdown-Labelmuster.",
+    summary: "Hebe labelartige Präfixe mit Doppelpunkt in passenden Markdown-Zeilen importweit hervor."
+  };
+}
+
+function buildMockChatResponse(body: Record<string, unknown>) {
+  const latestInput =
+    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[1]?.content?.[0]?.text ===
+    "string"
+      ? ((body.input as Array<Record<string, unknown>>)[1]?.content?.[0]?.text as string)
+      : "";
+
+  if (/mehr Abstand unter ähnlichen Überschriften/i.test(latestInput)) {
+    return {
+      id: "resp_reader_apply",
+      output: [
+        {
+          arguments: JSON.stringify({
+            instruction: "Mehr Abstand unter ähnlichen Überschriften im Reader."
+          }),
+          call_id: "call_reader_spacing",
+          name: "apply_adjustment_rule",
+          status: "completed",
+          type: "function_call"
+        }
+      ]
+    };
+  }
+
+  if (/Mach das luftiger/i.test(latestInput)) {
+    return {
+      id: "resp_reader_clarify",
+      output_text: "Soll das nur für diese Überschrift gelten oder auch für ähnliche Überschriften?"
+    };
+  }
+
+  if (/Fettdruck wird im Reader nicht korrekt gerendert/i.test(latestInput)) {
+    return {
+      id: "resp_reader_bold",
+      output: [
+        {
+          arguments: JSON.stringify({
+            instruction:
+              "Vorhandene Markdown-Fettdruck-Markierungen im Reader sichtbar rendern."
+          }),
+          call_id: "call_reader_bold",
+          name: "apply_adjustment_rule",
+          status: "completed",
+          type: "function_call"
+        }
+      ]
+    };
+  }
+
+  return {
+    id: "resp_markdown_bold",
+    output: [
+      {
+        arguments: JSON.stringify({
+          instruction: "Labelartige Präfixe mit Doppelpunkt in Markdown fett darstellen."
+        }),
+        call_id: "call_markdown_bold",
+        name: "apply_adjustment_rule",
+        status: "completed",
+        type: "function_call"
+      }
+    ]
+  };
+}
+
+function buildMockFollowUpResponse(body: Record<string, unknown>) {
+  const output =
+    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[0]?.output === "string"
+      ? ((body.input as Array<Record<string, unknown>>)[0]?.output as string)
+      : "";
+
+  if (/ähnliche Überschriften im Reader/i.test(output)) {
+    return {
+      id: "resp_reader_apply_done",
+      output_text: "Ich habe den Abstand unter ähnlichen Überschriften jetzt direkt im Reader vergrößert."
+    };
+  }
+
+  if (/Markdown-Fettdruck-Markierungen/i.test(output)) {
+    return {
+      id: "resp_reader_bold_done",
+      output_text: "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht."
+    };
+  }
+
+  return {
+    id: "resp_markdown_bold_done",
+    output_text: "Ich habe die markierte Markdown-Stelle jetzt direkt fett hervorgehoben."
+  };
+}
+
+async function startMockOpenAiServer(): Promise<ManagedMockServer> {
+  const server = http.createServer(async (request, response) => {
+    if (request.method !== "POST" || request.url !== "/v1/responses") {
+      response.writeHead(404).end("not found");
+      return;
+    }
+
+    const rawBody = await readRequestBody(request);
+    const body = JSON.parse(rawBody) as Record<string, unknown>;
+    const isPreviewCompilation = Boolean((body.text as Record<string, unknown> | undefined)?.format);
+    const isFollowUp = typeof body.previous_response_id === "string";
+    const payload = isPreviewCompilation
+      ? {
+          output_text: JSON.stringify(buildMockPreviewResponse(body))
+        }
+      : isFollowUp
+        ? buildMockFollowUpResponse(body)
+        : buildMockChatResponse(body);
+
+    response.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+    response.end(JSON.stringify(payload));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.listen(mockOpenAiPort, "127.0.0.1", () => resolve());
+    server.once("error", reject);
+  });
+
+  return {
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    },
+    url: `http://127.0.0.1:${mockOpenAiPort}/v1`
+  };
+}
+
 async function waitForPort(port: number, label: string) {
   const startedAt = Date.now();
 
@@ -282,10 +505,16 @@ async function buildSharedPackage() {
 async function runSmokeFlow() {
   await buildSharedPackage();
   await resetSeededDatabase();
+  const mockOpenAi = await startMockOpenAiServer();
 
   const children = [
     spawnManagedProcess("server", process.execPath, ["--import", tsxLoaderPath, serverEntryPath], {
+      ADJUSTMENT_RULE_COMPILATION_ENABLED: "1",
+      ADJUSTMENT_RULE_COMPILATION_MODEL: "gpt-5-mini",
+      ADJUSTMENT_RULE_COMPILATION_PROVIDER: "openai",
       CHAT_EXPORTER_DB_PATH: dbPath,
+      OPENAI_API_BASE_URL: mockOpenAi.url,
+      OPENAI_API_KEY: "smoke-openai-key",
       PORT: String(serverPort)
     }),
     spawnManagedProcess(
@@ -341,23 +570,24 @@ async function runSmokeFlow() {
     pageBodyText = (await page.locator("body").innerText()).trim();
 
     await page.getByTestId("toggle-adjust-mode-reader").click();
+    await page.getByTestId("adjustment-mode-guide-reader").waitFor();
     await page.getByTestId("reader-block-assistant-1-0").click();
+    await page.getByTestId("adjustment-popover-reader").waitFor();
     await page.getByTestId("adjustment-draft-message").fill(
-      "Please add more spacing under headings here."
+      "Mach das luftiger."
     );
     await page.getByTestId("adjustment-send").click();
-    await page.getByTestId("adjustment-generate-preview").click();
-    await page.getByTestId("adjustment-preview").waitFor();
+    await page.getByTestId("adjustment-last-reply").waitFor();
     await page.reload({
       waitUntil: "networkidle"
     });
     await page.getByTestId("toggle-adjust-mode-reader").click();
     await page.getByTestId("reader-block-assistant-1-0").click();
-    await page.getByTestId("adjustment-preview").waitFor();
+    await page.getByTestId("adjustment-last-reply").waitFor();
 
-    const resumedReaderSessionText = await page.getByTestId("adjustment-session").innerText();
+    const resumedReaderSessionText = await page.getByTestId("adjustment-last-reply").innerText();
 
-    if (!resumedReaderSessionText.includes("Please add more spacing under headings here.")) {
+    if (!resumedReaderSessionText.includes("ähnliche Überschriften")) {
       throw new Error("Reader adjustment smoke test did not resume the saved draft session.");
     }
 
@@ -384,7 +614,10 @@ async function runSmokeFlow() {
       throw new Error("Reader adjustment smoke test created a duplicate session on reload.");
     }
 
-    await page.getByTestId("adjustment-apply-rule").click();
+    await page.getByTestId("adjustment-draft-message").fill(
+      "Ja, bitte mehr Abstand unter ähnlichen Überschriften."
+    );
+    await page.getByTestId("adjustment-send").click();
     await page.getByTestId("active-format-rule").waitFor();
     await page.getByTestId("active-format-rule-why").click();
     await page.getByTestId("active-format-rule-explanation").waitFor();
@@ -417,14 +650,17 @@ async function runSmokeFlow() {
       throw new Error("Reader adjustment smoke test did not undo the heading spacing rule.");
     }
 
+    await page
+      .getByTestId("adjustment-popover-reader")
+      .getByRole("button", {
+        name: "Abbrechen"
+      })
+      .click();
     await page.getByTestId("reader-block-assistant-1-4").click();
     await page.getByTestId("adjustment-draft-message").fill(
       "Fettdruck wird im Reader nicht korrekt gerendert."
     );
     await page.getByTestId("adjustment-send").click();
-    await page.getByTestId("adjustment-generate-preview").click();
-    await page.getByTestId("adjustment-preview").waitFor();
-    await page.getByTestId("adjustment-apply-rule").click();
     await page.waitForFunction(() => {
       const block = document.querySelector('[data-testid="reader-block-assistant-1-4"]');
       return block?.querySelector("strong") !== null && !(block.textContent ?? "").includes("**");
@@ -448,9 +684,6 @@ async function runSmokeFlow() {
       "Labels with a colon should always be bold in Markdown."
     );
     await page.getByTestId("adjustment-send").click();
-    await page.getByTestId("adjustment-generate-preview").click();
-    await page.getByTestId("adjustment-preview").waitFor();
-    await page.getByTestId("adjustment-apply-rule").click();
     await page.waitForFunction(() => {
       const line = document.querySelector('[data-testid="markdown-line-9"]');
       return line?.textContent?.includes("**Important") ?? false;
@@ -489,6 +722,7 @@ async function runSmokeFlow() {
   } finally {
     await browser.close();
     await Promise.all(children.map((child) => stopManagedProcess(child)));
+    await mockOpenAi.close();
   }
 }
 
