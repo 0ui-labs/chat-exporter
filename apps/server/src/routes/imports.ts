@@ -1,7 +1,20 @@
 import { Hono } from "hono";
 
-import { importRequestSchema, importSnapshotSchema } from "@chat-exporter/shared";
+import {
+  adjustmentSessionDetailSchema,
+  adjustmentTargetFormatSchema,
+  createAdjustmentSessionRequestSchema,
+  formatRuleSchema,
+  importRequestSchema,
+  importSnapshotSchema
+} from "@chat-exporter/shared";
 
+import {
+  createAdjustmentSession,
+  getAdjustmentSessionDetail,
+  listAdjustmentSessions,
+  listFormatRules
+} from "../lib/adjustment-repository.js";
 import {
   createImportJob,
   getImportJob,
@@ -61,6 +74,110 @@ export const importsRoute = new Hono()
     }
 
     return c.json(job);
+  })
+  .get("/:id/adjustment-sessions", (c) => {
+    const importId = c.req.param("id");
+    const job = getImportJob(importId);
+
+    if (!job) {
+      return c.json(
+        {
+          message: "Import job not found."
+        },
+        404
+      );
+    }
+
+    const formatQuery = c.req.query("format");
+    const parsedFormat = formatQuery
+      ? adjustmentTargetFormatSchema.safeParse(formatQuery)
+      : null;
+
+    if (parsedFormat && !parsedFormat.success) {
+      return c.json(
+        {
+          message: "Unsupported adjustment format.",
+          issues: parsedFormat.error.flatten()
+        },
+        400
+      );
+    }
+
+    return c.json(listAdjustmentSessions(importId, parsedFormat?.data));
+  })
+  .post("/:id/adjustment-sessions", async (c) => {
+    const importId = c.req.param("id");
+    const job = getImportJob(importId);
+
+    if (!job) {
+      return c.json(
+        {
+          message: "Import job not found."
+        },
+        404
+      );
+    }
+
+    const payload = await c.req.json().catch(() => null);
+    const parsed = createAdjustmentSessionRequestSchema.safeParse(payload);
+
+    if (!parsed.success) {
+      return c.json(
+        {
+          message: "Invalid adjustment session request.",
+          issues: parsed.error.flatten()
+        },
+        400
+      );
+    }
+
+    const session = createAdjustmentSession({
+      importId,
+      selection: parsed.data.selection,
+      targetFormat: parsed.data.targetFormat
+    });
+    const detail = getAdjustmentSessionDetail(session.id);
+
+    if (!detail) {
+      return c.json(
+        {
+          message: "Adjustment session could not be loaded."
+        },
+        500
+      );
+    }
+
+    return c.json(adjustmentSessionDetailSchema.parse(detail), 201);
+  })
+  .get("/:id/format-rules", (c) => {
+    const importId = c.req.param("id");
+    const job = getImportJob(importId);
+
+    if (!job) {
+      return c.json(
+        {
+          message: "Import job not found."
+        },
+        404
+      );
+    }
+
+    const formatQuery = c.req.query("format");
+    const parsedFormat = formatQuery
+      ? adjustmentTargetFormatSchema.safeParse(formatQuery)
+      : null;
+
+    if (parsedFormat && !parsedFormat.success) {
+      return c.json(
+        {
+          message: "Unsupported format rule target.",
+          issues: parsedFormat.error.flatten()
+        },
+        400
+      );
+    }
+
+    return c.json(listFormatRules(importId, parsedFormat?.data).map((rule) => formatRuleSchema.parse(rule)));
   })
   .get("/:id/snapshot", (c) => {
     const snapshot = getPersistedImportSnapshot(c.req.param("id"));

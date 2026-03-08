@@ -56,4 +56,49 @@ db.exec(`
     fetch_metadata_json TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS adjustment_sessions (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    target_format TEXT NOT NULL,
+    status TEXT NOT NULL,
+    selection_json TEXT NOT NULL,
+    preview_artifact_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_adjustment_sessions_import_id
+    ON adjustment_sessions (import_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_adjustment_sessions_target_format
+    ON adjustment_sessions (target_format, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS adjustment_messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES adjustment_sessions(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_adjustment_messages_session_id
+    ON adjustment_messages (session_id, created_at ASC);
+
+  CREATE TABLE IF NOT EXISTS format_rules (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    target_format TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    status TEXT NOT NULL,
+    selector_json TEXT NOT NULL,
+    instruction TEXT NOT NULL,
+    compiled_rule_json TEXT,
+    source_session_id TEXT REFERENCES adjustment_sessions(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_format_rules_import_id
+    ON format_rules (import_id, target_format, status, created_at DESC);
 `);
