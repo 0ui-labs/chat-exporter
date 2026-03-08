@@ -1,7 +1,9 @@
-import { Clock3, LoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
 import type { ImportJob } from "@chat-exporter/shared";
 
+import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,8 @@ const outputViews: { value: ViewMode; label: string }[] = [
   { value: "handover", label: "Handover" },
   { value: "json", label: "JSON" }
 ];
+
+const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
 function getStatusLabel(job: ImportJob) {
   if (job.status === "completed") {
@@ -67,7 +71,35 @@ export function FormatWorkspace({
   view,
   onViewChange
 }: FormatWorkspaceProps) {
+  const [adjustModeByView, setAdjustModeByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
+  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustModeEnabled = adjustModeByView[view];
+
+  useEffect(() => {
+    if (!isAdjustableView && isAdjustModeEnabled) {
+      setAdjustModeByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
+  }, [isAdjustModeEnabled, isAdjustableView, view]);
+
+  function toggleAdjustMode() {
+    if (!isAdjustableView) {
+      return;
+    }
+
+    setAdjustModeByView((current) => ({
+      ...current,
+      [view]: !current[view]
+    }));
+  }
 
   return (
     <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
@@ -118,19 +150,35 @@ export function FormatWorkspace({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {outputViews.map((outputView) => (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {outputViews.map((outputView) => (
+                <Button
+                  key={outputView.value}
+                  type="button"
+                  size="sm"
+                  variant={view === outputView.value ? "default" : "outline"}
+                  onClick={() => onViewChange(outputView.value)}
+                >
+                  {outputView.label}
+                </Button>
+              ))}
+            </div>
+
+            {isAdjustableView ? (
               <Button
-                key={outputView.value}
                 type="button"
                 size="sm"
-                variant={view === outputView.value ? "default" : "outline"}
-                onClick={() => onViewChange(outputView.value)}
+                variant={isAdjustModeEnabled ? "default" : "outline"}
+                onClick={toggleAdjustMode}
               >
-                {outputView.label}
+                <Settings2 className="mr-2 h-4 w-4" />
+                {isAdjustModeEnabled ? "Exit adjust mode" : `Adjust ${view}`}
               </Button>
-            ))}
+            ) : null}
           </div>
+
+          {isAdjustModeEnabled ? <AdjustmentPanel view={view} /> : null}
 
           {view === "reader" ? (
             <ReaderView conversation={job.conversation} />
