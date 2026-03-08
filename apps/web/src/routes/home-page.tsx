@@ -1,28 +1,15 @@
 import { startTransition, useEffect, useState, type FormEvent } from "react";
-import {
-  Clock3,
-  ExternalLink,
-  LoaderCircle
-} from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
-import type { Block, ImportJob } from "@chat-exporter/shared";
+import type { ImportJob } from "@chat-exporter/shared";
 
+import { FormatWorkspace, type ViewMode } from "@/components/format-workspace/format-workspace";
 import { createImport, getImport, listImports } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-type ViewMode = "reader" | "markdown" | "handover" | "json";
-
-const outputViews: { value: ViewMode; label: string }[] = [
-  { value: "reader", label: "Reader" },
-  { value: "markdown", label: "Markdown" },
-  { value: "handover", label: "Handover" },
-  { value: "json", label: "JSON" }
-];
 
 const importStages = {
   validate: {
@@ -109,99 +96,6 @@ function getActiveStage(job: ImportJob) {
   }
 
   return importStages[job.currentStage];
-}
-
-function blockToPlainText(block: Block) {
-  switch (block.type) {
-    case "paragraph":
-    case "heading":
-    case "quote":
-    case "code":
-      return block.text;
-    case "list":
-      return block.items.join(" ");
-    case "table":
-      return [block.headers.join(" "), ...block.rows.map((row) => row.join(" "))].join(" ");
-  }
-}
-
-function renderBlock(block: Block) {
-  switch (block.type) {
-    case "paragraph":
-      return <p className="text-sm leading-7 text-foreground/90">{block.text}</p>;
-    case "heading": {
-      const Tag = `h${Math.min(block.level + 1, 6)}` as keyof JSX.IntrinsicElements;
-      return <Tag className="font-semibold text-foreground">{block.text}</Tag>;
-    }
-    case "list":
-      return (
-        <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-foreground/90">
-          {block.items.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      );
-    case "quote":
-      return (
-        <blockquote className="border-l-2 border-accent pl-4 text-sm italic leading-7 text-foreground/80">
-          {block.text}
-        </blockquote>
-      );
-    case "code":
-      return (
-        <div className="rounded-2xl border border-border/80 bg-zinc-950 p-4 text-sm text-zinc-100">
-          <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">{block.language}</p>
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
-            <code>{block.text}</code>
-          </pre>
-        </div>
-      );
-    case "table":
-      return (
-        <div className="overflow-x-auto rounded-2xl border border-border/80">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-secondary/70 text-secondary-foreground">
-              <tr>
-                {block.headers.map((header) => (
-                  <th key={header} className="px-4 py-3 font-medium">
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {block.rows.map((row, rowIndex) => (
-                <tr key={`${rowIndex}-${row.join("-")}`} className="border-t border-border/80">
-                  {row.map((cell) => (
-                    <td
-                      key={`${rowIndex}-${cell}`}
-                      className="px-4 py-3 align-top text-muted-foreground"
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-  }
-}
-
-function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob | null) {
-  if (!job?.artifacts) {
-    return "Artifact not available yet.";
-  }
-
-  switch (view) {
-    case "markdown":
-      return job.artifacts.markdown;
-    case "handover":
-      return job.artifacts.handover;
-    case "json":
-      return job.artifacts.json;
-  }
 }
 
 export function HomePage() {
@@ -378,7 +272,6 @@ export function HomePage() {
   const activeSourceUrl = getSafeExternalUrl(job?.sourceUrl ?? url);
   const createdAtMs = job ? Date.parse(job.createdAt) : Number.NaN;
   const elapsedTime = formatElapsed(now - createdAtMs);
-  const artifact = view === "reader" ? "" : renderArtifact(view, job);
   const showRecentJobs = !activeImportId && recentJobs.length > 0;
   const showInlineOriginalButton = Boolean(job && activeSourceUrl);
 
@@ -461,116 +354,13 @@ export function HomePage() {
                 {jobError}
               </div>
             ) : job ? (
-              <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant={job.status === "completed" ? "default" : "outline"}>
-                    {job.status === "completed"
-                      ? "Ready"
-                      : job.status === "failed"
-                        ? "Failed"
-                        : job.status === "queued"
-                          ? "Queued"
-                          : "Importing"}
-                  </Badge>
-                  {job.summary ? (
-                    <p className="text-sm text-muted-foreground">
-                      {job.summary.messageCount} messages · {job.summary.transcriptWords} words
-                    </p>
-                  ) : null}
-                  {job.status !== "completed" && activeStage ? (
-                    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                      {job.status === "queued" ? (
-                        <Clock3 className="h-4 w-4" />
-                      ) : (
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                      )}
-                      <span>{activeStage.label}</span>
-                      <span>·</span>
-                      <span>{elapsedTime}</span>
-                    </div>
-                  ) : null}
-                </div>
-
-                {job.warnings.length > 0 ? (
-                  <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 px-4 py-3 text-sm text-amber-950">
-                    {job.warnings[0]}
-                  </div>
-                ) : null}
-
-                {job.status === "failed" ? null : job.status === "queued" || job.status === "running" ? (
-                  <div className="space-y-3">
-                    <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
-                      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                        <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-                        {activeStage?.detail ?? "Preparing transcript"}
-                      </div>
-                      <div className="space-y-3">
-                        <div className="h-3 w-40 animate-pulse rounded-full bg-primary/15" />
-                        <div className="h-4 animate-pulse rounded-full bg-border/80" />
-                        <div className="h-4 w-11/12 animate-pulse rounded-full bg-border/70" />
-                        <div className="h-4 w-4/5 animate-pulse rounded-full bg-border/60" />
-                        <div className="h-24 animate-pulse rounded-[1.4rem] border border-border/70 bg-background/80" />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {outputViews.map((outputView) => (
-                        <Button
-                          key={outputView.value}
-                          type="button"
-                          size="sm"
-                          variant={view === outputView.value ? "default" : "outline"}
-                          onClick={() => setView(outputView.value)}
-                        >
-                          {outputView.label}
-                        </Button>
-                      ))}
-                    </div>
-
-                    {view === "reader" ? (
-                      job.conversation?.messages?.length ? (
-                        <div className="space-y-3">
-                          {job.conversation.messages.map((message, index) => (
-                            <article
-                              key={message.id}
-                              className={cn(
-                                "rounded-[1.55rem] border border-border/80 px-4 py-5 sm:px-5",
-                                message.role === "assistant"
-                                  ? "bg-card/92"
-                                  : "bg-secondary/30"
-                              )}
-                            >
-                              <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                                <span>{message.role}</span>
-                                <span>{index + 1}</span>
-                              </div>
-                              <div className="space-y-4">
-                                {message.blocks.map((block, blockIndex) => (
-                                  <div key={`${message.id}-${block.type}-${blockIndex}`}>
-                                    {renderBlock(block)}
-                                  </div>
-                                ))}
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
-                          No transcript content is available for this import.
-                        </div>
-                      )
-                    ) : (
-                      <div className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-5 text-sm text-zinc-100">
-                        <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
-                          <code>{artifact}</code>
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
+              <FormatWorkspace
+                activeStage={activeStage}
+                elapsedTime={elapsedTime}
+                job={job}
+                view={view}
+                onViewChange={setView}
+              />
             ) : null}
           </div>
         </CardContent>
