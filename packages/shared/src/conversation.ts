@@ -4,6 +4,8 @@ export const sourcePlatformSchema = z.enum([
   "chatgpt",
   "claude",
   "gemini",
+  "grok",
+  "deepseek",
   "notebooklm",
   "unknown"
 ]);
