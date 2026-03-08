@@ -10,6 +10,7 @@ import type {
 import { adjustmentPreviewSchema } from "@chat-exporter/shared";
 
 import "../load-env.js";
+import { hasMarkdownStrongMarkers } from "./adjustment-heuristics.js";
 
 const DEFAULT_MODEL = "gpt-5-mini";
 const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
@@ -273,6 +274,13 @@ function supportedRuleCatalog(targetFormat: AdjustmentTargetFormat) {
         },
         kind: "inline_semantics",
         selectors: ["exact selection", "prefix_before_colon"]
+      },
+      {
+        effect: {
+          type: "render_markdown_strong"
+        },
+        kind: "inline_semantics",
+        selectors: ["exact selection"]
       }
     ];
   }
@@ -331,9 +339,13 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
         "Return a single safe preview rule for the selected format.",
         "Stay inside the supported rule catalog exactly. Do not invent new effect or selector types.",
         "Prefer the narrowest selector unless the user explicitly asks for recurring behavior or the selected content clearly shows a reusable pattern.",
+        "Write summary, rationale, and limitations in German.",
         targetFormat === "markdown"
           ? "Markdown cannot express exact font sizes, spacing, or CSS. When needed, reinterpret the request as heading, list, table, or inline emphasis and explain the limitation."
-          : "Reader rules may adjust spacing or emphasis, but should not rewrite transcript wording."
+          : "Reader rules may adjust spacing or emphasis, but should not rewrite transcript wording.",
+        targetFormat === "reader" && hasMarkdownStrongMarkers(selection.selectedText)
+          ? "If the selected Reader content contains literal Markdown bold markers like **text**, prefer render_markdown_strong with the exact selection."
+          : "Keep the compiled preview narrowly anchored unless clear reuse is justified."
       ],
       selection,
       selectionContext:
@@ -572,6 +584,21 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
             selector: {
               anyOf: [exactReaderSelectorSchema(), readerPrefixSelectorSchema()]
             }
+          }),
+          buildRuleVariant({
+            effect: {
+              additionalProperties: false,
+              properties: {
+                type: {
+                  const: "render_markdown_strong",
+                  type: "string"
+                }
+              },
+              required: ["type"],
+              type: "object"
+            },
+            kind: "inline_semantics",
+            selector: exactReaderSelectorSchema()
           })
         ]
       : [
@@ -760,6 +787,13 @@ function validateCompiledPreview(
         (selectorStrategy !== "prefix_before_colon" && !hasExactReaderSelector(selector))
       ) {
         throw new Error("Compiled Reader inline preview was invalid.");
+      }
+      return preview;
+    }
+
+    if (effectType === "render_markdown_strong") {
+      if (preview.draftRule.kind !== "inline_semantics" || !hasExactReaderSelector(selector)) {
+        throw new Error("Compiled Reader markdown emphasis preview was invalid.");
       }
       return preview;
     }

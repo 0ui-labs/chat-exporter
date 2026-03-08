@@ -33,8 +33,8 @@ test("markdown replies explain portable limits and suggest broader label scopes"
     userMessage: "Labels with a colon should always be bold everywhere."
   });
 
-  assert.match(reply, /Markdown-safe/i);
-  assert.match(reply, /similar label-style lines/i);
+  assert.match(reply, /Markdown-sicher/i);
+  assert.match(reply, /ähnliche labelartige Zeilen/i);
 });
 
 test("reader replies explain reusable heading spacing rules", () => {
@@ -48,6 +48,22 @@ test("reader replies explain reusable heading spacing rules", () => {
     userMessage: "Please add more spacing under headings here."
   });
 
-  assert.match(reply, /Reader render rule/i);
-  assert.match(reply, /other heading blocks/i);
+  assert.match(reply, /Reader-Darstellungsregel/i);
+  assert.match(reply, /ähnliche Überschriften/i);
+});
+
+test("reader replies explain markdown bold marker rendering in German", () => {
+  const reply = buildAdjustmentAssistantReply({
+    selection: createSelection({
+      selectedText:
+        "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:",
+      textQuote:
+        "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:"
+    }),
+    targetFormat: "reader",
+    userMessage: "Bold scheint fehlerhaft formatiert zu sein."
+  });
+
+  assert.match(reply, /Markdown-Markierungen/i);
+  assert.match(reply, /genau dieser Auswahl/i);
 });

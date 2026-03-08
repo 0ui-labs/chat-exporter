@@ -32,6 +32,39 @@ function renderTextWithBoldPrefix(text: string) {
   );
 }
 
+function renderTextWithMarkdownStrong(text: string) {
+  const parts = text.split(/(\*\*[^*\n][^*\n]*\*\*|__[^_\n][^_\n]*__)/g);
+
+  if (parts.length === 1) {
+    return text;
+  }
+
+  return parts.map((part, index) => {
+    const strongMatch = part.match(/^\*\*([^*\n][^*\n]*)\*\*$/) ?? part.match(/^__([^_\n][^_\n]*)__$/);
+
+    if (!strongMatch) {
+      return part;
+    }
+
+    return <strong key={`strong-${index}`}>{strongMatch[1]}</strong>;
+  });
+}
+
+function renderReaderInlineText(text: string, effects: Record<string, unknown>[]) {
+  const hasMarkdownStrongEffect = effects.some((effect) => effect.type === "render_markdown_strong");
+  const hasBoldPrefixEffect = effects.some((effect) => effect.type === "bold_prefix_before_colon");
+
+  if (hasMarkdownStrongEffect) {
+    return renderTextWithMarkdownStrong(text);
+  }
+
+  if (hasBoldPrefixEffect) {
+    return renderTextWithBoldPrefix(text);
+  }
+
+  return text;
+}
+
 function matchesReaderRule(
   rule: FormatRule,
   messageId: string,
@@ -117,21 +150,16 @@ export function getReaderBlockClassName(params: {
 }
 
 export function renderReaderBlock(block: Block, effects: Record<string, unknown>[]) {
-  const hasBoldPrefixEffect = effects.some((effect) => effect.type === "bold_prefix_before_colon");
   const hasHeadingEmphasis = effects.some((effect) => effect.type === "increase_heading_emphasis");
 
   switch (block.type) {
     case "paragraph":
-      return (
-        <p className="text-sm leading-7 text-foreground/90">
-          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
-        </p>
-      );
+      return <p className="text-sm leading-7 text-foreground/90">{renderReaderInlineText(block.text, effects)}</p>;
     case "heading": {
       const Tag = `h${Math.min(block.level + 1, 6)}` as keyof JSX.IntrinsicElements;
       return (
         <Tag className={cn("font-semibold text-foreground", hasHeadingEmphasis ? "text-lg" : null)}>
-          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
+          {renderReaderInlineText(block.text, effects)}
         </Tag>
       );
     }
@@ -139,14 +167,14 @@ export function renderReaderBlock(block: Block, effects: Record<string, unknown>
       return (
         <ul className="list-disc space-y-2 pl-5 text-sm leading-7 text-foreground/90">
           {block.items.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>{renderReaderInlineText(item, effects)}</li>
           ))}
         </ul>
       );
     case "quote":
       return (
         <blockquote className="border-l-2 border-accent pl-4 text-sm italic leading-7 text-foreground/80">
-          {hasBoldPrefixEffect ? renderTextWithBoldPrefix(block.text) : block.text}
+          {renderReaderInlineText(block.text, effects)}
         </blockquote>
       );
     case "code":

@@ -77,6 +77,10 @@ function createFixtureConversation(): Conversation {
             type: "list",
             ordered: false,
             items: ["Validate staging metrics", "Notify support before rollout"]
+          },
+          {
+            type: "paragraph",
+            text: "**Wichtig für den Launch:** Zuständigkeiten müssen sichtbar bleiben."
           }
         ]
       }
@@ -411,6 +415,30 @@ async function runSmokeFlow() {
 
     if (revertedReaderHeadingClassName.includes("mb-4")) {
       throw new Error("Reader adjustment smoke test did not undo the heading spacing rule.");
+    }
+
+    await page.getByTestId("reader-block-assistant-1-4").click();
+    await page.getByTestId("adjustment-draft-message").fill(
+      "Fettdruck wird im Reader nicht korrekt gerendert."
+    );
+    await page.getByTestId("adjustment-send").click();
+    await page.getByTestId("adjustment-generate-preview").click();
+    await page.getByTestId("adjustment-preview").waitFor();
+    await page.getByTestId("adjustment-apply-rule").click();
+    await page.waitForFunction(() => {
+      const block = document.querySelector('[data-testid="reader-block-assistant-1-4"]');
+      return block?.querySelector("strong") !== null && !(block.textContent ?? "").includes("**");
+    });
+
+    const renderedMarkdownStrong = await page.getByTestId("reader-block-assistant-1-4").innerText();
+
+    if (
+      renderedMarkdownStrong.includes("**") ||
+      !renderedMarkdownStrong.includes("Wichtig für den Launch:")
+    ) {
+      throw new Error(
+        "Reader adjustment smoke test did not render literal Markdown bold markers correctly."
+      );
     }
 
     await page.getByTestId("format-view-markdown").click();

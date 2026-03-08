@@ -9,6 +9,15 @@ import type {
 } from "@chat-exporter/shared";
 import { adjustmentPreviewSchema } from "@chat-exporter/shared";
 
+import {
+  hasLabelStylePrefix,
+  hasMarkdownStrongMarkers,
+  mentionsHeadingEmphasisRequest,
+  mentionsInlineEmphasisRequest,
+  mentionsMarkdownStrongFormattingIssue,
+  mentionsSpacingRequest,
+  wantsBroadRule
+} from "./adjustment-heuristics.js";
 import { compileAdjustmentPreviewWithAi } from "./adjustment-rule-compiler.js";
 
 type BuildAdjustmentPreviewInput = {
@@ -21,12 +30,21 @@ function mentions(input: string, pattern: RegExp) {
   return pattern.test(input);
 }
 
-function wantsBroadRule(input: string) {
-  return /\b(always|whenever|every|all similar|same kind|all)\b/i.test(input);
-}
-
-function hasPrefixBeforeColon(text: string) {
-  return /^([^:\n]{1,120}:)/m.test(text.trim());
+function getBlockTypeLabel(blockType: string) {
+  switch (blockType) {
+    case "heading":
+      return "Überschriften";
+    case "table":
+      return "Tabellen";
+    case "list":
+      return "Listen";
+    case "quote":
+      return "Zitate";
+    case "code":
+      return "Codeblöcke";
+    default:
+      return "Blöcke";
+  }
 }
 
 function toExactSelector(selection: AdjustmentSelection) {
@@ -70,55 +88,57 @@ function markdownPreview(selection: AdjustmentSelection, userMessage: string): A
   const limitations: string[] = [];
   let kind: FormatRuleKind = "structure";
   let selector: Record<string, unknown> = toExactSelector(selection);
-  let summary = "Reshape the selected Markdown into a cleaner portable structure.";
-  let rationale = "The request points at a Markdown output issue that is best handled as structure cleanup.";
+  let summary = "Bereinige den ausgewählten Markdown-Block für ein tragfähigeres Exportformat.";
+  let rationale =
+    "Die Anfrage beschreibt ein Markdown-Problem, das sich am sichersten über Struktur statt über visuelle Feinsteuerung lösen lässt.";
   let effect: Record<string, unknown> = {
     type: "reshape_markdown_block"
   };
 
-  if (mentions(lower, /\b(bigger|larger|title|heading|headline)\b/)) {
-    summary = "Promote the selected Markdown into a heading-like structure.";
+  if (mentionsHeadingEmphasisRequest(lower)) {
+    summary = "Wandle die ausgewählte Markdown-Stelle in eine deutlichere Überschrift um.";
     rationale =
-      "The request sounds like visual emphasis, which Markdown represents best through heading structure rather than font size.";
+      "Die Anfrage zielt auf mehr visuelle Gewichtung, und Markdown bildet das am zuverlässigsten über Überschriftenstruktur statt über Schriftgrößen ab.";
     effect = {
       level: 2,
       type: "promote_to_heading"
     };
-    limitations.push("Exact font sizes are not portable in Markdown.");
-  } else if (mentions(lower, /\b(bold|colon|label|highlight)\b/)) {
+    limitations.push("Exakte Schriftgrößen lassen sich in portablem Markdown nicht zuverlässig festlegen.");
+  } else if (mentionsInlineEmphasisRequest(lower)) {
     kind = "inline_semantics";
     const shouldGeneralize =
       wantsBroadRule(lower) ||
-      (mentions(lower, /\b(labels?|headings?|titles?)\b/) && mentions(lower, /\bcolon\b/)) ||
-      hasPrefixBeforeColon(selection.selectedText);
+      (mentions(lower, /\b(labels?|headings?|titles?|labels|titel|überschriften|ueberschriften)\b/) &&
+        mentions(lower, /\bcolon|doppelpunkt\b/)) ||
+      hasLabelStylePrefix(selection.selectedText);
 
     summary = shouldGeneralize
-      ? "Bold label-style prefixes ending with a colon across matching Markdown lines."
-      : "Apply inline emphasis to the selected Markdown text.";
+      ? "Hebe labelartige Präfixe mit Doppelpunkt in passenden Markdown-Zeilen importweit hervor."
+      : "Betone die ausgewählte Markdown-Stelle mit einer portablen Inline-Regel.";
     rationale = shouldGeneralize
-      ? "The request describes a reusable inline Markdown pattern, so the rule can target similar lines instead of only this selection."
-      : "The request targets local emphasis, which maps well to Markdown-safe inline semantics.";
+      ? "Die Anfrage beschreibt ein wiederverwendbares Inline-Muster, daher kann dieselbe Regel ähnliche Markdown-Zeilen statt nur diese Auswahl treffen."
+      : "Die Anfrage zielt auf lokale Hervorhebung, was sich in Markdown sauber als Inline-Semantik ausdrücken lässt.";
     selector = shouldGeneralize ? toMarkdownPrefixPatternSelector() : toExactSelector(selection);
     effect = {
       type: "bold_prefix_before_colon"
     };
-  } else if (mentions(lower, /\b(list|bullet|steps?)\b/)) {
-    summary = "Normalize the selected Markdown into a proper list.";
+  } else if (mentions(lower, /\b(list|bullet|steps?|liste|aufzählung|aufzaehlung)\b/)) {
+    summary = "Forme die ausgewählten Markdown-Zeilen in eine saubere Liste um.";
     rationale =
-      "The request suggests that the selected lines should be represented as a structured list.";
+      "Die Anfrage deutet darauf hin, dass die Auswahl besser als strukturierte Liste statt als lose Textzeilen dargestellt werden sollte.";
     effect = {
       type: "normalize_list_structure"
     };
-  } else if (mentions(lower, /\b(table)\b/)) {
+  } else if (mentions(lower, /\b(table|tabelle)\b/)) {
     kind = "export_profile";
     const shouldGeneralize = wantsBroadRule(lower);
 
     summary = shouldGeneralize
-      ? "Clean up Markdown table formatting across this import."
-      : "Clean up the selected Markdown table output.";
+      ? "Bereinige die Tabellenformatierung in diesem Markdown-Export importweit."
+      : "Bereinige die ausgewählte Markdown-Tabelle.";
     rationale = shouldGeneralize
-      ? "The request describes a reusable table cleanup rule, so matching Markdown tables can share one export-focused fix."
-      : "Tables in Markdown often need export-specific cleanup instead of purely visual styling.";
+      ? "Die Anfrage beschreibt eine wiederkehrende Tabellenkorrektur, daher können passende Markdown-Tabellen dieselbe exportorientierte Regel teilen."
+      : "Markdown-Tabellen brauchen meist Exportbereinigung statt rein visueller Darstellung.";
     selector = shouldGeneralize ? toMarkdownTableSelector() : toExactSelector(selection);
     effect = {
       type: "normalize_markdown_table"
@@ -144,58 +164,71 @@ function readerPreview(selection: AdjustmentSelection, userMessage: string): Adj
   const lower = userMessage.toLowerCase();
   let kind: FormatRuleKind = "render";
   let selector: Record<string, unknown> = toExactSelector(selection);
-  let summary = "Refine the selected Reader block presentation.";
+  let summary = "Verfeinere die Darstellung des ausgewählten Reader-Blocks.";
   let rationale =
-    "The request points at presentation quality in the in-app Reader, so a render-focused rule is the safest first step.";
+    "Die Anfrage betrifft die Darstellung im integrierten Reader, daher ist eine lokale Darstellungsregel der sicherste erste Schritt.";
   let effect: Record<string, unknown> = {
     emphasis: "balanced",
     type: "refine_selected_block_presentation"
   };
 
-  if (mentions(lower, /\b(space|spacing|gap|padding|margin)\b/)) {
+  if (
+    hasMarkdownStrongMarkers(selection.selectedText) &&
+    mentionsMarkdownStrongFormattingIssue(lower)
+  ) {
+    kind = "inline_semantics";
+    summary = "Rendere vorhandene Markdown-Fettdruck-Markierungen im ausgewählten Reader-Block korrekt.";
+    rationale =
+      "Die Auswahl enthält wörtliche Markdown-Markierungen wie **...**, daher ist eine lokale Reader-Regel sinnvoll, die vorhandene Hervorhebung korrekt darstellt statt den Text umzuschreiben.";
+    effect = {
+      type: "render_markdown_strong"
+    };
+  } else if (mentionsSpacingRequest(lower)) {
     const shouldGeneralize =
       wantsBroadRule(lower) || selection.blockType === "heading" || selection.blockType === "table";
 
     summary = shouldGeneralize
-      ? `Increase spacing around ${selection.blockType} blocks in the Reader.`
-      : "Increase spacing around the selected Reader block.";
+      ? `Vergrößere den Abstand rund um ähnliche ${getBlockTypeLabel(selection.blockType)} im Reader.`
+      : "Vergrößere den Abstand rund um den ausgewählten Reader-Block.";
     rationale = shouldGeneralize
-      ? "The request maps cleanly to a block-type render rule, so similar Reader blocks can share the same spacing fix."
-      : "The request explicitly mentions spacing, which maps directly to a Reader-only render rule.";
+      ? "Die Anfrage passt sauber auf eine blocktypbasierte Darstellungsregel, damit ähnliche Reader-Blöcke dieselbe Abstandskorrektur teilen können."
+      : "Die Anfrage nennt ausdrücklich Abstand, was direkt auf eine Reader-spezifische Darstellungsregel abbildbar ist.";
     selector = shouldGeneralize ? toBlockTypeSelector(selection) : toExactSelector(selection);
     effect = {
       amount: "lg",
       direction: "after",
       type: "adjust_block_spacing"
     };
-  } else if (mentions(lower, /\b(bold|colon|label|highlight)\b/)) {
+  } else if (mentionsInlineEmphasisRequest(lower)) {
     kind = "inline_semantics";
     const shouldGeneralize =
       wantsBroadRule(lower) ||
-      (mentions(lower, /\b(labels?|headings?|titles?)\b/) && mentions(lower, /\bcolon\b/)) ||
-      hasPrefixBeforeColon(selection.selectedText);
+      (mentions(lower, /\b(labels?|headings?|titles?|labels|titel|überschriften|ueberschriften)\b/) &&
+        mentions(lower, /\bcolon|doppelpunkt\b/)) ||
+      hasLabelStylePrefix(selection.selectedText);
 
     summary = shouldGeneralize
-      ? "Emphasize label-style prefixes ending with a colon in similar Reader blocks."
-      : "Emphasize a label-style prefix inside the selected Reader block.";
+      ? "Hebe labelartige Präfixe mit Doppelpunkt in ähnlichen Reader-Blöcken hervor."
+      : "Hebe ein labelartiges Präfix im ausgewählten Reader-Block hervor.";
     rationale = shouldGeneralize
-      ? "The request describes a reusable inline pattern, so the rule can target similar Reader blocks instead of a single anchor."
-      : "The request targets inline emphasis, which can be represented as local semantic styling in the Reader.";
+      ? "Die Anfrage beschreibt ein wiederverwendbares Inline-Muster, daher kann die Regel ähnliche Reader-Blöcke statt nur eines einzelnen Ankers treffen."
+      : "Die Anfrage zielt auf lokale Hervorhebung, was sich im Reader als Inline-Semantik darstellen lässt.";
     selector = shouldGeneralize ? toPrefixPatternSelector(selection) : toExactSelector(selection);
     effect = {
       type: "bold_prefix_before_colon"
     };
-  } else if (mentions(lower, /\b(bigger|larger|heading|headline|title)\b/)) {
+  } else if (mentionsHeadingEmphasisRequest(lower)) {
     const shouldGeneralize =
       wantsBroadRule(lower) ||
-      (selection.blockType === "heading" && mentions(lower, /\b(headings?|titles?)\b/));
+      (selection.blockType === "heading" &&
+        mentions(lower, /\b(headings?|titles?|überschriften|ueberschriften|titel)\b/));
 
     summary = shouldGeneralize
-      ? "Increase heading-style emphasis for similar Reader blocks."
-      : "Increase heading-style emphasis for the selected Reader block.";
+      ? "Erhöhe die Überschriften-Betonung in ähnlichen Reader-Blöcken."
+      : "Erhöhe die Überschriften-Betonung im ausgewählten Reader-Block.";
     rationale = shouldGeneralize
-      ? "The request sounds like a reusable hierarchy adjustment, so matching Reader blocks can share one presentation rule."
-      : "The request sounds like stronger visual hierarchy, which fits Reader presentation rules.";
+      ? "Die Anfrage klingt nach einer wiederverwendbaren Hierarchie-Anpassung, daher können passende Reader-Blöcke dieselbe Darstellungsregel teilen."
+      : "Die Anfrage zielt auf stärkere visuelle Hierarchie, was gut zu Reader-Darstellungsregeln passt.";
     selector = shouldGeneralize ? toBlockTypeSelector(selection) : toExactSelector(selection);
     effect = {
       amount: "md",
@@ -226,7 +259,7 @@ export function buildDeterministicAdjustmentPreview(
     .find((message) => message.role === "user");
 
   if (!lastUserMessage) {
-    throw new Error("A preview needs at least one user message in the adjustment session.");
+    throw new Error("Für eine Vorschau braucht die Adjustment-Session mindestens eine Nutzernachricht.");
   }
 
   const basePreview =

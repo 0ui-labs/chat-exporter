@@ -174,6 +174,7 @@ test("reader heading spacing generalizes to matching block types", () => {
     direction: "after",
     type: "adjust_block_spacing"
   });
+  assert.match(preview.summary, /Abstand/i);
 });
 
 test("markdown colon labels compile into a reusable inline rule", () => {
@@ -202,6 +203,7 @@ test("markdown colon labels compile into a reusable inline rule", () => {
   assert.deepEqual(preview.draftRule.effect, {
     type: "bold_prefix_before_colon"
   });
+  assert.match(preview.summary, /Doppelpunkt/i);
 });
 
 test("markdown size requests are redirected into heading structure with limits", () => {
@@ -226,7 +228,31 @@ test("markdown size requests are redirected into heading structure with limits",
     level: 2,
     type: "promote_to_heading"
   });
-  assert.match(preview.limitations.join(" "), /font sizes are not portable in Markdown/i);
+  assert.match(preview.limitations.join(" "), /Schriftgrößen/i);
+});
+
+test("reader markdown bold markers compile into an exact inline rule", () => {
+  const preview = buildDeterministicAdjustmentPreview(
+    createSessionDetail({
+      selection: createSelection({
+        selectedText:
+          "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:",
+        textQuote:
+          "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:"
+      }),
+      targetFormat: "reader",
+      userMessage: "Bold scheint fehlerhaft formatiert zu sein."
+    })
+  );
+
+  assert.equal(preview.targetFormat, "reader");
+  assert.equal(preview.draftRule.kind, "inline_semantics");
+  assert.equal((preview.draftRule.selector as { messageId?: string }).messageId, "message-1");
+  assert.equal((preview.draftRule.selector as { blockType?: string }).blockType, "paragraph");
+  assert.deepEqual(preview.draftRule.effect, {
+    type: "render_markdown_strong"
+  });
+  assert.match(preview.rationale, /Markdown-Markierungen/i);
 });
 
 test("preview compilation uses AI output when a provider is configured", async () => {
@@ -284,6 +310,7 @@ test("preview compilation uses AI output when a provider is configured", async (
     assert.match(prompt, /Labels with a colon should always be bold everywhere\./);
     assert.match(prompt, /Keep extra space under headings/);
     assert.match(prompt, /Important: check the logs/);
+    assert.match(prompt, /Write summary, rationale, and limitations in German\./);
 
     return new Response(
       JSON.stringify({
@@ -299,8 +326,8 @@ test("preview compilation uses AI output when a provider is configured", async (
             }
           },
           limitations: [],
-          rationale: "The selected line is a reusable Markdown label pattern.",
-          summary: "Bold label-style prefixes ending with a colon across matching Markdown lines."
+          rationale: "Die ausgewählte Zeile ist ein wiederverwendbares Markdown-Labelmuster.",
+          summary: "Hebe labelartige Präfixe mit Doppelpunkt in passenden Markdown-Zeilen importweit hervor."
         })
       }),
       {
@@ -319,7 +346,10 @@ test("preview compilation uses AI output when a provider is configured", async (
       sessionDetail
     });
 
-    assert.equal(preview.summary, "Bold label-style prefixes ending with a colon across matching Markdown lines.");
+    assert.equal(
+      preview.summary,
+      "Hebe labelartige Präfixe mit Doppelpunkt in passenden Markdown-Zeilen importweit hervor."
+    );
     assert.deepEqual(preview.draftRule.selector, {
       strategy: "prefix_before_colon"
     });
@@ -387,7 +417,7 @@ test("preview compilation falls back to deterministic rules when AI output is in
       sessionDetail
     });
 
-    assert.equal(preview.summary, "Increase spacing around heading blocks in the Reader.");
+    assert.equal(preview.summary, "Vergrößere den Abstand rund um ähnliche Überschriften im Reader.");
     assert.deepEqual(preview.draftRule.selector, {
       blockType: "heading",
       strategy: "block_type"

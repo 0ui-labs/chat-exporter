@@ -4,68 +4,116 @@ import type {
   AdjustmentTargetFormat
 } from "@chat-exporter/shared";
 
+import {
+  hasLabelStylePrefix,
+  hasMarkdownStrongMarkers,
+  mentionsInlineEmphasisRequest,
+  mentionsMarkdownStrongFormattingIssue,
+  mentionsStructuralRequest,
+  mentionsVisualStylingRequest,
+  wantsBroadRule
+} from "./adjustment-heuristics.js";
+
+function getRoleLabel(role: string) {
+  switch (role) {
+    case "assistant":
+      return "Assistent";
+    case "user":
+      return "Nutzer";
+    case "markdown":
+      return "Markdown";
+    case "tool":
+      return "Werkzeug";
+    case "system":
+      return "System";
+    default:
+      return role;
+  }
+}
+
+function getBlockTypeLabel(blockType: string) {
+  switch (blockType) {
+    case "paragraph":
+      return "Absatz";
+    case "heading":
+      return "Überschrift";
+    case "list":
+      return "Liste";
+    case "quote":
+      return "Zitat";
+    case "code":
+      return "Codeblock";
+    case "table":
+      return "Tabelle";
+    case "markdown-lines":
+      return "Markdown-Zeilen";
+    default:
+      return blockType;
+  }
+}
+
+function getReusableBlockTypeLabel(blockType: string) {
+  switch (blockType) {
+    case "heading":
+      return "Überschriften";
+    case "table":
+      return "Tabellen";
+    case "list":
+      return "Listen";
+    default:
+      return "Inhalte dieses Typs";
+  }
+}
+
 function selectionDescriptor(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
-    return `lines ${selection.lineStart}-${selection.lineEnd}`;
+    return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
   }
 
-  return `${selection.messageRole} message ${selection.messageIndex + 1}, ${selection.blockType} block`;
-}
-
-function wantsBroadRule(input: string) {
-  return /\b(always|whenever|every|all similar|same kind|all)\b/i.test(input);
-}
-
-function hasPrefixBeforeColon(text: string) {
-  return /^([^:\n]{1,120}:)/m.test(text.trim());
-}
-
-function mentionsVisualStyling(input: string) {
-  return /\b(bigger|larger|smaller|spacing|space|gap|padding|margin|color|font|size)\b/i.test(input);
-}
-
-function mentionsStructuralChange(input: string) {
-  return /\b(heading|headline|title|list|bullet|table|code block|quote|paragraph)\b/i.test(input);
-}
-
-function mentionsInlineEmphasis(input: string) {
-  return /\b(bold|italic|emphasis|highlight|colon)\b/i.test(input);
+  return `${getRoleLabel(selection.messageRole)}-Nachricht ${selection.messageIndex + 1}, ${getBlockTypeLabel(selection.blockType)}`;
 }
 
 function buildMarkdownCapabilityHint(input: string) {
-  if (mentionsVisualStyling(input)) {
-    return "Markdown cannot carry portable font sizes or exact spacing. I can reinterpret this as a heading, bold label, list, table cleanup, or cleaner paragraph structure instead.";
+  if (mentionsVisualStylingRequest(input)) {
+    return "Markdown trägt keine exakten Schriftgrößen oder Abstände zuverlässig. Ich kann das stattdessen als Überschrift, hervorgehobenes Label, Liste, Tabellenbereinigung oder klarere Struktur umsetzen.";
   }
 
-  if (mentionsStructuralChange(input) || mentionsInlineEmphasis(input)) {
-    return "This looks like a Markdown-safe request. The next step can turn it into a structural or inline rule for this output.";
+  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+    return "Das sieht nach einer Markdown-tauglichen Anpassung aus. Im nächsten Schritt kann ich daraus eine Struktur- oder Inline-Regel für diese Ausgabe ableiten.";
   }
 
-  return "For Markdown I can help with structure, headings, lists, bold labels, table cleanup, and paragraph shaping.";
+  return "Für Markdown kann ich bei Struktur, Überschriften, Listen, hervorgehobenen Labels, Tabellenbereinigung und Absatzform helfen.";
 }
 
-function buildReaderCapabilityHint(input: string) {
-  if (mentionsVisualStyling(input)) {
-    return "This sounds like a Reader render rule. The next step can turn it into spacing, emphasis, or presentation logic for the in-app view.";
+function buildReaderCapabilityHint(selection: AdjustmentSelection, input: string) {
+  if (
+    hasMarkdownStrongMarkers(selection.selectedText) &&
+    mentionsMarkdownStrongFormattingIssue(input)
+  ) {
+    return "Das sieht nach wörtlich übernommenen Markdown-Markierungen wie **...** aus. Ich kann daraus eine Reader-Regel machen, die vorhandenen Fettdruck korrekt rendert.";
   }
 
-  if (mentionsStructuralChange(input) || mentionsInlineEmphasis(input)) {
-    return "This may be either a Reader presentation tweak or a structure rule. The next step can decide which one fits the selected content better.";
+  if (mentionsVisualStylingRequest(input)) {
+    return "Das klingt nach einer Reader-Darstellungsregel. Im nächsten Schritt kann ich das in Abstand, Hervorhebung oder andere Präsentationslogik für die In-App-Ansicht übersetzen.";
   }
 
-  return "For Reader adjustments I can help with spacing, emphasis, and local presentation changes on the selected content.";
+  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+    return "Das kann entweder eine Reader-Darstellungskorrektur oder eine Strukturregel sein. Im nächsten Schritt kann ich entscheiden, was besser zur Auswahl passt.";
+  }
+
+  return "Für Reader-Anpassungen kann ich bei Abstand, Hervorhebung und lokaler Darstellung der ausgewählten Stelle helfen.";
 }
 
 function buildClarifyingQuestion(targetFormat: AdjustmentTargetFormat, input: string) {
-  if (targetFormat === "markdown" && mentionsVisualStyling(input)) {
-    return "Should I reinterpret your request as a Markdown structure change such as a heading or bold label?";
+  if (targetFormat === "markdown" && mentionsVisualStylingRequest(input)) {
+    return "Soll ich deine Anfrage als Markdown-Strukturänderung umsetzen, zum Beispiel als Überschrift oder hervorgehobenes Label?";
   }
 
-  if (mentionsStructuralChange(input) || mentionsInlineEmphasis(input)) {
-    return "Should this apply only to this exact selection, or should the future rule target similar content in this format?";
+  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+    return "Soll das nur für diese konkrete Auswahl gelten oder künftig auch für ähnliche Stellen in diesem Format?";
   }
 
-  return "What should change in the selected content itself: structure, emphasis, or spacing?";
+  return "Was soll sich an der ausgewählten Stelle konkret ändern: Struktur, Hervorhebung oder Abstand?";
 }
 
 function buildScopeGuidance(params: {
@@ -76,34 +124,44 @@ function buildScopeGuidance(params: {
   const { input, selection, targetFormat } = params;
   const lowerInput = input.toLowerCase();
 
-  if (targetFormat === "reader" && mentionsVisualStyling(lowerInput)) {
+  if (
+    targetFormat === "reader" &&
+    hasMarkdownStrongMarkers(selection.selectedText) &&
+    mentionsMarkdownStrongFormattingIssue(lowerInput)
+  ) {
+    return wantsBroadRule(lowerInput)
+      ? "Ich würde das zuerst sicher an dieser Auswahl verankern; wenn das gut aussieht, können wir es danach auf ähnliche Reader-Blöcke mit Markdown-Fettdruck ausweiten."
+      : "Ich verankere das zunächst an genau dieser Auswahl, damit der Reader vorhandene Markdown-Hervorhebung dort sichtbar korrekt rendert.";
+  }
+
+  if (targetFormat === "reader" && mentionsVisualStylingRequest(lowerInput)) {
     if (selection.blockType === "heading" || selection.blockType === "table") {
-      return `I can treat this as a reusable Reader rule for other ${selection.blockType} blocks in this import.`;
+      return `Ich kann daraus eine wiederverwendbare Reader-Regel für ähnliche ${getReusableBlockTypeLabel(selection.blockType).toLowerCase()} in diesem Import machen.`;
     }
 
     if (wantsBroadRule(lowerInput)) {
-      return "I can scope this broadly to similar Reader content in this import instead of only this exact block.";
+      return "Ich kann das importweit auf ähnliche Reader-Inhalte anwenden statt nur auf diesen einen Block.";
     }
   }
 
   if (
     targetFormat === "reader" &&
-    mentionsInlineEmphasis(lowerInput) &&
-    (wantsBroadRule(lowerInput) || hasPrefixBeforeColon(selection.selectedText))
+    mentionsInlineEmphasisRequest(lowerInput) &&
+    (wantsBroadRule(lowerInput) || hasLabelStylePrefix(selection.selectedText))
   ) {
-    return "I can turn this into a reusable Reader rule for similar label-style prefixes in this import.";
+    return "Ich kann daraus eine wiederverwendbare Reader-Regel für ähnliche labelartige Präfixe in diesem Import machen.";
   }
 
   if (
     targetFormat === "markdown" &&
-    mentionsInlineEmphasis(lowerInput) &&
-    (wantsBroadRule(lowerInput) || hasPrefixBeforeColon(selection.selectedText))
+    mentionsInlineEmphasisRequest(lowerInput) &&
+    (wantsBroadRule(lowerInput) || hasLabelStylePrefix(selection.selectedText))
   ) {
-    return "I can keep this Markdown-safe and target similar label-style lines, not just the current selection.";
+    return "Ich kann das Markdown-sicher halten und auf ähnliche labelartige Zeilen anwenden, nicht nur auf die aktuelle Auswahl.";
   }
 
-  if (targetFormat === "markdown" && mentionsVisualStyling(lowerInput)) {
-    return "If you need exact visual spacing or sizing, that belongs in Reader or later HTML/Rich text output rather than portable Markdown.";
+  if (targetFormat === "markdown" && mentionsVisualStylingRequest(lowerInput)) {
+    return "Wenn du exakte visuelle Abstände oder Größen brauchst, gehört das eher in Reader oder später in HTML/Rich-Text als in portables Markdown.";
   }
 
   return null;
@@ -113,14 +171,14 @@ export function buildInitialAdjustmentAssistantMessage(session: AdjustmentSessio
   const selection = selectionDescriptor(session.selection);
 
   if (session.targetFormat === "markdown") {
-    return `Markdown adjustment session ready for ${selection}. Describe the formatting problem in plain language and I will stay within Markdown-safe changes when possible.`;
+    return `Markdown-Adjustment bereit für ${selection}. Beschreibe das Formatproblem in Alltagssprache, und ich bleibe wenn möglich bei Markdown-sicheren Änderungen.`;
   }
 
   if (session.targetFormat === "reader") {
-    return `Reader adjustment session ready for ${selection}. Describe what looks wrong in this view and I will translate that into a presentation-focused rule.`;
+    return `Reader-Adjustment bereit für ${selection}. Beschreibe, was in dieser Ansicht falsch aussieht, und ich übersetze das in eine darstellungsorientierte Regel.`;
   }
 
-  return `Adjustment session ready for ${selection}. Describe the issue you want to fix in this format.`;
+  return `Adjustment bereit für ${selection}. Beschreibe das Problem, das du in diesem Format beheben willst.`;
 }
 
 export function buildAdjustmentAssistantReply(params: {
@@ -132,13 +190,13 @@ export function buildAdjustmentAssistantReply(params: {
   const trimmedMessage = userMessage.trim();
 
   if (trimmedMessage.length < 12) {
-    return `I have the selection context for ${selectionDescriptor(selection)}. Please describe the change a bit more specifically so I can turn it into a ${targetFormat}-specific rule.`;
+    return `Ich habe den Kontext für ${selectionDescriptor(selection)}. Beschreibe die gewünschte Änderung bitte etwas genauer, damit ich daraus eine ${targetFormat}-spezifische Regel ableiten kann.`;
   }
 
   const capabilityHint =
     targetFormat === "markdown"
       ? buildMarkdownCapabilityHint(trimmedMessage)
-      : buildReaderCapabilityHint(trimmedMessage);
+      : buildReaderCapabilityHint(selection, trimmedMessage);
   const clarifyingQuestion = buildClarifyingQuestion(targetFormat, trimmedMessage);
   const scopeGuidance = buildScopeGuidance({
     input: trimmedMessage,
@@ -148,7 +206,7 @@ export function buildAdjustmentAssistantReply(params: {
 
   return [
     capabilityHint,
-    `I am anchoring this to ${selectionDescriptor(selection)}.`,
+    `Ich verankere das an ${selectionDescriptor(selection)}.`,
     scopeGuidance,
     clarifyingQuestion
   ]
