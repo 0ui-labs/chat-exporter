@@ -6,10 +6,12 @@ import type { ImportJob } from "@chat-exporter/shared";
 import { AdjustmentPanel } from "@/components/format-workspace/adjustment-panel";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
+import type {
+  AdjustmentSelection,
+  ViewMode
+} from "@/components/format-workspace/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-export type ViewMode = "reader" | "markdown" | "handover" | "json";
 
 type ActiveStage = {
   label: string;
@@ -77,9 +79,16 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [selectionByView, setSelectionByView] = useState<Record<ViewMode, AdjustmentSelection | null>>({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
   const isAdjustableView = adjustableViews.has(view);
   const isAdjustModeEnabled = adjustModeByView[view];
+  const activeSelection = selectionByView[view];
 
   useEffect(() => {
     if (!isAdjustableView && isAdjustModeEnabled) {
@@ -98,6 +107,13 @@ export function FormatWorkspace({
     setAdjustModeByView((current) => ({
       ...current,
       [view]: !current[view]
+    }));
+  }
+
+  function handleSelectionChange(selection: AdjustmentSelection | null) {
+    setSelectionByView((current) => ({
+      ...current,
+      [view]: selection
     }));
   }
 
@@ -178,10 +194,17 @@ export function FormatWorkspace({
             ) : null}
           </div>
 
-          {isAdjustModeEnabled ? <AdjustmentPanel view={view} /> : null}
+          {isAdjustModeEnabled ? (
+            <AdjustmentPanel selection={activeSelection} view={view} />
+          ) : null}
 
           {view === "reader" ? (
-            <ReaderView conversation={job.conversation} />
+            <ReaderView
+              conversation={job.conversation}
+              adjustModeEnabled={isAdjustModeEnabled}
+              selectedBlock={view === "reader" ? activeSelection : null}
+              onSelectBlock={handleSelectionChange}
+            />
           ) : (
             <ArtifactView content={artifact} />
           )}

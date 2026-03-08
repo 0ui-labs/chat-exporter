@@ -1,6 +1,10 @@
-import type { ViewMode } from "@/components/format-workspace/format-workspace";
+import type {
+  AdjustmentSelection,
+  ViewMode
+} from "@/components/format-workspace/types";
 
 type AdjustmentPanelProps = {
+  selection: AdjustmentSelection | null;
   view: ViewMode;
 };
 
@@ -23,7 +27,7 @@ const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
   }
 };
 
-export function AdjustmentPanel({ view }: AdjustmentPanelProps) {
+export function AdjustmentPanel({ selection, view }: AdjustmentPanelProps) {
   const copy = formatCopy[view];
 
   return (
@@ -33,7 +37,19 @@ export function AdjustmentPanel({ view }: AdjustmentPanelProps) {
           Adjustment mode
         </p>
         <p className="text-sm text-foreground">{copy.detail}</p>
-        <p className="text-sm text-muted-foreground">{copy.nextStep}</p>
+        {selection ? (
+          <div className="rounded-2xl border border-primary/20 bg-background/75 px-3 py-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Current selection
+            </p>
+            <p className="mt-2 text-sm font-medium text-foreground">
+              {selection.messageRole} message {selection.messageIndex + 1} · {selection.blockType}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{selection.textQuote}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{copy.nextStep}</p>
+        )}
       </div>
     </div>
   );

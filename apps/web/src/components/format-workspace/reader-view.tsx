@@ -1,10 +1,28 @@
 import type { Block, Conversation } from "@chat-exporter/shared";
 
+import type { AdjustmentSelection } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
 type ReaderViewProps = {
+  adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
+  onSelectBlock: (selection: AdjustmentSelection) => void;
+  selectedBlock: AdjustmentSelection | null;
 };
+
+function blockToPlainText(block: Block) {
+  switch (block.type) {
+    case "paragraph":
+    case "heading":
+    case "quote":
+    case "code":
+      return block.text;
+    case "list":
+      return block.items.join(" ");
+    case "table":
+      return [block.headers.join(" "), ...block.rows.map((row) => row.join(" "))].join(" ");
+  }
+}
 
 function renderBlock(block: Block) {
   switch (block.type) {
@@ -70,7 +88,12 @@ function renderBlock(block: Block) {
   }
 }
 
-export function ReaderView({ conversation }: ReaderViewProps) {
+export function ReaderView({
+  adjustModeEnabled,
+  conversation,
+  onSelectBlock,
+  selectedBlock
+}: ReaderViewProps) {
   if (!conversation?.messages.length) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
@@ -94,9 +117,42 @@ export function ReaderView({ conversation }: ReaderViewProps) {
             <span>{index + 1}</span>
           </div>
           <div className="space-y-4">
-            {message.blocks.map((block, blockIndex) => (
-              <div key={`${message.id}-${block.type}-${blockIndex}`}>{renderBlock(block)}</div>
-            ))}
+            {message.blocks.map((block, blockIndex) => {
+              const blockText = blockToPlainText(block);
+              const isSelected =
+                selectedBlock?.messageId === message.id && selectedBlock.blockIndex === blockIndex;
+
+              return (
+                <div
+                  key={`${message.id}-${block.type}-${blockIndex}`}
+                  className={cn(
+                    "rounded-2xl transition",
+                    adjustModeEnabled
+                      ? "cursor-pointer ring-1 ring-transparent hover:bg-primary/5 hover:ring-primary/20"
+                      : null,
+                    isSelected ? "bg-primary/8 ring-2 ring-primary/40" : null
+                  )}
+                  onClick={() => {
+                    if (!adjustModeEnabled) {
+                      return;
+                    }
+
+                    onSelectBlock({
+                      blockIndex,
+                      blockType: block.type,
+                      messageId: message.id,
+                      messageIndex: index,
+                      messageRole: message.role,
+                      selectedText: blockText,
+                      textQuote:
+                        blockText.length > 180 ? `${blockText.slice(0, 177).trimEnd()}...` : blockText
+                    });
+                  }}
+                >
+                  {renderBlock(block)}
+                </div>
+              );
+            })}
           </div>
         </article>
       ))}

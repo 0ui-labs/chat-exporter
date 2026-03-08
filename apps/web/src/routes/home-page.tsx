@@ -4,7 +4,8 @@ import { useSearchParams } from "react-router-dom";
 
 import type { ImportJob } from "@chat-exporter/shared";
 
-import { FormatWorkspace, type ViewMode } from "@/components/format-workspace/format-workspace";
+import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
+import type { ViewMode } from "@/components/format-workspace/types";
 import { createImport, getImport, listImports } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
