@@ -44,7 +44,7 @@ export const importsRoute = new Hono()
     if (!parsed.success) {
       return c.json(
         {
-          message: "Invalid import request.",
+          message: "Ungültige Import-Anfrage.",
           issues: parsed.error.flatten()
         },
         400
@@ -55,7 +55,7 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message:
-            "This first scaffold only accepts public ChatGPT share links."
+            "Dieser erste Stand akzeptiert nur öffentliche ChatGPT-Share-Links."
         },
         400
       );
@@ -72,7 +72,7 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import job not found."
+          message: "Import nicht gefunden."
         },
         404
       );
@@ -87,7 +87,7 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import job not found."
+          message: "Import nicht gefunden."
         },
         404
       );
@@ -101,7 +101,7 @@ export const importsRoute = new Hono()
     if (parsedFormat && !parsedFormat.success) {
       return c.json(
         {
-          message: "Unsupported adjustment format.",
+          message: "Nicht unterstütztes Anpassungsformat.",
           issues: parsedFormat.error.flatten()
         },
         400
@@ -117,7 +117,7 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import job not found."
+          message: "Import nicht gefunden."
         },
         404
       );
@@ -129,7 +129,7 @@ export const importsRoute = new Hono()
     if (!parsed.success) {
       return c.json(
         {
-          message: "Invalid adjustment session request.",
+          message: "Ungültige Anfrage für eine Anpassungssession.",
           issues: parsed.error.flatten()
         },
         400
@@ -148,7 +148,7 @@ export const importsRoute = new Hono()
       if (!detail) {
         return c.json(
           {
-            message: "Adjustment session could not be loaded."
+            message: "Anpassungssession konnte nicht geladen werden."
           },
           500
         );
@@ -168,7 +168,7 @@ export const importsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Adjustment session could not be loaded."
+          message: "Anpassungssession konnte nicht geladen werden."
         },
         500
       );
@@ -183,7 +183,7 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import job not found."
+          message: "Import nicht gefunden."
         },
         404
       );
@@ -197,7 +197,7 @@ export const importsRoute = new Hono()
     if (parsedFormat && !parsedFormat.success) {
       return c.json(
         {
-          message: "Unsupported format rule target.",
+          message: "Nicht unterstütztes Ziel für Formatregeln.",
           issues: parsedFormat.error.flatten()
         },
         400
@@ -213,7 +213,7 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import job not found."
+          message: "Import nicht gefunden."
         },
         404
       );
@@ -225,7 +225,7 @@ export const importsRoute = new Hono()
     if (!parsedFormat.success) {
       return c.json(
         {
-          message: "Unsupported adjustment metrics target.",
+          message: "Nicht unterstütztes Ziel für Anpassungsmetriken.",
           issues: parsedFormat.error.flatten()
         },
         400
@@ -240,7 +240,7 @@ export const importsRoute = new Hono()
     if (!snapshot) {
       return c.json(
         {
-          message: "Import snapshot not found."
+          message: "Import-Snapshot nicht gefunden."
         },
         404
       );
@@ -269,7 +269,7 @@ export const importsRoute = new Hono()
     if (!snapshot) {
       return c.json(
         {
-          message: "Import snapshot not found."
+          message: "Import-Snapshot nicht gefunden."
         },
         404
       );
@@ -284,7 +284,7 @@ export const importsRoute = new Hono()
     if (!job || !job.artifacts) {
       return c.json(
         {
-          message: "Export artifact not found."
+          message: "Export-Artefakt nicht gefunden."
         },
         404
       );
@@ -305,7 +305,7 @@ export const importsRoute = new Hono()
       default:
         return c.json(
           {
-            message: "Unsupported export format."
+            message: "Nicht unterstütztes Exportformat."
           },
           400
         );

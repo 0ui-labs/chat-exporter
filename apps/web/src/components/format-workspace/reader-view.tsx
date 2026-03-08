@@ -1,5 +1,6 @@
 import type { Conversation, FormatRule } from "@chat-exporter/shared";
 
+import { getRoleLabel } from "@/components/format-workspace/labels";
 import {
   blockToPlainText,
   getReaderBlockClassName,
@@ -27,7 +28,7 @@ export function ReaderView({
   if (!conversation?.messages.length) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
-        No transcript content is available for this import.
+        Für diesen Import ist noch kein Transkriptinhalt verfügbar.
       </div>
     );
   }
@@ -43,7 +44,7 @@ export function ReaderView({
           )}
         >
           <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            <span>{message.role}</span>
+            <span>{getRoleLabel(message.role)}</span>
             <span>{index + 1}</span>
           </div>
           <div className="space-y-4">

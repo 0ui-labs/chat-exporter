@@ -1,3 +1,4 @@
+import { getBlockTypeLabel, getViewLabel } from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
 
 type DescribeSelectorScopeParams = {
@@ -14,14 +15,18 @@ export function describeSelectorScope(params: DescribeSelectorScopeParams) {
   const strategy = typeof parsedSelector?.strategy === "string" ? parsedSelector.strategy : "exact";
   const selectorBlockType =
     typeof parsedSelector?.blockType === "string" ? parsedSelector.blockType : blockType;
+  const viewLabel = getViewLabel(view);
+  const blockLabel = selectorBlockType ? getBlockTypeLabel(selectorBlockType) : null;
 
   switch (strategy) {
     case "block_type":
-      return `This rule affects similar ${selectorBlockType ?? "matching"} blocks in the ${view} output for this import.`;
+      return blockLabel
+        ? `Diese Regel wirkt auf ähnliche Blöcke vom Typ ${blockLabel} in der ${viewLabel}-Ausgabe dieses Imports.`
+        : `Diese Regel wirkt auf ähnliche Blöcke in der ${viewLabel}-Ausgabe dieses Imports.`;
     case "prefix_before_colon":
-      return `This rule affects similar label-style prefixes in the ${view} output for this import.`;
+      return `Diese Regel wirkt auf ähnliche labelartige Präfixe in der ${viewLabel}-Ausgabe dieses Imports.`;
     case "markdown_table":
-      return "This rule affects matching Markdown tables in this import.";
+      return "Diese Regel wirkt auf passende Markdown-Tabellen in diesem Import.";
     default:
       return exactLabel;
   }

@@ -14,32 +14,32 @@ import { cn } from "@/lib/utils";
 
 const importStages = {
   validate: {
-    label: "Validating link",
-    detail: "Checking the link and choosing the right importer."
+    label: "Link wird geprüft",
+    detail: "Der Link wird geprüft und dem passenden Importer zugeordnet."
   },
   fetch: {
-    label: "Fetching page",
-    detail: "Opening the shared page and capturing the source."
+    label: "Seite wird geladen",
+    detail: "Die freigegebene Seite wird geöffnet und als Quelle erfasst."
   },
   extract: {
-    label: "Extracting messages",
-    detail: "Pulling the conversation out of the provider markup."
+    label: "Nachrichten werden extrahiert",
+    detail: "Die Unterhaltung wird aus dem Markup des Anbieters extrahiert."
   },
   normalize: {
-    label: "Cleaning transcript",
-    detail: "Converting the raw fragments into readable messages."
+    label: "Transkript wird bereinigt",
+    detail: "Rohfragmente werden in lesbare Nachrichten umgewandelt."
   },
   structure: {
-    label: "Repairing structure",
-    detail: "Fixing sections that need an extra cleanup pass."
+    label: "Struktur wird repariert",
+    detail: "Abschnitte mit zusätzlichem Bereinigungsbedarf werden korrigiert."
   },
   render: {
-    label: "Rendering outputs",
-    detail: "Preparing the reader and export formats."
+    label: "Ausgaben werden erzeugt",
+    detail: "Reader- und Exportformate werden vorbereitet."
   },
   done: {
-    label: "Ready",
-    detail: "The transcript is ready."
+    label: "Bereit",
+    detail: "Das Transkript ist bereit."
   }
 } as const;
 
@@ -87,8 +87,8 @@ function formatElapsed(ms: number) {
 function getActiveStage(job: ImportJob) {
   if (job.status === "queued") {
     return {
-      label: "Waiting to start",
-      detail: "The job is queued and will start as soon as a worker is free."
+      label: "Wartet auf Start",
+      detail: "Der Job ist in der Warteschlange und startet, sobald ein Worker frei ist."
     };
   }
 
@@ -178,7 +178,7 @@ export function HomePage() {
       } catch (loadError) {
         if (!cancelled) {
           setJobError(
-            loadError instanceof Error ? loadError.message : "Import job could not be loaded."
+            loadError instanceof Error ? loadError.message : "Import konnte nicht geladen werden."
           );
         }
       }
@@ -251,7 +251,7 @@ export function HomePage() {
       });
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "The import could not be started."
+        submitError instanceof Error ? submitError.message : "Der Import konnte nicht gestartet werden."
       );
     } finally {
       setSubmitting(false);
@@ -285,13 +285,13 @@ export function HomePage() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="relative flex-1">
                   <Input
-                    aria-label="Share link"
+                    aria-label="Freigabelink"
                     className={cn(
                       "h-12 pr-4 text-base",
                       showInlineOriginalButton ? "pr-24 sm:pr-40" : null
                     )}
                     inputMode="url"
-                    placeholder="https://chatgpt.com/share/... or another public AI share link"
+                    placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
                     value={url}
                     onChange={(event) => {
                       setHasEditedUrl(true);
@@ -306,15 +306,15 @@ export function HomePage() {
                       rel="noreferrer"
                       target="_blank"
                     >
-                      <span className="sm:hidden">Open</span>
-                      <span className="hidden sm:inline">Open original</span>
+                      <span className="sm:hidden">Öffnen</span>
+                      <span className="hidden sm:inline">Original öffnen</span>
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   ) : null}
                 </div>
 
                 <Button className="h-12 px-5 lg:min-w-[8rem]" disabled={submitting} type="submit">
-                  {submitting ? "Importing..." : "Import"}
+                  {submitting ? "Import läuft..." : "Importieren"}
                 </Button>
               </div>
 
@@ -328,7 +328,7 @@ export function HomePage() {
             {showRecentJobs ? (
               <section className="space-y-3">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Recent imports
+                  Letzte Importe
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {recentJobs.map((recentJob) => (

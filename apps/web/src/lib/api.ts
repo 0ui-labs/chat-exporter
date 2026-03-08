@@ -34,7 +34,7 @@ export async function createImport(payload: ImportRequest) {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Import could not be created.";
+      typeof body?.message === "string" ? body.message : "Import konnte nicht erstellt werden.";
     throw new Error(message);
   }
 
@@ -45,7 +45,7 @@ export async function getImport(importId: string): Promise<ImportJob> {
   const response = await fetch(`/api/imports/${importId}`);
 
   if (!response.ok) {
-    throw new Error("Import job could not be loaded.");
+    throw new Error("Import konnte nicht geladen werden.");
   }
 
   return importJobSchema.parse(await response.json());
@@ -55,7 +55,7 @@ export async function listImports() {
   const response = await fetch("/api/imports");
 
   if (!response.ok) {
-    throw new Error("Imports could not be loaded.");
+    throw new Error("Importe konnten nicht geladen werden.");
   }
 
   const payload = (await response.json()) as unknown[];
@@ -66,7 +66,7 @@ export async function getImportSnapshot(importId: string): Promise<ImportSnapsho
   const response = await fetch(`/api/imports/${importId}/snapshot`);
 
   if (!response.ok) {
-    throw new Error("Import snapshot could not be loaded.");
+    throw new Error("Import-Snapshot konnte nicht geladen werden.");
   }
 
   return importSnapshotSchema.parse(await response.json());
@@ -90,7 +90,7 @@ export async function createAdjustmentSession(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment session could not be created.";
+        : "Anpassungssession konnte nicht erstellt werden.";
     throw new Error(message);
   }
 
@@ -107,7 +107,7 @@ export async function getAdjustmentSessionDetail(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment session could not be loaded.";
+        : "Anpassungssession konnte nicht geladen werden.";
     throw new Error(message);
   }
 
@@ -132,7 +132,7 @@ export async function appendAdjustmentMessage(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment message could not be saved.";
+        : "Anpassungsnachricht konnte nicht gespeichert werden.";
     throw new Error(message);
   }
 
@@ -151,7 +151,7 @@ export async function generateAdjustmentPreview(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment preview could not be generated.";
+        : "Anpassungsvorschau konnte nicht erzeugt werden.";
     throw new Error(message);
   }
 
@@ -170,7 +170,7 @@ export async function applyAdjustmentSession(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment rule could not be applied.";
+        : "Anpassungsregel konnte nicht angewendet werden.";
     throw new Error(message);
   }
 
@@ -189,7 +189,7 @@ export async function discardAdjustmentSession(
     const message =
       typeof body?.message === "string"
         ? body.message
-        : "Adjustment session could not be discarded.";
+        : "Anpassungssession konnte nicht verworfen werden.";
     throw new Error(message);
   }
 
@@ -204,7 +204,7 @@ export async function disableFormatRule(ruleId: string): Promise<FormatRule> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Format rule could not be disabled.";
+      typeof body?.message === "string" ? body.message : "Formatregel konnte nicht deaktiviert werden.";
     throw new Error(message);
   }
 
@@ -221,7 +221,7 @@ export async function getFormatRules(
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Format rules could not be loaded.";
+      typeof body?.message === "string" ? body.message : "Formatregeln konnten nicht geladen werden.";
     throw new Error(message);
   }
 
@@ -241,7 +241,7 @@ export async function getAdjustmentMetrics(
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Adjustment metrics could not be loaded.";
+      typeof body?.message === "string" ? body.message : "Anpassungsmetriken konnten nicht geladen werden.";
     throw new Error(message);
   }
 

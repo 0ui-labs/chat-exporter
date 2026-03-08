@@ -13,6 +13,12 @@ import { AdjustmentPreviewRender } from "@/components/format-workspace/adjustmen
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
+import {
+  getBlockTypeLabel,
+  getRuleKindLabel,
+  getRoleLabel,
+  getViewLabel
+} from "@/components/format-workspace/labels";
 import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
 import type {
   AdjustmentSelection,
@@ -47,10 +53,10 @@ type FormatWorkspaceProps = {
 };
 
 const outputViews: { value: ViewMode; label: string }[] = [
-  { value: "reader", label: "Reader" },
-  { value: "markdown", label: "Markdown" },
-  { value: "handover", label: "Handover" },
-  { value: "json", label: "JSON" }
+  { value: "reader", label: getViewLabel("reader") },
+  { value: "markdown", label: getViewLabel("markdown") },
+  { value: "handover", label: getViewLabel("handover") },
+  { value: "json", label: getViewLabel("json") }
 ];
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
@@ -69,55 +75,55 @@ function formatMetricsSummary(metrics: AdjustmentMetrics) {
   const parts: string[] = [];
 
   if (metrics.counts.rulesApplied > 0) {
-    parts.push(`${metrics.counts.rulesApplied} applied`);
+    parts.push(`${metrics.counts.rulesApplied} angewendet`);
   }
 
   if (metrics.counts.rulesDisabled > 0) {
-    parts.push(`${metrics.counts.rulesDisabled} undone`);
+    parts.push(`${metrics.counts.rulesDisabled} rückgängig`);
   }
 
   if (metrics.counts.sessionsDiscarded > 0) {
-    parts.push(`${metrics.counts.sessionsDiscarded} discarded`);
+    parts.push(`${metrics.counts.sessionsDiscarded} verworfen`);
   }
 
   if (metrics.counts.clarifications > 0) {
-    parts.push(`${metrics.counts.clarifications} clarifications`);
+    parts.push(`${metrics.counts.clarifications} Klarstellungen`);
   }
 
   if (metrics.counts.previewFailures > 0) {
-    parts.push(`${metrics.counts.previewFailures} preview failures`);
+    parts.push(`${metrics.counts.previewFailures} Vorschaufehler`);
   }
 
-  return parts.length > 0 ? parts.join(" · ") : "No adjustments applied in this format yet.";
+  return parts.length > 0 ? parts.join(" · ") : "Für dieses Format wurden noch keine Anpassungen angewendet.";
 }
 
 function describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
-    return `Markdown lines ${selection.lineStart}-${selection.lineEnd}`;
+    return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
   }
 
-  return `${selection.messageRole} message ${selection.messageIndex + 1} · ${selection.blockType}`;
+  return `${getRoleLabel(selection.messageRole)}-Nachricht ${selection.messageIndex + 1} · ${getBlockTypeLabel(selection.blockType)}`;
 }
 
 function getStatusLabel(job: ImportJob) {
   if (job.status === "completed") {
-    return "Ready";
+    return "Bereit";
   }
 
   if (job.status === "failed") {
-    return "Failed";
+    return "Fehlgeschlagen";
   }
 
   if (job.status === "queued") {
-    return "Queued";
+    return "Warteschlange";
   }
 
-  return "Importing";
+  return "Import läuft";
 }
 
 function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob) {
   if (!job.artifacts) {
-    return "Artifact not available yet.";
+    return "Artefakt ist noch nicht verfügbar.";
   }
 
   switch (view) {
@@ -406,7 +412,7 @@ export function FormatWorkspace({
           [view]:
             error instanceof Error
               ? error.message
-              : "Adjustment session could not be created."
+              : "Anpassungssession konnte nicht erstellt werden."
         }));
       })
       .finally(() => {
@@ -521,7 +527,7 @@ export function FormatWorkspace({
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Adjustment message could not be saved."
+          error instanceof Error ? error.message : "Anpassungsnachricht konnte nicht gespeichert werden."
       }));
     } finally {
       setSubmittingMessageByView((current) => ({
@@ -557,7 +563,7 @@ export function FormatWorkspace({
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Adjustment preview could not be generated."
+          error instanceof Error ? error.message : "Anpassungsvorschau konnte nicht erzeugt werden."
       }));
       void refreshAdjustmentMetrics(view);
     } finally {
@@ -601,7 +607,7 @@ export function FormatWorkspace({
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Adjustment rule could not be applied."
+          error instanceof Error ? error.message : "Anpassungsregel konnte nicht angewendet werden."
       }));
     } finally {
       setApplyingByView((current) => ({
@@ -634,7 +640,7 @@ export function FormatWorkspace({
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Adjustment session could not be discarded."
+          error instanceof Error ? error.message : "Anpassungssession konnte nicht verworfen werden."
       }));
     } finally {
       setDiscardingByView((current) => ({
@@ -673,7 +679,7 @@ export function FormatWorkspace({
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
-        [view]: error instanceof Error ? error.message : "Format rule could not be disabled."
+        [view]: error instanceof Error ? error.message : "Formatregel konnte nicht deaktiviert werden."
       }));
     } finally {
       setDisablingRuleById((current) => {
@@ -728,7 +734,7 @@ export function FormatWorkspace({
       setRuleExplanationErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Rule explanation could not be loaded."
+          error instanceof Error ? error.message : "Regelerklärung konnte nicht geladen werden."
       }));
     } finally {
       setLoadingExplanationBySessionId((current) => ({
@@ -746,7 +752,7 @@ export function FormatWorkspace({
         </Badge>
         {job.summary ? (
           <p className="text-sm text-muted-foreground">
-            {job.summary.messageCount} messages · {job.summary.transcriptWords} words
+            {job.summary.messageCount} Nachrichten · {job.summary.transcriptWords} Wörter
           </p>
         ) : null}
         {job.status !== "completed" && activeStage ? (
@@ -774,7 +780,7 @@ export function FormatWorkspace({
           <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
               <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-              {activeStage?.detail ?? "Preparing transcript"}
+              {activeStage?.detail ?? "Transkript wird vorbereitet"}
             </div>
             <div className="space-y-3">
               <div className="h-3 w-40 animate-pulse rounded-full bg-primary/15" />
@@ -812,7 +818,7 @@ export function FormatWorkspace({
                 onClick={toggleAdjustMode}
               >
                 <Settings2 className="mr-2 h-4 w-4" />
-                {isAdjustModeEnabled ? "Exit adjust mode" : `Adjust ${view}`}
+                {isAdjustModeEnabled ? "Anpassungsmodus beenden" : `${getViewLabel(view)} anpassen`}
               </Button>
             ) : null}
           </div>
@@ -842,7 +848,7 @@ export function FormatWorkspace({
                       void handleToggleRuleExplanation(rule);
                     }}
                   >
-                    {explainedRuleId === rule.id ? "Hide" : "Why"}
+                    {explainedRuleId === rule.id ? "Ausblenden" : "Warum?"}
                   </button>
                   <button
                     data-testid="active-format-rule-undo"
@@ -853,7 +859,7 @@ export function FormatWorkspace({
                       void handleDisableRule(rule.id);
                     }}
                   >
-                    {disablingRuleById[rule.id] ? "Undoing..." : "Undo"}
+                    {disablingRuleById[rule.id] ? "Wird rückgängig gemacht..." : "Rückgängig"}
                   </button>
                 </div>
               ))}
@@ -868,18 +874,18 @@ export function FormatWorkspace({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Why this exists
+                    Warum es diese Regel gibt
                   </p>
                   <p className="mt-1 text-sm font-medium text-foreground">
                     {explainedRule.instruction}
                   </p>
                 </div>
-                <Badge variant="secondary">{explainedRule.kind}</Badge>
+                <Badge variant="secondary">{getRuleKindLabel(explainedRule.kind)}</Badge>
               </div>
 
               {isExplainedRuleLoading ? (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Loading the source adjustment session for this rule.
+                  Zugehörige Anpassungssession für diese Regel wird geladen.
                 </p>
               ) : explainedRuleError ? (
                 <div className="mt-3 rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-3 text-sm text-red-900">
@@ -898,18 +904,18 @@ export function FormatWorkspace({
 
                   <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      Reasoning
+                      Begründung
                     </p>
                     <p className="mt-2 text-foreground">
                       {explainedRuleDetail.session.previewArtifact?.rationale ??
-                        "This rule was created from a previous adjustment session for this import."}
+                        "Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt."}
                     </p>
                   </div>
 
                   <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3 text-muted-foreground">
                     {describeSelectorScope({
                       blockType: explainedRuleDetail.session.selection.blockType,
-                      exactLabel: "This rule applies only to the original selection.",
+                      exactLabel: "Diese Regel gilt nur für die ursprüngliche Auswahl.",
                       selector:
                         explainedRuleDetail.session.previewArtifact?.draftRule.selector ??
                         explainedRule.selector,
@@ -919,7 +925,7 @@ export function FormatWorkspace({
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-muted-foreground">
-                  This rule was created from an earlier adjustment session for this import.
+                  Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt.
                 </p>
               )}
             </div>

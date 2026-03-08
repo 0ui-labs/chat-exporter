@@ -410,15 +410,15 @@ export function applyAdjustmentPreview(sessionId: string) {
   const session = getAdjustmentSession(sessionId);
 
   if (!session) {
-    throw new Error("Adjustment session not found.");
+    throw new Error("Anpassungssession nicht gefunden.");
   }
 
   if (!session.previewArtifact) {
-    throw new Error("Generate a preview before applying a rule.");
+    throw new Error("Erzeuge zuerst eine Vorschau, bevor du eine Regel anwendest.");
   }
 
   if (session.status === "applied") {
-    throw new Error("This adjustment session has already been applied.");
+    throw new Error("Diese Anpassungssession wurde bereits angewendet.");
   }
 
   const timestamp = now();
@@ -461,7 +461,7 @@ export function applyAdjustmentPreview(sessionId: string) {
   const nextSession = getAdjustmentSession(sessionId);
 
   if (!nextSession) {
-    throw new Error("Adjustment session could not be reloaded.");
+    throw new Error("Anpassungssession konnte nicht neu geladen werden.");
   }
 
   recordAdjustmentEvent({
@@ -482,15 +482,15 @@ export function discardAdjustmentSession(sessionId: string) {
   const session = getAdjustmentSession(sessionId);
 
   if (!session) {
-    throw new Error("Adjustment session not found.");
+    throw new Error("Anpassungssession nicht gefunden.");
   }
 
   if (session.status === "applied") {
-    throw new Error("Applied adjustment sessions cannot be discarded.");
+    throw new Error("Bereits angewendete Anpassungssessions können nicht verworfen werden.");
   }
 
   if (session.status === "discarded") {
-    throw new Error("This adjustment session has already been discarded.");
+    throw new Error("Diese Anpassungssession wurde bereits verworfen.");
   }
 
   const timestamp = now();
@@ -504,7 +504,7 @@ export function discardAdjustmentSession(sessionId: string) {
   const nextDetail = getAdjustmentSessionDetail(sessionId);
 
   if (!nextDetail) {
-    throw new Error("Adjustment session could not be reloaded.");
+    throw new Error("Anpassungssession konnte nicht neu geladen werden.");
   }
 
   recordAdjustmentEvent({
@@ -573,7 +573,7 @@ export function updateFormatRuleStatus(ruleId: string, status: FormatRule["statu
   const existingRule = getFormatRule(ruleId);
 
   if (!existingRule) {
-    throw new Error("Format rule not found.");
+    throw new Error("Formatregel nicht gefunden.");
   }
 
   const timestamp = now();
@@ -587,7 +587,7 @@ export function updateFormatRuleStatus(ruleId: string, status: FormatRule["statu
   const nextRule = getFormatRule(ruleId);
 
   if (!nextRule) {
-    throw new Error("Format rule could not be reloaded.");
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
   }
 
   return nextRule;
@@ -597,11 +597,11 @@ export function disableFormatRule(ruleId: string) {
   const existingRule = getFormatRule(ruleId);
 
   if (!existingRule) {
-    throw new Error("Format rule not found.");
+    throw new Error("Formatregel nicht gefunden.");
   }
 
   if (existingRule.status !== "active") {
-    throw new Error("Only active rules can be disabled.");
+    throw new Error("Nur aktive Regeln können deaktiviert werden.");
   }
 
   const nextRule = updateFormatRuleStatus(ruleId, "disabled");

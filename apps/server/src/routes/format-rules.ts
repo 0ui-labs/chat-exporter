@@ -14,7 +14,7 @@ export const formatRulesRoute = new Hono().post("/:id/disable", (c) => {
     return c.json(
       {
         message:
-          error instanceof Error ? error.message : "Format rule could not be disabled."
+          error instanceof Error ? error.message : "Formatregel konnte nicht deaktiviert werden."
       },
       400
     );

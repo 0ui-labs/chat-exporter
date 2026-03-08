@@ -26,7 +26,7 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Adjustment session not found."
+          message: "Anpassungssession nicht gefunden."
         },
         404
       );
@@ -41,7 +41,7 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Adjustment session not found."
+          message: "Anpassungssession nicht gefunden."
         },
         404
       );
@@ -53,7 +53,7 @@ export const adjustmentSessionsRoute = new Hono()
     if (!parsed.success) {
       return c.json(
         {
-          message: "Invalid adjustment message.",
+          message: "Ungültige Anpassungsnachricht.",
           issues: parsed.error.flatten()
         },
         400
@@ -81,7 +81,7 @@ export const adjustmentSessionsRoute = new Hono()
     if (!nextDetail) {
       return c.json(
         {
-          message: "Adjustment session could not be reloaded."
+          message: "Anpassungssession konnte nicht neu geladen werden."
         },
         500
       );
@@ -96,7 +96,7 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Adjustment session not found."
+          message: "Anpassungssession nicht gefunden."
         },
         404
       );
@@ -124,7 +124,7 @@ export const adjustmentSessionsRoute = new Hono()
       if (!nextDetail) {
         return c.json(
           {
-            message: "Adjustment session could not be reloaded."
+            message: "Anpassungssession konnte nicht neu geladen werden."
           },
           500
         );
@@ -138,7 +138,7 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Adjustment preview could not be generated."
+              : "Anpassungsvorschau konnte nicht erzeugt werden."
         },
         sessionId,
         targetFormat: detail.session.targetFormat,
@@ -149,7 +149,7 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Adjustment preview could not be generated."
+              : "Anpassungsvorschau konnte nicht erzeugt werden."
         },
         400
       );
@@ -167,7 +167,7 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Adjustment rule could not be applied."
+              : "Anpassungsregel konnte nicht angewendet werden."
         },
         400
       );
@@ -185,7 +185,7 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Adjustment session could not be discarded."
+              : "Anpassungssession konnte nicht verworfen werden."
         },
         400
       );

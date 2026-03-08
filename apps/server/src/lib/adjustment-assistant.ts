@@ -65,6 +65,21 @@ function getReusableBlockTypeLabel(blockType: string) {
   }
 }
 
+function getFormatLabel(targetFormat: AdjustmentTargetFormat) {
+  switch (targetFormat) {
+    case "reader":
+      return "Reader";
+    case "markdown":
+      return "Markdown";
+    case "handover":
+      return "Übergabe";
+    case "json":
+      return "JSON";
+    default:
+      return targetFormat;
+  }
+}
+
 function selectionDescriptor(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
     return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
@@ -171,14 +186,14 @@ export function buildInitialAdjustmentAssistantMessage(session: AdjustmentSessio
   const selection = selectionDescriptor(session.selection);
 
   if (session.targetFormat === "markdown") {
-    return `Markdown-Adjustment bereit für ${selection}. Beschreibe das Formatproblem in Alltagssprache, und ich bleibe wenn möglich bei Markdown-sicheren Änderungen.`;
+    return `Markdown-Anpassung bereit für ${selection}. Beschreibe das Formatproblem in Alltagssprache, und ich bleibe wenn möglich bei Markdown-sicheren Änderungen.`;
   }
 
   if (session.targetFormat === "reader") {
-    return `Reader-Adjustment bereit für ${selection}. Beschreibe, was in dieser Ansicht falsch aussieht, und ich übersetze das in eine darstellungsorientierte Regel.`;
+    return `Reader-Anpassung bereit für ${selection}. Beschreibe, was in dieser Ansicht falsch aussieht, und ich übersetze das in eine darstellungsorientierte Regel.`;
   }
 
-  return `Adjustment bereit für ${selection}. Beschreibe das Problem, das du in diesem Format beheben willst.`;
+  return `Anpassung bereit für ${selection}. Beschreibe das Problem, das du in diesem Format beheben willst.`;
 }
 
 export function buildAdjustmentAssistantReply(params: {
@@ -190,7 +205,7 @@ export function buildAdjustmentAssistantReply(params: {
   const trimmedMessage = userMessage.trim();
 
   if (trimmedMessage.length < 12) {
-    return `Ich habe den Kontext für ${selectionDescriptor(selection)}. Beschreibe die gewünschte Änderung bitte etwas genauer, damit ich daraus eine ${targetFormat}-spezifische Regel ableiten kann.`;
+    return `Ich habe den Kontext für ${selectionDescriptor(selection)}. Beschreibe die gewünschte Änderung bitte etwas genauer, damit ich daraus eine für ${getFormatLabel(targetFormat)} passende Regel ableiten kann.`;
   }
 
   const capabilityHint =

@@ -2,6 +2,12 @@ import type { FormEvent, ReactNode } from "react";
 
 import type { AdjustmentPreview, AdjustmentSessionDetail } from "@chat-exporter/shared";
 
+import {
+  getBlockTypeLabel,
+  getRoleLabel,
+  getRuleKindLabel,
+  getViewLabel
+} from "@/components/format-workspace/labels";
 import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import type {
   AdjustmentSelection,
@@ -29,30 +35,38 @@ type AdjustmentPanelProps = {
 
 const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
   reader: {
-    detail: "Use this mode to adjust how the in-app Reader presents the selected transcript.",
-    nextStep: "Select a block or text region to open a context-aware adjustment chat."
+    detail: "In diesem Modus passt du an, wie der integrierte Reader den ausgewählten Transkriptabschnitt darstellt.",
+    nextStep: "Wähle einen Block oder Textbereich aus, um einen kontextbezogenen Anpassungs-Chat zu öffnen."
   },
   markdown: {
-    detail: "Use this mode to refine portable Markdown output with format-specific AI help.",
-    nextStep: "Select lines or a rendered section to ask for a Markdown-safe rewrite."
+    detail: "In diesem Modus verfeinerst du die portable Markdown-Ausgabe mit formatbezogener KI-Hilfe.",
+    nextStep: "Wähle Zeilen oder einen gerenderten Abschnitt aus, um eine Markdown-sichere Anpassung anzufragen."
   },
   handover: {
-    detail: "Handover adjustments are not available yet.",
-    nextStep: "Switch back to Reader or Markdown to start an adjustment session."
+    detail: "Anpassungen für die Übergabe sind noch nicht verfügbar.",
+    nextStep: "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten."
   },
   json: {
-    detail: "JSON adjustments are not available yet.",
-    nextStep: "Switch back to Reader or Markdown to start an adjustment session."
+    detail: "Anpassungen für JSON sind noch nicht verfügbar.",
+    nextStep: "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten."
   }
 };
 
 function describePreviewScope(preview: AdjustmentPreview, selection: AdjustmentSelection, view: ViewMode) {
   return describeSelectorScope({
     blockType: selection.blockType,
-    exactLabel: "This rule applies only to the current selection.",
+    exactLabel: "Diese Regel gilt nur für die aktuelle Auswahl.",
     selector: preview.draftRule.selector,
     view
   });
+}
+
+function describeSelectionLabel(selection: AdjustmentSelection) {
+  if (selection.lineStart && selection.lineEnd) {
+    return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
+  }
+
+  return `${getRoleLabel(selection.messageRole)}-Nachricht ${selection.messageIndex + 1} · ${getBlockTypeLabel(selection.blockType)}`;
 }
 
 export function AdjustmentPanel({
@@ -85,18 +99,16 @@ export function AdjustmentPanel({
     >
       <div className="space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-          Adjustment mode
+          Anpassungsmodus
         </p>
         <p className="text-sm text-foreground">{copy.detail}</p>
         {selection ? (
           <div className="rounded-2xl border border-primary/20 bg-background/75 px-3 py-3">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              Current selection
+              Aktuelle Auswahl
             </p>
             <p className="mt-2 text-sm font-medium text-foreground">
-              {selection.lineStart && selection.lineEnd
-                ? `markdown lines ${selection.lineStart}-${selection.lineEnd}`
-                : `${selection.messageRole} message ${selection.messageIndex + 1} · ${selection.blockType}`}
+              {describeSelectionLabel(selection)}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">{selection.textQuote}</p>
           </div>
@@ -115,7 +127,7 @@ export function AdjustmentPanel({
 
         {isLoading ? (
           <div className="rounded-2xl border border-border/80 bg-background/75 px-3 py-3 text-sm text-muted-foreground">
-            Starting an adjustment session for this selection.
+            Anpassungssession für diese Auswahl wird gestartet.
           </div>
         ) : null}
 
@@ -125,8 +137,8 @@ export function AdjustmentPanel({
             className="space-y-3 rounded-2xl border border-border/80 bg-background/75 p-3"
           >
             <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              <span>Session</span>
-              <span>{sessionDetail.session.targetFormat}</span>
+              <span>Sitzung</span>
+              <span>{getViewLabel(view)}</span>
             </div>
 
             {sessionDetail.messages.length > 0 ? (
@@ -137,7 +149,7 @@ export function AdjustmentPanel({
                     className="rounded-2xl border border-border/70 bg-card/85 px-3 py-3"
                   >
                     <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {message.role}
+                      {getRoleLabel(message.role)}
                     </p>
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                       {message.content}
@@ -147,18 +159,18 @@ export function AdjustmentPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Describe what is wrong with this selection. The server session is ready and the
-                next step can compile this into a format-specific rule.
+                Beschreibe, was an dieser Auswahl falsch ist. Die Serversession ist bereit und der
+                nächste Schritt kann daraus eine formatspezifische Regel ableiten.
               </p>
             )}
 
             <form className="space-y-3" onSubmit={onSubmitMessage}>
               <label className="block text-sm text-foreground">
-                <span className="sr-only">Adjustment request</span>
+                <span className="sr-only">Anpassungsanfrage</span>
                 <textarea
                   data-testid="adjustment-draft-message"
                   className="min-h-28 w-full rounded-2xl border border-border/80 bg-background px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  placeholder="Explain what is wrong here or how this format should change."
+                  placeholder="Beschreibe, was hier falsch ist oder wie sich dieses Format ändern soll."
                   value={draftMessage}
                   onChange={(event) => onDraftMessageChange(event.target.value)}
                 />
@@ -177,7 +189,7 @@ export function AdjustmentPanel({
                     type="button"
                     onClick={onGeneratePreview}
                   >
-                    {isPreviewing ? "Building preview..." : "Generate preview"}
+                    {isPreviewing ? "Vorschau wird erstellt..." : "Vorschau erzeugen"}
                   </button>
 
                   <button
@@ -187,7 +199,7 @@ export function AdjustmentPanel({
                     type="button"
                     onClick={onDiscardSession}
                   >
-                    {isDiscarding ? "Discarding..." : "Discard draft"}
+                    {isDiscarding ? "Entwurf wird verworfen..." : "Entwurf verwerfen"}
                   </button>
                 </div>
 
@@ -197,7 +209,7 @@ export function AdjustmentPanel({
                   disabled={isSubmitting || draftMessage.trim().length === 0}
                   type="submit"
                 >
-                  {isSubmitting ? "Sending..." : "Send"}
+                  {isSubmitting ? "Wird gesendet..." : "Senden"}
                 </button>
               </div>
             </form>
@@ -208,8 +220,8 @@ export function AdjustmentPanel({
                 className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3"
               >
                 <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-primary">
-                  <span>Preview</span>
-                  <span>{preview.draftRule.kind}</span>
+                  <span>Vorschau</span>
+                  <span>{getRuleKindLabel(preview.draftRule.kind)}</span>
                 </div>
                 <p className="text-sm font-medium text-foreground">{preview.summary}</p>
                 <p className="text-sm text-muted-foreground">{preview.rationale}</p>
@@ -233,7 +245,7 @@ export function AdjustmentPanel({
 
                 <details className="rounded-2xl border border-border/80 bg-background/80 p-3">
                   <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Rule draft JSON
+                    Regelentwurf als JSON
                   </summary>
                   <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words text-xs text-foreground">
                     <code>{JSON.stringify(preview.draftRule, null, 2)}</code>
@@ -249,10 +261,10 @@ export function AdjustmentPanel({
                     onClick={onApplyPreview}
                   >
                     {sessionDetail.session.status === "applied"
-                      ? "Applied"
+                      ? "Angewendet"
                       : isApplying
-                        ? "Applying..."
-                        : "Apply rule"}
+                        ? "Wird angewendet..."
+                        : "Regel anwenden"}
                   </button>
                 </div>
               </div>

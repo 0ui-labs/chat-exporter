@@ -259,7 +259,7 @@ export function buildDeterministicAdjustmentPreview(
     .find((message) => message.role === "user");
 
   if (!lastUserMessage) {
-    throw new Error("Für eine Vorschau braucht die Adjustment-Session mindestens eine Nutzernachricht.");
+    throw new Error("Für eine Vorschau braucht die Anpassungssession mindestens eine Nutzernachricht.");
   }
 
   const basePreview =

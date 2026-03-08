@@ -67,7 +67,7 @@ function MarkdownPreviewDiff(props: {
     <div className="grid gap-3 lg:grid-cols-2">
       <div className="space-y-2 rounded-2xl border border-border/80 bg-background/85 p-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Current output
+          Aktuelle Ausgabe
         </p>
         <div className="space-y-1 rounded-2xl bg-zinc-950 p-3">
           {lineNumbers.map((lineNumber) => {
@@ -91,7 +91,7 @@ function MarkdownPreviewDiff(props: {
 
       <div className="space-y-2 rounded-2xl border border-primary/20 bg-primary/5 p-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-          Preview after apply
+          Vorschau nach Anwendung
         </p>
         <div className="space-y-1 rounded-2xl bg-zinc-950 p-3">
           {lineNumbers.map((lineNumber) => {
@@ -139,7 +139,6 @@ function ReaderPreviewDiff(props: {
   }
 
   const selectedMessage = message;
-
   const selectedBlock = selectedMessage.blocks[selection.blockIndex];
   const nextBlock = selectedMessage.blocks[selection.blockIndex + 1];
 
@@ -151,13 +150,13 @@ function ReaderPreviewDiff(props: {
     {
       block: selectedBlock,
       blockIndex: selection.blockIndex,
-      label: "Selected block"
+      label: "Ausgewählter Block"
     },
     nextBlock
       ? {
           block: nextBlock,
           blockIndex: selection.blockIndex + 1,
-          label: "Following block"
+          label: "Folgender Block"
         }
       : null
   ].filter(Boolean) as Array<{
@@ -206,8 +205,8 @@ function ReaderPreviewDiff(props: {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {renderVariant("Current output", activeRules, "border-border/80 bg-background/85")}
-      {renderVariant("Preview after apply", [...activeRules, previewRule], "border-primary/20 bg-primary/5")}
+      {renderVariant("Aktuelle Ausgabe", activeRules, "border-border/80 bg-background/85")}
+      {renderVariant("Vorschau nach Anwendung", [...activeRules, previewRule], "border-primary/20 bg-primary/5")}
     </div>
   );
 }
