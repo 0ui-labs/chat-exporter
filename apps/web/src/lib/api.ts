@@ -95,6 +95,23 @@ export async function createAdjustmentSession(
   return adjustmentSessionDetailSchema.parse(await response.json());
 }
 
+export async function getAdjustmentSessionDetail(
+  sessionId: string
+): Promise<AdjustmentSessionDetail> {
+  const response = await fetch(`/api/adjustment-sessions/${sessionId}`);
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : "Adjustment session could not be loaded.";
+    throw new Error(message);
+  }
+
+  return adjustmentSessionDetailSchema.parse(await response.json());
+}
+
 export async function appendAdjustmentMessage(
   sessionId: string,
   payload: AppendAdjustmentMessageRequest

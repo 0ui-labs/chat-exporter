@@ -18,6 +18,7 @@ import type {
   ViewMode
 } from "@/components/format-workspace/types";
 import {
+  getAdjustmentSessionDetail,
   applyAdjustmentSession,
   appendAdjustmentMessage,
   createAdjustmentSession,
@@ -26,6 +27,7 @@ import {
   generateAdjustmentPreview,
   getFormatRules
 } from "@/lib/api";
+import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -59,6 +61,14 @@ function getRuleLabel(rule: FormatRule) {
   }
 
   return `${summary.slice(0, 69).trimEnd()}...`;
+}
+
+function describeSelectionLabel(selection: AdjustmentSelection) {
+  if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
+    return `Markdown lines ${selection.lineStart}-${selection.lineEnd}`;
+  }
+
+  return `${selection.messageRole} message ${selection.messageIndex + 1} · ${selection.blockType}`;
 }
 
 function getStatusLabel(job: ImportJob) {
@@ -157,6 +167,12 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [explainedRuleIdByView, setExplainedRuleIdByView] = useState<Record<ViewMode, string | null>>({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
   const [applyingByView, setApplyingByView] = useState<Record<ViewMode, boolean>>({
     reader: false,
     markdown: false,
@@ -164,6 +180,20 @@ export function FormatWorkspace({
     json: false
   });
   const [disablingRuleById, setDisablingRuleById] = useState<Record<string, boolean>>({});
+  const [loadingExplanationBySessionId, setLoadingExplanationBySessionId] = useState<
+    Record<string, boolean>
+  >({});
+  const [ruleExplanationBySessionId, setRuleExplanationBySessionId] = useState<
+    Record<string, AdjustmentSessionDetail>
+  >({});
+  const [ruleExplanationErrorByView, setRuleExplanationErrorByView] = useState<
+    Record<ViewMode, string | null>
+  >({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null
+  });
   const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
     reader: [],
     markdown: [],
@@ -187,6 +217,18 @@ export function FormatWorkspace({
   const activeSelectionKey = sessionSelectionKeyByView[view];
   const activeRules = rulesByView[view];
   const activeRuleChips = activeRules.filter((rule) => rule.status === "active");
+  const explainedRuleId = explainedRuleIdByView[view];
+  const explainedRule = explainedRuleId
+    ? activeRuleChips.find((rule) => rule.id === explainedRuleId) ?? null
+    : null;
+  const explainedSessionId = explainedRule?.sourceSessionId;
+  const explainedRuleDetail = explainedSessionId
+    ? ruleExplanationBySessionId[explainedSessionId] ?? null
+    : null;
+  const isExplainedRuleLoading = explainedSessionId
+    ? Boolean(loadingExplanationBySessionId[explainedSessionId])
+    : false;
+  const explainedRuleError = ruleExplanationErrorByView[view];
   const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isApplying = applyingByView[view];
   const isDiscarding = discardingByView[view];
@@ -370,6 +412,10 @@ export function FormatWorkspace({
       ...current,
       [view]: null
     }));
+    setSessionErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
   }
 
   async function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
@@ -547,6 +593,14 @@ export function FormatWorkspace({
         ...current,
         [view]: current[view].map((rule) => (rule.id === nextRule.id ? nextRule : rule))
       }));
+      setExplainedRuleIdByView((current) => ({
+        ...current,
+        [view]: current[view] === ruleId ? null : current[view]
+      }));
+      setRuleExplanationErrorByView((current) => ({
+        ...current,
+        [view]: null
+      }));
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
@@ -558,6 +612,60 @@ export function FormatWorkspace({
         delete nextState[ruleId];
         return nextState;
       });
+    }
+  }
+
+  async function handleToggleRuleExplanation(rule: FormatRule) {
+    if (explainedRuleId === rule.id) {
+      setExplainedRuleIdByView((current) => ({
+        ...current,
+        [view]: null
+      }));
+      setRuleExplanationErrorByView((current) => ({
+        ...current,
+        [view]: null
+      }));
+      return;
+    }
+
+    setExplainedRuleIdByView((current) => ({
+      ...current,
+      [view]: rule.id
+    }));
+    setRuleExplanationErrorByView((current) => ({
+      ...current,
+      [view]: null
+    }));
+
+    const sourceSessionId = rule.sourceSessionId;
+
+    if (!sourceSessionId || ruleExplanationBySessionId[sourceSessionId]) {
+      return;
+    }
+
+    setLoadingExplanationBySessionId((current) => ({
+      ...current,
+      [sourceSessionId]: true
+    }));
+
+    try {
+      const detail = await getAdjustmentSessionDetail(sourceSessionId);
+
+      setRuleExplanationBySessionId((current) => ({
+        ...current,
+        [sourceSessionId]: detail
+      }));
+    } catch (error) {
+      setRuleExplanationErrorByView((current) => ({
+        ...current,
+        [view]:
+          error instanceof Error ? error.message : "Rule explanation could not be loaded."
+      }));
+    } finally {
+      setLoadingExplanationBySessionId((current) => ({
+        ...current,
+        [sourceSessionId]: false
+      }));
     }
   }
 
@@ -650,6 +758,15 @@ export function FormatWorkspace({
                   </span>
                   <button
                     className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    onClick={() => {
+                      void handleToggleRuleExplanation(rule);
+                    }}
+                  >
+                    {explainedRuleId === rule.id ? "Hide" : "Why"}
+                  </button>
+                  <button
+                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={Boolean(disablingRuleById[rule.id])}
                     type="button"
                     onClick={() => {
@@ -660,6 +777,68 @@ export function FormatWorkspace({
                   </button>
                 </div>
               ))}
+            </div>
+          ) : null}
+
+          {explainedRule ? (
+            <div className="rounded-2xl border border-border/80 bg-card/80 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Why this exists
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {explainedRule.instruction}
+                  </p>
+                </div>
+                <Badge variant="secondary">{explainedRule.kind}</Badge>
+              </div>
+
+              {isExplainedRuleLoading ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Loading the source adjustment session for this rule.
+                </p>
+              ) : explainedRuleError ? (
+                <div className="mt-3 rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-3 text-sm text-red-900">
+                  {explainedRuleError}
+                </div>
+              ) : explainedRuleDetail ? (
+                <div className="mt-3 space-y-3 text-sm text-foreground">
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {describeSelectionLabel(explainedRuleDetail.session.selection)}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {explainedRuleDetail.session.selection.textQuote}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Reasoning
+                    </p>
+                    <p className="mt-2 text-foreground">
+                      {explainedRuleDetail.session.previewArtifact?.rationale ??
+                        "This rule was created from a previous adjustment session for this import."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3 text-muted-foreground">
+                    {describeSelectorScope({
+                      blockType: explainedRuleDetail.session.selection.blockType,
+                      exactLabel: "This rule applies only to the original selection.",
+                      selector:
+                        explainedRuleDetail.session.previewArtifact?.draftRule.selector ??
+                        explainedRule.selector,
+                      view
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  This rule was created from an earlier adjustment session for this import.
+                </p>
+              )}
             </div>
           ) : null}
 

@@ -2,6 +2,7 @@ import type { FormEvent, ReactNode } from "react";
 
 import type { AdjustmentPreview, AdjustmentSessionDetail } from "@chat-exporter/shared";
 
+import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import type {
   AdjustmentSelection,
   ViewMode
@@ -45,27 +46,13 @@ const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
   }
 };
 
-function describePreviewScope(
-  preview: AdjustmentPreview,
-  selection: AdjustmentSelection,
-  view: ViewMode
-) {
-  const selector =
-    preview.draftRule.selector && typeof preview.draftRule.selector === "object"
-      ? (preview.draftRule.selector as Record<string, unknown>)
-      : null;
-  const strategy = typeof selector?.strategy === "string" ? selector.strategy : "exact";
-
-  switch (strategy) {
-    case "block_type":
-      return `This rule will affect similar ${selection.blockType} blocks in the ${view} output for this import.`;
-    case "prefix_before_colon":
-      return `This rule will affect similar label-style prefixes in the ${view} output for this import.`;
-    case "markdown_table":
-      return "This rule will affect matching Markdown tables in this import.";
-    default:
-      return "This rule applies only to the current selection.";
-  }
+function describePreviewScope(preview: AdjustmentPreview, selection: AdjustmentSelection, view: ViewMode) {
+  return describeSelectorScope({
+    blockType: selection.blockType,
+    exactLabel: "This rule applies only to the current selection.",
+    selector: preview.draftRule.selector,
+    view
+  });
 }
 
 export function AdjustmentPanel({
