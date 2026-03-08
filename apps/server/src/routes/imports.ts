@@ -15,11 +15,9 @@ import {
   getAdjustmentSessionDetail,
   getAdjustmentMetrics,
   listAdjustmentSessions,
-  appendAdjustmentMessage,
   findReusableAdjustmentSession,
   listFormatRules
 } from "../lib/adjustment-repository.js";
-import { buildInitialAdjustmentAssistantMessage } from "../lib/adjustment-assistant.js";
 import {
   createImportJob,
   getImportJob,
@@ -162,7 +160,6 @@ export const importsRoute = new Hono()
       selection: parsed.data.selection,
       targetFormat: parsed.data.targetFormat
     });
-    appendAdjustmentMessage(session.id, "assistant", buildInitialAdjustmentAssistantMessage(session));
     const detail = getAdjustmentSessionDetail(session.id);
 
     if (!detail) {

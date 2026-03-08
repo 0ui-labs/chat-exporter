@@ -6,7 +6,11 @@ import {
   appendAdjustmentMessageRequestSchema
 } from "@chat-exporter/shared";
 
-import { buildAdjustmentAssistantReply } from "../lib/adjustment-assistant.js";
+import {
+  AdjustmentChatUnavailableError,
+  runAdjustmentChatTurn,
+  type ApplyAdjustmentRuleResult
+} from "../lib/adjustment-chat-orchestrator.js";
 import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
 import {
   applyAdjustmentPreview,
@@ -61,21 +65,117 @@ export const adjustmentSessionsRoute = new Hono()
     }
 
     appendAdjustmentMessage(sessionId, "user", parsed.data.content);
-    appendAdjustmentMessage(
-      sessionId,
-      "assistant",
-      buildAdjustmentAssistantReply({
-        selection: detail.session.selection,
-        targetFormat: detail.session.targetFormat,
-        userMessage: parsed.data.content
-      })
+    const latestDetail = getAdjustmentSessionDetail(sessionId);
+
+    if (!latestDetail) {
+      return c.json(
+        {
+          message: "Anpassungssession konnte nicht neu geladen werden."
+        },
+        500
+      );
+    }
+
+    const activeRules = listFormatRules(detail.session.importId, detail.session.targetFormat).filter(
+      (rule) => rule.status === "active"
     );
-    recordAdjustmentEvent({
-      importId: detail.session.importId,
-      sessionId,
-      targetFormat: detail.session.targetFormat,
-      type: "clarification_requested"
-    });
+
+    try {
+      const job = getImportJob(detail.session.importId);
+      const chatTurn = await runAdjustmentChatTurn({
+        activeRules,
+        executeApplyAdjustmentRule: async ({ instruction }) => {
+          const syntheticDetail = {
+            ...latestDetail,
+            messages: [
+              ...latestDetail.messages,
+              {
+                content: instruction,
+                createdAt: new Date().toISOString(),
+                id: `${sessionId}:tool-instruction`,
+                role: "user" as const,
+                sessionId
+              }
+            ]
+          };
+
+          try {
+            const preview = await buildAdjustmentPreview({
+              activeRules,
+              job,
+              sessionDetail: syntheticDetail
+            });
+
+            saveAdjustmentPreview(sessionId, preview);
+            recordAdjustmentEvent({
+              importId: latestDetail.session.importId,
+              sessionId,
+              targetFormat: latestDetail.session.targetFormat,
+              type: "preview_generated"
+            });
+
+            const applied = applyAdjustmentPreview(sessionId);
+
+            return {
+              ok: true,
+              rationale: preview.rationale,
+              ruleId: applied.rule.id,
+              summary: preview.summary
+            } satisfies ApplyAdjustmentRuleResult;
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Die Regel konnte nicht direkt angewendet werden.";
+
+            recordAdjustmentEvent({
+              importId: latestDetail.session.importId,
+              payload: {
+                message
+              },
+              sessionId,
+              targetFormat: latestDetail.session.targetFormat,
+              type: "preview_failed"
+            });
+
+            return {
+              error: message,
+              ok: false
+            } satisfies ApplyAdjustmentRuleResult;
+          }
+        },
+        job,
+        sessionDetail: latestDetail
+      });
+
+      for (const toolMessage of chatTurn.toolMessages) {
+        appendAdjustmentMessage(sessionId, "tool", toolMessage);
+      }
+
+      appendAdjustmentMessage(sessionId, "assistant", chatTurn.assistantMessage);
+
+      if (chatTurn.didRequestClarification) {
+        recordAdjustmentEvent({
+          importId: latestDetail.session.importId,
+          sessionId,
+          targetFormat: latestDetail.session.targetFormat,
+          type: "clarification_requested"
+        });
+      }
+    } catch (error) {
+      return c.json(
+        {
+          message:
+            error instanceof AdjustmentChatUnavailableError
+              ? error.message
+              : error instanceof Error
+                ? error.message
+                : "Die Live-KI-Nachricht konnte nicht verarbeitet werden."
+        },
+        error instanceof AdjustmentChatUnavailableError ? 503 : 400
+      );
+    }
+
     const nextDetail = getAdjustmentSessionDetail(sessionId);
 
     if (!nextDetail) {
