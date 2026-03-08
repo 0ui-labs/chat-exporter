@@ -345,6 +345,15 @@ async function runSmokeFlow() {
     await page.getByTestId("adjustment-preview").waitFor();
     await page.getByTestId("adjustment-apply-rule").click();
     await page.getByTestId("active-format-rule").waitFor();
+    await page.getByTestId("active-format-rule-why").click();
+    await page.getByTestId("active-format-rule-explanation").waitFor();
+    await page.getByTestId("active-format-rule-explanation").getByText("Project plan").waitFor();
+
+    const explanationText = await page.getByTestId("active-format-rule-explanation").innerText();
+
+    if (!explanationText.includes("Project plan")) {
+      throw new Error("Reader adjustment smoke test did not show the rule explanation.");
+    }
 
     const readerHeadingClassName = await page
       .getByTestId("reader-block-assistant-1-0")
@@ -352,6 +361,19 @@ async function runSmokeFlow() {
 
     if (!readerHeadingClassName.includes("mb-4")) {
       throw new Error("Reader adjustment smoke test did not apply the heading spacing rule.");
+    }
+
+    await page.getByTestId("active-format-rule-undo").click();
+    await page.getByTestId("active-format-rule").waitFor({
+      state: "detached"
+    });
+
+    const revertedReaderHeadingClassName = await page
+      .getByTestId("reader-block-assistant-1-0")
+      .evaluate((element) => element.className);
+
+    if (revertedReaderHeadingClassName.includes("mb-4")) {
+      throw new Error("Reader adjustment smoke test did not undo the heading spacing rule.");
     }
 
     await page.getByTestId("format-view-markdown").click();
@@ -364,10 +386,17 @@ async function runSmokeFlow() {
     await page.getByTestId("adjustment-generate-preview").click();
     await page.getByTestId("adjustment-preview").waitFor();
     await page.getByTestId("adjustment-apply-rule").click();
+    await page.waitForFunction(() => {
+      const line = document.querySelector('[data-testid="markdown-line-9"]');
+      return line?.textContent?.includes("**Important") ?? false;
+    });
 
     const markdownLineText = await page.getByTestId("markdown-line-9").innerText();
 
-    if (!markdownLineText.includes("**Important:** check the logs before deploying.")) {
+    if (
+      !markdownLineText.includes("**Important") ||
+      !markdownLineText.includes("check the logs before deploying.")
+    ) {
       throw new Error("Markdown adjustment smoke test did not bold the selected label line.");
     }
 

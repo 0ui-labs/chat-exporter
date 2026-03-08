@@ -835,6 +835,7 @@ export function FormatWorkspace({
                     {getRuleLabel(rule)}
                   </span>
                   <button
+                    data-testid="active-format-rule-why"
                     className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button"
                     onClick={() => {
@@ -844,6 +845,7 @@ export function FormatWorkspace({
                     {explainedRuleId === rule.id ? "Hide" : "Why"}
                   </button>
                   <button
+                    data-testid="active-format-rule-undo"
                     className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={Boolean(disablingRuleById[rule.id])}
                     type="button"
@@ -859,7 +861,10 @@ export function FormatWorkspace({
           ) : null}
 
           {explainedRule ? (
-            <div className="rounded-2xl border border-border/80 bg-card/80 p-4">
+            <div
+              data-testid="active-format-rule-explanation"
+              className="rounded-2xl border border-border/80 bg-card/80 p-4"
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
