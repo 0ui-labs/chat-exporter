@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import type { Conversation, ImportJob } from "@chat-exporter/shared";
+import Database from "better-sqlite3";
 import { chromium } from "playwright";
 
 import {
@@ -343,6 +344,42 @@ async function runSmokeFlow() {
     await page.getByTestId("adjustment-send").click();
     await page.getByTestId("adjustment-generate-preview").click();
     await page.getByTestId("adjustment-preview").waitFor();
+    await page.reload({
+      waitUntil: "networkidle"
+    });
+    await page.getByTestId("toggle-adjust-mode-reader").click();
+    await page.getByTestId("reader-block-assistant-1-0").click();
+    await page.getByTestId("adjustment-preview").waitFor();
+
+    const resumedReaderSessionText = await page.getByTestId("adjustment-session").innerText();
+
+    if (!resumedReaderSessionText.includes("Please add more spacing under headings here.")) {
+      throw new Error("Reader adjustment smoke test did not resume the saved draft session.");
+    }
+
+    const inspectionDb = new Database(dbPath, {
+      readonly: true
+    });
+    const resumedReaderSessionCount = inspectionDb
+      .prepare<
+        [string, string],
+        {
+          count: number;
+        }
+      >(
+        `SELECT COUNT(*) AS count
+         FROM adjustment_sessions
+         WHERE import_id = ?
+           AND target_format = ?
+           AND status IN ('open', 'preview_ready')`
+      )
+      .get(fixtureImportId, "reader").count;
+    inspectionDb.close();
+
+    if (resumedReaderSessionCount !== 1) {
+      throw new Error("Reader adjustment smoke test created a duplicate session on reload.");
+    }
+
     await page.getByTestId("adjustment-apply-rule").click();
     await page.getByTestId("active-format-rule").waitFor();
     await page.getByTestId("active-format-rule-why").click();

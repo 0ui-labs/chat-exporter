@@ -16,6 +16,7 @@ import {
   getAdjustmentMetrics,
   listAdjustmentSessions,
   appendAdjustmentMessage,
+  findReusableAdjustmentSession,
   listFormatRules
 } from "../lib/adjustment-repository.js";
 import { buildInitialAdjustmentAssistantMessage } from "../lib/adjustment-assistant.js";
@@ -135,16 +136,33 @@ export const importsRoute = new Hono()
       );
     }
 
+    const reusableSession = findReusableAdjustmentSession({
+      importId,
+      selection: parsed.data.selection,
+      targetFormat: parsed.data.targetFormat
+    });
+
+    if (reusableSession) {
+      const detail = getAdjustmentSessionDetail(reusableSession.id);
+
+      if (!detail) {
+        return c.json(
+          {
+            message: "Adjustment session could not be loaded."
+          },
+          500
+        );
+      }
+
+      return c.json(adjustmentSessionDetailSchema.parse(detail));
+    }
+
     const session = createAdjustmentSession({
       importId,
       selection: parsed.data.selection,
       targetFormat: parsed.data.targetFormat
     });
-    appendAdjustmentMessage(
-      session.id,
-      "assistant",
-      buildInitialAdjustmentAssistantMessage(session)
-    );
+    appendAdjustmentMessage(session.id, "assistant", buildInitialAdjustmentAssistantMessage(session));
     const detail = getAdjustmentSessionDetail(session.id);
 
     if (!detail) {

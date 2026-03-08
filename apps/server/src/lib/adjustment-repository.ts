@@ -302,6 +302,10 @@ function toCount(value: number | null) {
   return value ?? 0;
 }
 
+function selectionsMatch(left: AdjustmentSelection, right: AdjustmentSelection) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export function recordAdjustmentEvent(input: RecordAdjustmentEventInput) {
   const timestamp = now();
 
@@ -361,6 +365,14 @@ export function listAdjustmentSessions(importId: string, targetFormat?: Adjustme
     : listAdjustmentSessionsStatement.all(importId);
 
   return rows.map(deserializeAdjustmentSession);
+}
+
+export function findReusableAdjustmentSession(input: CreateAdjustmentSessionInput) {
+  return listAdjustmentSessions(input.importId, input.targetFormat).find(
+    (session) =>
+      (session.status === "open" || session.status === "preview_ready") &&
+      selectionsMatch(session.selection, input.selection)
+  );
 }
 
 export function appendAdjustmentMessage(sessionId: string, role: Role, content: string) {
