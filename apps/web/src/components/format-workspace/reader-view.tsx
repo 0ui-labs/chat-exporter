@@ -62,11 +62,13 @@ export function ReaderView({
               return (
                 <div
                   key={`${message.id}-${block.type}-${blockIndex}`}
+                  data-testid={`reader-block-${message.id}-${blockIndex}`}
                   className={getReaderBlockClassName({
                     adjustModeEnabled,
                     effects: blockEffects,
                     isSelected
                   })}
+                  data-selected={isSelected ? "true" : "false"}
                   onClick={() => {
                     if (!adjustModeEnabled) {
                       return;

@@ -6,6 +6,7 @@
     "dev": "pnpm --filter @chat-exporter/shared build && pnpm --parallel --filter @chat-exporter/shared --filter @chat-exporter/server --filter @chat-exporter/web dev",
     "dev:web": "pnpm --filter @chat-exporter/web dev",
     "dev:server": "pnpm --filter @chat-exporter/server dev",
+    "smoke:format-adjustments": "bash ./apps/server/scripts/run-format-adjustments-smoke.sh",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck"
   }

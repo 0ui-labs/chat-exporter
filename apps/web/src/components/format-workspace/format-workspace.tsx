@@ -792,6 +792,7 @@ export function FormatWorkspace({
               {outputViews.map((outputView) => (
                 <Button
                   key={outputView.value}
+                  data-testid={`format-view-${outputView.value}`}
                   type="button"
                   size="sm"
                   variant={view === outputView.value ? "default" : "outline"}
@@ -804,6 +805,7 @@ export function FormatWorkspace({
 
             {isAdjustableView ? (
               <Button
+                data-testid={`toggle-adjust-mode-${view}`}
                 type="button"
                 size="sm"
                 variant={isAdjustModeEnabled ? "default" : "outline"}
@@ -826,6 +828,7 @@ export function FormatWorkspace({
               {activeRuleChips.map((rule) => (
                 <div
                   key={rule.id}
+                  data-testid="active-format-rule"
                   className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-secondary-foreground"
                 >
                   <span className="max-w-[24rem] truncate font-medium text-foreground">

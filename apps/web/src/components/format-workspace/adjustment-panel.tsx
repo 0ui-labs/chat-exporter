@@ -79,7 +79,10 @@ export function AdjustmentPanel({
     preview && selection ? describePreviewScope(preview, selection, view) : null;
 
   return (
-    <div className="rounded-[1.4rem] border border-dashed border-primary/35 bg-primary/5 px-4 py-4">
+    <div
+      data-testid={`adjustment-panel-${view}`}
+      className="rounded-[1.4rem] border border-dashed border-primary/35 bg-primary/5 px-4 py-4"
+    >
       <div className="space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
           Adjustment mode
@@ -102,7 +105,10 @@ export function AdjustmentPanel({
         )}
 
         {error ? (
-          <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-3 text-sm text-red-900">
+          <div
+            data-testid="adjustment-error"
+            className="rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-3 text-sm text-red-900"
+          >
             {error}
           </div>
         ) : null}
@@ -114,7 +120,10 @@ export function AdjustmentPanel({
         ) : null}
 
         {sessionDetail ? (
-          <div className="space-y-3 rounded-2xl border border-border/80 bg-background/75 p-3">
+          <div
+            data-testid="adjustment-session"
+            className="space-y-3 rounded-2xl border border-border/80 bg-background/75 p-3"
+          >
             <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
               <span>Session</span>
               <span>{sessionDetail.session.targetFormat}</span>
@@ -147,6 +156,7 @@ export function AdjustmentPanel({
               <label className="block text-sm text-foreground">
                 <span className="sr-only">Adjustment request</span>
                 <textarea
+                  data-testid="adjustment-draft-message"
                   className="min-h-28 w-full rounded-2xl border border-border/80 bg-background px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                   placeholder="Explain what is wrong here or how this format should change."
                   value={draftMessage}
@@ -157,6 +167,7 @@ export function AdjustmentPanel({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <button
+                    data-testid="adjustment-generate-preview"
                     className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={
                       isPreviewing ||
@@ -170,6 +181,7 @@ export function AdjustmentPanel({
                   </button>
 
                   <button
+                    data-testid="adjustment-discard-draft"
                     className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isDiscarding || sessionDetail.session.status === "applied"}
                     type="button"
@@ -180,6 +192,7 @@ export function AdjustmentPanel({
                 </div>
 
                 <button
+                  data-testid="adjustment-send"
                   className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isSubmitting || draftMessage.trim().length === 0}
                   type="submit"
@@ -190,7 +203,10 @@ export function AdjustmentPanel({
             </form>
 
             {preview ? (
-              <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+              <div
+                data-testid="adjustment-preview"
+                className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3"
+              >
                 <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.16em] text-primary">
                   <span>Preview</span>
                   <span>{preview.draftRule.kind}</span>
@@ -226,6 +242,7 @@ export function AdjustmentPanel({
 
                 <div className="flex justify-end">
                   <button
+                    data-testid="adjustment-apply-rule"
                     className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isApplying || sessionDetail.session.status === "applied"}
                     type="button"

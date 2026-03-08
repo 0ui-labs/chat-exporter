@@ -34,6 +34,7 @@ export function MarkdownView({
           return (
             <button
               key={`${lineNumber}-${line}`}
+              data-testid={`markdown-line-${lineNumber}`}
               className={cn(
                 "grid w-full grid-cols-[auto_1fr] gap-3 rounded-xl px-3 py-2 text-left transition",
                 adjustModeEnabled
