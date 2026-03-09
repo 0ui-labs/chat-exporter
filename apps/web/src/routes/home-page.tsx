@@ -1,4 +1,5 @@
 import type { ImportJob } from "@chat-exporter/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, startTransition, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -8,7 +9,7 @@ import type { ViewMode } from "@/components/format-workspace/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { rpc } from "@/lib/rpc";
+import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 
 const importStages = {
@@ -106,105 +107,45 @@ function getActiveStage(job: ImportJob) {
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeImportId = searchParams.get("import");
+  const queryClient = useQueryClient();
 
   const [url, setUrl] = useState("");
   const [hasEditedUrl, setHasEditedUrl] = useState(false);
   const [view, setView] = useState<ViewMode>("reader");
-  const [error, setError] = useState<string | null>(null);
-  const [jobError, setJobError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [job, setJob] = useState<ImportJob | null>(null);
-  const [recentJobs, setRecentJobs] = useState<ImportJob[]>([]);
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: recentJobs = [] } = useQuery({
+    ...orpc.imports.list.queryOptions(),
+    select: (jobs) =>
+      jobs
+        .slice()
+        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+        .slice(0, 2),
+  });
 
-    async function refreshRecentJobs() {
-      try {
-        const jobs = await rpc.imports.list();
+  const { data: job, error: jobError } = useQuery({
+    ...orpc.imports.get.queryOptions({ input: { id: activeImportId ?? "" } }),
+    enabled: Boolean(activeImportId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "completed" || status === "failed") return false;
+      return 1200;
+    },
+  });
 
-        if (cancelled) {
-          return;
-        }
-
-        setRecentJobs(
-          jobs
-            .slice()
-            .sort(
-              (left, right) =>
-                Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
-            )
-            .slice(0, 2),
-        );
-      } catch {
-        if (!cancelled) {
-          setRecentJobs([]);
-        }
-      }
-    }
-
-    void refreshRecentJobs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const createImport = useMutation(
+    orpc.imports.create.mutationOptions({
+      onSuccess: (nextJob) => {
+        queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
+        setHasEditedUrl(false);
+        startTransition(() => setActiveImport(nextJob.id));
+      },
+    }),
+  );
 
   useEffect(() => {
     setView("reader");
   }, []);
-
-  useEffect(() => {
-    if (!activeImportId) {
-      setJob(null);
-      setJobError(null);
-      return;
-    }
-
-    const importId = activeImportId;
-    let cancelled = false;
-    let intervalId: number | undefined;
-
-    async function refreshJob() {
-      try {
-        const nextJob = await rpc.imports.get({ id: importId });
-
-        if (cancelled) {
-          return;
-        }
-
-        setJob(nextJob);
-        setJobError(null);
-
-        if (nextJob.status === "completed" || nextJob.status === "failed") {
-          if (intervalId) {
-            window.clearInterval(intervalId);
-          }
-        }
-      } catch (loadError) {
-        if (!cancelled) {
-          setJobError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Import konnte nicht geladen werden.",
-          );
-        }
-      }
-    }
-
-    void refreshJob();
-    intervalId = window.setInterval(() => {
-      void refreshJob();
-    }, 1200);
-
-    return () => {
-      cancelled = true;
-      if (intervalId) {
-        window.clearInterval(intervalId);
-      }
-    };
-  }, [activeImportId]);
 
   useEffect(() => {
     if (!job) {
@@ -244,37 +185,14 @@ export function HomePage() {
     setSearchParams(nextSearchParams);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      const nextJob = await rpc.imports.create({ url, mode: "archive" });
-
-      setHasEditedUrl(false);
-      setJob(nextJob);
-      setJobError(null);
-      startTransition(() => {
-        setActiveImport(nextJob.id);
-      });
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Der Import konnte nicht gestartet werden.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    createImport.mutate({ url, mode: "archive" });
   }
 
   function handleSelectJob(selectedJob: ImportJob) {
-    setError(null);
-    setJobError(null);
     setHasEditedUrl(false);
     setUrl(selectedJob.sourceUrl);
-    setJob(selectedJob);
     startTransition(() => {
       setActiveImport(selectedJob.id);
     });
@@ -326,16 +244,16 @@ export function HomePage() {
 
                 <Button
                   className="h-12 px-5 lg:min-w-[8rem]"
-                  disabled={submitting}
+                  disabled={createImport.isPending}
                   type="submit"
                 >
-                  {submitting ? "Import läuft..." : "Importieren"}
+                  {createImport.isPending ? "Import läuft..." : "Importieren"}
                 </Button>
               </div>
 
-              {error ? (
+              {createImport.error ? (
                 <div className="rounded-2xl border border-red-300/40 bg-red-100/60 px-4 py-3 text-sm text-red-900">
-                  {error}
+                  {createImport.error.message}
                 </div>
               ) : null}
             </form>
@@ -369,7 +287,7 @@ export function HomePage() {
 
             {jobError ? (
               <div className="rounded-2xl border border-red-300/40 bg-red-100/60 px-4 py-3 text-sm text-red-900">
-                {jobError}
+                {jobError.message}
               </div>
             ) : job ? (
               <FormatWorkspace
