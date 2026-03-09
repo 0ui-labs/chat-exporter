@@ -1,6 +1,3 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import type {
   AdjustmentSelection,
   AdjustmentSessionDetail,
@@ -8,6 +5,7 @@ import type {
   ImportJob,
   Role,
 } from "@chat-exporter/shared";
+import { describe, expect, test } from "vitest";
 import {
   buildAdjustmentPreview,
   buildDeterministicAdjustmentPreview,
@@ -168,18 +166,18 @@ test("reader heading spacing generalizes to matching block types", () => {
     }),
   );
 
-  assert.equal(preview.targetFormat, "reader");
-  assert.equal(preview.draftRule.kind, "render");
-  assert.deepEqual(preview.draftRule.selector, {
+  expect(preview.targetFormat).toBe("reader");
+  expect(preview.draftRule.kind).toBe("render");
+  expect(preview.draftRule.selector).toEqual({
     blockType: "heading",
     strategy: "block_type",
   });
-  assert.deepEqual(preview.draftRule.effect, {
+  expect(preview.draftRule.effect).toEqual({
     amount: "lg",
     direction: "after",
     type: "adjust_block_spacing",
   });
-  assert.match(preview.summary, /Abstand/i);
+  expect(preview.summary).toMatch(/Abstand/i);
 });
 
 test("markdown colon labels compile into a reusable inline rule", () => {
@@ -200,15 +198,15 @@ test("markdown colon labels compile into a reusable inline rule", () => {
     }),
   );
 
-  assert.equal(preview.targetFormat, "markdown");
-  assert.equal(preview.draftRule.kind, "inline_semantics");
-  assert.deepEqual(preview.draftRule.selector, {
+  expect(preview.targetFormat).toBe("markdown");
+  expect(preview.draftRule.kind).toBe("inline_semantics");
+  expect(preview.draftRule.selector).toEqual({
     strategy: "prefix_before_colon",
   });
-  assert.deepEqual(preview.draftRule.effect, {
+  expect(preview.draftRule.effect).toEqual({
     type: "bold_prefix_before_colon",
   });
-  assert.match(preview.summary, /Doppelpunkt/i);
+  expect(preview.summary).toMatch(/Doppelpunkt/i);
 });
 
 test("markdown size requests are redirected into heading structure with limits", () => {
@@ -228,12 +226,12 @@ test("markdown size requests are redirected into heading structure with limits",
     }),
   );
 
-  assert.equal(preview.draftRule.kind, "structure");
-  assert.deepEqual(preview.draftRule.effect, {
+  expect(preview.draftRule.kind).toBe("structure");
+  expect(preview.draftRule.effect).toEqual({
     level: 2,
     type: "promote_to_heading",
   });
-  assert.match(preview.limitations.join(" "), /Schriftgrößen/i);
+  expect(preview.limitations.join(" ")).toMatch(/Schriftgrößen/i);
 });
 
 test("reader markdown bold markers compile into an exact inline rule", () => {
@@ -250,20 +248,18 @@ test("reader markdown bold markers compile into an exact inline rule", () => {
     }),
   );
 
-  assert.equal(preview.targetFormat, "reader");
-  assert.equal(preview.draftRule.kind, "inline_semantics");
-  assert.equal(
-    (preview.draftRule.selector as { messageId?: string }).messageId,
+  expect(preview.targetFormat).toBe("reader");
+  expect(preview.draftRule.kind).toBe("inline_semantics");
+  expect((preview.draftRule.selector as { messageId?: string }).messageId).toBe(
     "message-1",
   );
-  assert.equal(
-    (preview.draftRule.selector as { blockType?: string }).blockType,
+  expect((preview.draftRule.selector as { blockType?: string }).blockType).toBe(
     "paragraph",
   );
-  assert.deepEqual(preview.draftRule.effect, {
+  expect(preview.draftRule.effect).toEqual({
     type: "render_markdown_strong",
   });
-  assert.match(preview.rationale, /Markdown-Markierungen/i);
+  expect(preview.rationale).toMatch(/Markdown-Markierungen/i);
 });
 
 test("preview compilation uses AI output when a provider is configured", async () => {
@@ -316,18 +312,16 @@ test("preview compilation uses AI output when a provider is configured", async (
   process.env.OPENAI_API_KEY = "test-key";
 
   globalThis.fetch = async (url, init) => {
-    assert.equal(url, "https://example.test/v1/responses");
+    expect(url).toBe("https://example.test/v1/responses");
     const body = JSON.parse(String(init?.body));
     const prompt = body.input[1].content[0].text as string;
 
-    assert.match(
-      prompt,
+    expect(prompt).toMatch(
       /Labels with a colon should always be bold everywhere\./,
     );
-    assert.match(prompt, /Keep extra space under headings/);
-    assert.match(prompt, /Important: check the logs/);
-    assert.match(
-      prompt,
+    expect(prompt).toMatch(/Keep extra space under headings/);
+    expect(prompt).toMatch(/Important: check the logs/);
+    expect(prompt).toMatch(
       /Write summary, rationale, and limitations in German\./,
     );
 
@@ -367,14 +361,13 @@ test("preview compilation uses AI output when a provider is configured", async (
       sessionDetail,
     });
 
-    assert.equal(
-      preview.summary,
+    expect(preview.summary).toBe(
       "Hebe labelartige Präfixe mit Doppelpunkt in passenden Markdown-Zeilen importweit hervor.",
     );
-    assert.deepEqual(preview.draftRule.selector, {
+    expect(preview.draftRule.selector).toEqual({
       strategy: "prefix_before_colon",
     });
-    assert.deepEqual(preview.draftRule.effect, {
+    expect(preview.draftRule.effect).toEqual({
       type: "bold_prefix_before_colon",
     });
   } finally {
@@ -438,11 +431,10 @@ test("preview compilation falls back to deterministic rules when AI output is in
       sessionDetail,
     });
 
-    assert.equal(
-      preview.summary,
+    expect(preview.summary).toBe(
       "Vergrößere den Abstand rund um ähnliche Überschriften im Reader.",
     );
-    assert.deepEqual(preview.draftRule.selector, {
+    expect(preview.draftRule.selector).toEqual({
       blockType: "heading",
       strategy: "block_type",
     });

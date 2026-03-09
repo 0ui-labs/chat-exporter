@@ -1,11 +1,9 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import type {
   AdjustmentSelection,
   AdjustmentSessionDetail,
   Role,
 } from "@chat-exporter/shared";
+import { expect, test } from "vitest";
 
 import {
   AdjustmentChatUnavailableError,
@@ -86,7 +84,7 @@ test("chat turn fails clearly when live OpenAI chat is not configured", async ()
   delete process.env.OPENAI_API_KEY;
 
   try {
-    await assert.rejects(
+    await expect(
       runAdjustmentChatTurn({
         activeRules: [],
         executeApplyAdjustmentRule: async () => ({
@@ -97,10 +95,7 @@ test("chat turn fails clearly when live OpenAI chat is not configured", async ()
           "Bitte stelle den markierten Text klarer dar.",
         ),
       }),
-      (error: unknown) =>
-        error instanceof AdjustmentChatUnavailableError &&
-        /nicht konfiguriert/i.test(error.message),
-    );
+    ).rejects.toThrow(/nicht konfiguriert/i);
   } finally {
     restoreEnv(envSnapshot);
   }
@@ -120,16 +115,15 @@ test("chat turn can apply a rule through a tool call and return a short German c
   process.env.OPENAI_API_KEY = "test-key";
 
   globalThis.fetch = async (url, init) => {
-    assert.equal(url, "https://example.test/v1/responses");
+    expect(url).toBe("https://example.test/v1/responses");
     const body = JSON.parse(String(init?.body));
 
     seenBodies.push(body);
 
     if (seenBodies.length === 1) {
-      assert.equal(body.tools?.[0]?.name, "apply_adjustment_rule");
-      assert.equal(body.store, true);
-      assert.match(
-        body.input?.[1]?.content?.[0]?.text,
+      expect(body.tools?.[0]?.name).toBe("apply_adjustment_rule");
+      expect(body.store).toBe(true);
+      expect(body.input?.[1]?.content?.[0]?.text).toMatch(
         /bold formatierung sichtbar/i,
       );
 
@@ -158,10 +152,10 @@ test("chat turn can apply a rule through a tool call and return a short German c
       );
     }
 
-    assert.equal(body.previous_response_id, "resp_1");
-    assert.equal(body.store, true);
-    assert.equal(body.input?.[0]?.type, "function_call_output");
-    assert.match(body.input?.[0]?.output, /Markdown-Fettdruck-Markierungen/i);
+    expect(body.previous_response_id).toBe("resp_1");
+    expect(body.store).toBe(true);
+    expect(body.input?.[0]?.type).toBe("function_call_output");
+    expect(body.input?.[0]?.output).toMatch(/Markdown-Fettdruck-Markierungen/i);
 
     return new Response(
       JSON.stringify({
@@ -182,7 +176,7 @@ test("chat turn can apply a rule through a tool call and return a short German c
     const result = await runAdjustmentChatTurn({
       activeRules: [],
       executeApplyAdjustmentRule: async ({ instruction }) => {
-        assert.match(instruction, /fettdruck-markierungen/i);
+        expect(instruction).toMatch(/fettdruck-markierungen/i);
 
         return {
           ok: true,
@@ -196,13 +190,12 @@ test("chat turn can apply a rule through a tool call and return a short German c
       ),
     });
 
-    assert.equal(result.didApplyRule, true);
-    assert.equal(result.didRequestClarification, false);
-    assert.equal(
-      result.assistantMessage,
+    expect(result.didApplyRule).toBe(true);
+    expect(result.didRequestClarification).toBe(false);
+    expect(result.assistantMessage).toBe(
       "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht.",
     );
-    assert.match(result.toolMessages[0] ?? "", /Regel direkt angewendet/i);
+    expect(result.toolMessages[0] ?? "").toMatch(/Regel direkt angewendet/i);
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(envSnapshot);
@@ -249,11 +242,11 @@ test("chat turn can ask one short clarification when the request is still vague"
       sessionDetail: createSessionDetail("Mach das bitte besser."),
     });
 
-    assert.equal(callCount, 1);
-    assert.equal(result.didApplyRule, false);
-    assert.equal(result.didRequestClarification, true);
-    assert.equal(result.toolMessages.length, 0);
-    assert.match(result.assistantMessage, /ähnliche Stellen/i);
+    expect(callCount).toBe(1);
+    expect(result.didApplyRule).toBe(false);
+    expect(result.didRequestClarification).toBe(true);
+    expect(result.toolMessages.length).toBe(0);
+    expect(result.assistantMessage).toMatch(/ähnliche Stellen/i);
   } finally {
     globalThis.fetch = originalFetch;
     restoreEnv(envSnapshot);

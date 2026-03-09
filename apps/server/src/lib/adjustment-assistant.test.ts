@@ -1,7 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-
 import type { AdjustmentSelection } from "@chat-exporter/shared";
+import { expect, test } from "vitest";
 
 import { buildAdjustmentAssistantReply } from "./adjustment-assistant.js";
 
@@ -35,8 +33,8 @@ test("markdown replies explain portable limits and suggest broader label scopes"
     userMessage: "Labels with a colon should always be bold everywhere.",
   });
 
-  assert.match(reply, /Markdown-sicher/i);
-  assert.match(reply, /ähnliche labelartige Zeilen/i);
+  expect(reply).toMatch(/Markdown-sicher/i);
+  expect(reply).toMatch(/ähnliche labelartige Zeilen/i);
 });
 
 test("reader replies explain reusable heading spacing rules", () => {
@@ -50,8 +48,8 @@ test("reader replies explain reusable heading spacing rules", () => {
     userMessage: "Please add more spacing under headings here.",
   });
 
-  assert.match(reply, /Reader-Darstellungsregel/i);
-  assert.match(reply, /ähnliche Überschriften/i);
+  expect(reply).toMatch(/Reader-Darstellungsregel/i);
+  expect(reply).toMatch(/ähnliche Überschriften/i);
 });
 
 test("reader replies explain markdown bold marker rendering in German", () => {
@@ -66,6 +64,6 @@ test("reader replies explain markdown bold marker rendering in German", () => {
     userMessage: "Bold scheint fehlerhaft formatiert zu sein.",
   });
 
-  assert.match(reply, /Markdown-Markierungen/i);
-  assert.match(reply, /genau dieser Auswahl/i);
+  expect(reply).toMatch(/Markdown-Markierungen/i);
+  expect(reply).toMatch(/genau dieser Auswahl/i);
 });
