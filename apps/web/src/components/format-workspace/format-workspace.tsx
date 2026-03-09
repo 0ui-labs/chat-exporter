@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
 import type {
@@ -186,6 +186,43 @@ export function FormatWorkspace({
     handover: null,
     json: null
   });
+  const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0
+  });
+
+  useLayoutEffect(() => {
+    const node = sectionRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    const updateDimensions = () => {
+      setContainerDimensions((current) => {
+        const nextWidth = node.clientWidth;
+        const nextHeight = node.clientHeight;
+
+        if (current.width === nextWidth && current.height === nextHeight) {
+          return current;
+        }
+
+        return { width: nextWidth, height: nextHeight };
+      });
+    };
+
+    updateDimensions();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDimensions);
+
+    resizeObserver?.observe(node);
+
+    return () => {
+      resizeObserver?.disconnect();
+    };
+  }, []);
+
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
   const isAdjustableView = adjustableViews.has(view);
   const isAdjustModeEnabled = adjustModeByView[view];
@@ -402,13 +439,27 @@ export function FormatWorkspace({
     selection: AdjustmentSelection,
     anchor: FloatingAdjustmentAnchor
   ) {
+    const container = sectionRef.current;
+    let containerAnchor = anchor;
+
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      containerAnchor = {
+        top: anchor.top - containerRect.top + container.scrollTop,
+        bottom: anchor.bottom - containerRect.top + container.scrollTop,
+        left: anchor.left - containerRect.left,
+        width: anchor.width,
+        height: anchor.height
+      };
+    }
+
     setSelectionByView((current) => ({
       ...current,
       [view]: selection
     }));
     setAnchorByView((current) => ({
       ...current,
-      [view]: anchor
+      [view]: containerAnchor
     }));
     setGuideDismissedByView((current) => ({
       ...current,
@@ -732,6 +783,7 @@ export function FormatWorkspace({
           {showPopover && activeSelection && activeAnchor ? (
             <AdjustmentPopover
               anchor={activeAnchor}
+              containerDimensions={containerDimensions}
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isLoading={activeSessionLoading || isDiscarding}

@@ -11,6 +11,7 @@ import { getViewLabel } from "@/components/format-workspace/labels";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor;
+  containerDimensions: { width: number; height: number };
   draftMessage: string;
   error: string | null;
   isLoading: boolean;
@@ -48,21 +49,16 @@ function clamp(value: number, min: number, max: number) {
 
 function getPopoverPosition(
   anchor: FloatingAdjustmentAnchor,
-  dimensions: PopoverDimensions
+  dimensions: PopoverDimensions,
+  containerDimensions: { width: number; height: number }
 ) {
   const margin = 16;
   const gap = 12;
-  const viewportWidth =
-    typeof window === "undefined" ? dimensions.width + margin * 2 : window.innerWidth;
-  const viewportHeight =
-    typeof window === "undefined"
-      ? anchor.bottom + dimensions.height + margin
-      : window.innerHeight;
-  const width = dimensions.width || Math.min(352, viewportWidth - margin * 2);
+  const width = dimensions.width || Math.min(352, containerDimensions.width - margin * 2);
   const height = dimensions.height;
-  const left = clamp(anchor.left, margin, viewportWidth - width - margin);
+  const left = clamp(anchor.left, margin, containerDimensions.width - width - margin);
   const preferredTop = anchor.top - height - gap;
-  const top = clamp(preferredTop, margin, viewportHeight - height - margin);
+  const top = clamp(preferredTop, margin, containerDimensions.height - height - margin);
 
   return {
     left,
@@ -72,6 +68,7 @@ function getPopoverPosition(
 
 export function AdjustmentPopover({
   anchor,
+  containerDimensions,
   draftMessage,
   error,
   isLoading,
@@ -127,21 +124,19 @@ export function AdjustmentPopover({
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDimensions);
 
     resizeObserver?.observe(node);
-    window.addEventListener("resize", updateDimensions);
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updateDimensions);
     };
   }, []);
 
-  const position = getPopoverPosition(anchor, dimensions);
+  const position = getPopoverPosition(anchor, dimensions, containerDimensions);
 
   return (
     <div
       ref={popoverRef}
       data-testid={`adjustment-popover-${view}`}
-      className="fixed z-50 w-[min(22rem,calc(100vw-2rem))]"
+      className="absolute z-50 w-[min(22rem,calc(100vw-2rem))]"
       style={{
         left: position.left,
         top: position.top
