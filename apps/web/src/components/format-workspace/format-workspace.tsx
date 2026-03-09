@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 
 import type {
@@ -114,6 +114,7 @@ export function FormatWorkspace({
   view,
   onViewChange
 }: FormatWorkspaceProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
   const [draftMessageByView, setDraftMessageByView] = useState<Record<ViewMode, string>>({
     reader: "",
     markdown: "",
@@ -240,6 +241,7 @@ export function FormatWorkspace({
   const isSubmittingMessage = submittingMessageByView[view];
   const showGuide = isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
   const showPopover = isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
+  const workspaceRect = sectionRef.current?.getBoundingClientRect() ?? null;
 
   async function refreshFormatRules(targetView: ViewMode) {
     if (!adjustableViews.has(targetView)) {
@@ -645,7 +647,10 @@ export function FormatWorkspace({
   }
 
   return (
-    <section className="space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5">
+    <section
+      ref={sectionRef}
+      className="relative space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
+    >
       <div className="flex flex-wrap items-center gap-3">
         <Badge variant={job.status === "completed" ? "default" : "outline"}>
           {getStatusLabel(job)}
@@ -865,6 +870,7 @@ export function FormatWorkspace({
           {showPopover && activeSelection && activeAnchor ? (
             <AdjustmentPopover
               anchor={activeAnchor}
+              containerRect={workspaceRect}
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isLoading={activeSessionLoading || isDiscarding}

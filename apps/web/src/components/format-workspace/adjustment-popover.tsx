@@ -11,6 +11,7 @@ import { getViewLabel } from "@/components/format-workspace/labels";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor;
+  containerRect: DOMRect | null;
   draftMessage: string;
   error: string | null;
   isLoading: boolean;
@@ -52,8 +53,32 @@ function getPopoverPosition(anchor: FloatingAdjustmentAnchor) {
   };
 }
 
+function getAnchoredPopoverPosition(
+  anchor: FloatingAdjustmentAnchor,
+  containerRect: DOMRect | null
+) {
+  if (!containerRect) {
+    return getPopoverPosition(anchor);
+  }
+
+  const margin = 16;
+  const containerWidth = Math.max(containerRect.width, 320);
+  const popoverWidth = Math.min(352, containerWidth - margin * 2);
+  const left = Math.min(
+    Math.max(anchor.left - containerRect.left, margin),
+    containerWidth - popoverWidth - margin
+  );
+  const top = Math.max(anchor.bottom - containerRect.top + 12, margin);
+
+  return {
+    left,
+    top
+  };
+}
+
 export function AdjustmentPopover({
   anchor,
+  containerRect,
   draftMessage,
   error,
   isLoading,
@@ -68,12 +93,12 @@ export function AdjustmentPopover({
 }: AdjustmentPopoverProps) {
   const lastAssistantMessage = getLastAssistantMessage(sessionDetail);
   const isApplied = sessionDetail?.session.status === "applied";
-  const position = getPopoverPosition(anchor);
+  const position = getAnchoredPopoverPosition(anchor, containerRect);
 
   return (
     <div
       data-testid={`adjustment-popover-${view}`}
-      className="fixed z-30 w-[min(22rem,calc(100vw-2rem))]"
+      className="absolute z-30 w-[min(22rem,calc(100vw-2rem))]"
       style={{
         left: position.left,
         top: position.top
