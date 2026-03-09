@@ -14,12 +14,11 @@ import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   getBlockTypeLabel,
-  getRuleKindLabel,
   getRoleLabel,
   getViewLabel
 } from "@/components/format-workspace/labels";
 import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
-import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
+import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
 import type {
   AdjustmentSelection,
   FloatingAdjustmentAnchor,
@@ -30,7 +29,6 @@ import {
   createAdjustmentSession,
   disableFormatRule,
   discardAdjustmentSession,
-  getAdjustmentSessionDetail,
   getFormatRules
 } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -57,16 +55,6 @@ const outputViews: { value: ViewMode; label: string }[] = [
 ];
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
-
-function getRuleLabel(rule: FormatRule) {
-  const summary = rule.instruction.trim();
-
-  if (summary.length <= 72) {
-    return summary;
-  }
-
-  return `${summary.slice(0, 69).trimEnd()}...`;
-}
 
 function describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
@@ -179,27 +167,7 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
-  const [explainedRuleIdByView, setExplainedRuleIdByView] = useState<Record<ViewMode, string | null>>({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null
-  });
   const [disablingRuleById, setDisablingRuleById] = useState<Record<string, boolean>>({});
-  const [loadingExplanationBySessionId, setLoadingExplanationBySessionId] = useState<
-    Record<string, boolean>
-  >({});
-  const [ruleExplanationBySessionId, setRuleExplanationBySessionId] = useState<
-    Record<string, AdjustmentSessionDetail>
-  >({});
-  const [ruleExplanationErrorByView, setRuleExplanationErrorByView] = useState<
-    Record<ViewMode, string | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null
-  });
   const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
     reader: [],
     markdown: [],
@@ -229,19 +197,6 @@ export function FormatWorkspace({
   const activeAnchor = anchorByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
   const activeRules = rulesByView[view];
-  const activeRuleChips = activeRules.filter((rule) => rule.status === "active");
-  const explainedRuleId = explainedRuleIdByView[view];
-  const explainedRule = explainedRuleId
-    ? activeRuleChips.find((rule) => rule.id === explainedRuleId) ?? null
-    : null;
-  const explainedSessionId = explainedRule?.sourceSessionId;
-  const explainedRuleDetail = explainedSessionId
-    ? ruleExplanationBySessionId[explainedSessionId] ?? null
-    : null;
-  const isExplainedRuleLoading = explainedSessionId
-    ? Boolean(loadingExplanationBySessionId[explainedSessionId])
-    : false;
-  const explainedRuleError = ruleExplanationErrorByView[view];
   const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isDiscarding = discardingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
@@ -574,23 +529,45 @@ export function FormatWorkspace({
       return;
     }
 
-    const matchingRule = activeRules.find(
+    let matchingRule = activeRules.find(
       (rule) =>
         rule.sourceSessionId === activeSessionDetail.session.id &&
         rule.status === "active"
     );
 
-    if (matchingRule) {
-      await handleDisableRule(matchingRule.id);
+    if (!matchingRule) {
+      try {
+        const freshRules = await getFormatRules(job.id, view);
+        setRulesByView((current) => ({
+          ...current,
+          [view]: freshRules
+        }));
+        matchingRule = freshRules.find(
+          (rule) =>
+            rule.sourceSessionId === activeSessionDetail.session.id &&
+            rule.status === "active"
+        );
+      } catch {
+        // Rules konnten nicht neu geladen werden – Reply bleibt sichtbar.
+        return;
+      }
     }
 
-    setReplyVisibleByView((current) => ({
-      ...current,
-      [view]: false
-    }));
+    if (!matchingRule) {
+      return;
+    }
+
+    const success = await handleDisableRule(matchingRule.id);
+
+    if (success) {
+      setReplyVisibleByView((current) => ({
+        ...current,
+        [view]: false
+      }));
+    }
   }
 
-  async function handleDisableRule(ruleId: string) {
+  async function handleDisableRule(ruleId: string): Promise<boolean> {
     setDisablingRuleById((current) => ({
       ...current,
       [ruleId]: true
@@ -607,79 +584,19 @@ export function FormatWorkspace({
         ...current,
         [view]: current[view].map((rule) => (rule.id === nextRule.id ? nextRule : rule))
       }));
-      setExplainedRuleIdByView((current) => ({
-        ...current,
-        [view]: current[view] === ruleId ? null : current[view]
-      }));
-      setRuleExplanationErrorByView((current) => ({
-        ...current,
-        [view]: null
-      }));
+      return true;
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
         [view]: error instanceof Error ? error.message : "Formatregel konnte nicht deaktiviert werden."
       }));
+      return false;
     } finally {
       setDisablingRuleById((current) => {
         const nextState = { ...current };
         delete nextState[ruleId];
         return nextState;
       });
-    }
-  }
-
-  async function handleToggleRuleExplanation(rule: FormatRule) {
-    if (explainedRuleId === rule.id) {
-      setExplainedRuleIdByView((current) => ({
-        ...current,
-        [view]: null
-      }));
-      setRuleExplanationErrorByView((current) => ({
-        ...current,
-        [view]: null
-      }));
-      return;
-    }
-
-    setExplainedRuleIdByView((current) => ({
-      ...current,
-      [view]: rule.id
-    }));
-    setRuleExplanationErrorByView((current) => ({
-      ...current,
-      [view]: null
-    }));
-
-    const sourceSessionId = rule.sourceSessionId;
-
-    if (!sourceSessionId || ruleExplanationBySessionId[sourceSessionId]) {
-      return;
-    }
-
-    setLoadingExplanationBySessionId((current) => ({
-      ...current,
-      [sourceSessionId]: true
-    }));
-
-    try {
-      const detail = await getAdjustmentSessionDetail(sourceSessionId);
-
-      setRuleExplanationBySessionId((current) => ({
-        ...current,
-        [sourceSessionId]: detail
-      }));
-    } catch (error) {
-      setRuleExplanationErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error ? error.message : "Regelerklärung konnte nicht geladen werden."
-      }));
-    } finally {
-      setLoadingExplanationBySessionId((current) => ({
-        ...current,
-        [sourceSessionId]: false
-      }));
     }
   }
 
@@ -752,120 +669,28 @@ export function FormatWorkspace({
             </div>
 
             {isAdjustableView ? (
-              <Button
-                data-testid={`toggle-adjust-mode-${view}`}
-                type="button"
-                size="sm"
-                variant={isAdjustModeEnabled ? "default" : "outline"}
-                onClick={toggleAdjustMode}
-              >
-                <Settings2 className="mr-2 h-4 w-4" />
-                {isAdjustModeEnabled ? "Anpassungsmodus beenden" : `${getViewLabel(view)} anpassen`}
-              </Button>
+              <div className="flex items-center gap-2">
+                <RulesListPopover
+                  disablingRuleById={disablingRuleById}
+                  rules={activeRules}
+                  view={view}
+                  onDisableRule={(ruleId) => { void handleDisableRule(ruleId); }}
+                  onHoverRule={() => {}}
+                  onLeaveRule={() => {}}
+                />
+                <Button
+                  data-testid={`toggle-adjust-mode-${view}`}
+                  type="button"
+                  size="sm"
+                  variant={isAdjustModeEnabled ? "default" : "outline"}
+                  onClick={toggleAdjustMode}
+                >
+                  <Settings2 className="mr-2 h-4 w-4" />
+                  {isAdjustModeEnabled ? "Anpassungsmodus beenden" : `${getViewLabel(view)} anpassen`}
+                </Button>
+              </div>
             ) : null}
           </div>
-
-          {activeRuleChips.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {activeRuleChips.map((rule) => (
-                <div
-                  key={rule.id}
-                  data-testid="active-format-rule"
-                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-secondary-foreground"
-                >
-                  <span className="max-w-[24rem] truncate font-medium text-foreground">
-                    {getRuleLabel(rule)}
-                  </span>
-                  <button
-                    data-testid="active-format-rule-why"
-                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    type="button"
-                    onClick={() => {
-                      void handleToggleRuleExplanation(rule);
-                    }}
-                  >
-                    {explainedRuleId === rule.id ? "Ausblenden" : "Warum?"}
-                  </button>
-                  <button
-                    data-testid="active-format-rule-undo"
-                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={Boolean(disablingRuleById[rule.id])}
-                    type="button"
-                    onClick={() => {
-                      void handleDisableRule(rule.id);
-                    }}
-                  >
-                    {disablingRuleById[rule.id] ? "Wird rückgängig gemacht..." : "Rückgängig"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {explainedRule ? (
-            <div
-              data-testid="active-format-rule-explanation"
-              className="rounded-2xl border border-border/80 bg-card/80 p-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Warum es diese Regel gibt
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {explainedRule.instruction}
-                  </p>
-                </div>
-                <Badge variant="secondary">{getRuleKindLabel(explainedRule.kind)}</Badge>
-              </div>
-
-              {isExplainedRuleLoading ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Zugehörige Anpassungssession für diese Regel wird geladen.
-                </p>
-              ) : explainedRuleError ? (
-                <div className="mt-3 rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-3 text-sm text-red-900">
-                  {explainedRuleError}
-                </div>
-              ) : explainedRuleDetail ? (
-                <div className="mt-3 space-y-3 text-sm text-foreground">
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {describeSelectionLabel(explainedRuleDetail.session.selection)}
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {explainedRuleDetail.session.selection.textQuote}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      Begründung
-                    </p>
-                    <p className="mt-2 text-foreground">
-                      {explainedRuleDetail.session.previewArtifact?.rationale ??
-                        "Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt."}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-3 text-muted-foreground">
-                    {describeSelectorScope({
-                      blockType: explainedRuleDetail.session.selection.blockType,
-                      exactLabel: "Diese Regel gilt nur für die ursprüngliche Auswahl.",
-                      selector:
-                        explainedRuleDetail.session.previewArtifact?.draftRule.selector ??
-                        explainedRule.selector,
-                      view
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt.
-                </p>
-              )}
-            </div>
-          ) : null}
 
           {activeSessionError && !isAdjustModeEnabled ? (
             <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">

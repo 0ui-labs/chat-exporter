@@ -1,4 +1,4 @@
-import type { FormatRuleKind } from "@chat-exporter/shared";
+import type { FormatRule, FormatRuleKind } from "@chat-exporter/shared";
 
 import type { ViewMode } from "@/components/format-workspace/types";
 
@@ -49,4 +49,14 @@ export function getBlockTypeLabel(blockType: string) {
 
 export function getRuleKindLabel(kind: FormatRuleKind) {
   return ruleKindLabels[kind];
+}
+
+export function getRuleLabel(rule: FormatRule) {
+  const summary = rule.instruction.trim();
+
+  if (summary.length <= 72) {
+    return summary;
+  }
+
+  return `${summary.slice(0, 69).trimEnd()}...`;
 }
