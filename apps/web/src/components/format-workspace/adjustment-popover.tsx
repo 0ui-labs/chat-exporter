@@ -193,8 +193,8 @@ export function AdjustmentPopover({
               <textarea
                 data-testid="adjustment-draft-message"
                 className="min-h-24 w-full rounded-2xl border border-border/80 bg-background px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                disabled={isLoading || isApplied}
-                placeholder="Beschreibe kurz, wie diese Stelle aussehen soll."
+                disabled={isLoading}
+                placeholder={isApplied ? "Noch etwas anpassen?" : "Beschreibe kurz, wie diese Stelle aussehen soll."}
                 value={draftMessage}
                 onChange={(event) => onDraftMessageChange(event.target.value)}
               />
@@ -202,8 +202,8 @@ export function AdjustmentPopover({
 
             {isApplied ? (
               <p className="text-sm text-muted-foreground">
-                Die Änderung ist schon sichtbar. Markiere eine andere Stelle, wenn du noch etwas
-                anpassen willst.
+                Die Änderung ist schon sichtbar. Du kannst weiter anpassen oder eine neue Stelle
+                markieren.
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -222,7 +222,7 @@ export function AdjustmentPopover({
               <button
                 data-testid="adjustment-send"
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isLoading || isSubmitting || isApplied || draftMessage.trim().length === 0}
+                disabled={isLoading || isSubmitting || draftMessage.trim().length === 0}
                 type="submit"
               >
                 {isSubmitting ? "Wird gesendet..." : "Senden"}

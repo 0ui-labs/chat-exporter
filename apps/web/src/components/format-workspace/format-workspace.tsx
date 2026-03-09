@@ -539,11 +539,6 @@ export function FormatWorkspace({
       return;
     }
 
-    if (activeSessionDetail.session.status === "applied") {
-      clearCurrentAdjustmentState(view);
-      return;
-    }
-
     setDiscardingByView((current) => ({
       ...current,
       [view]: true
@@ -557,11 +552,15 @@ export function FormatWorkspace({
       await discardAdjustmentSession(activeSessionDetail.session.id);
       clearCurrentAdjustmentState(view);
     } catch (error) {
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error ? error.message : "Anpassungssession konnte nicht verworfen werden."
-      }));
+      if (activeSessionDetail.session.status === "applied") {
+        clearCurrentAdjustmentState(view);
+      } else {
+        setSessionErrorByView((current) => ({
+          ...current,
+          [view]:
+            error instanceof Error ? error.message : "Anpassungssession konnte nicht verworfen werden."
+        }));
+      }
     } finally {
       setDiscardingByView((current) => ({
         ...current,

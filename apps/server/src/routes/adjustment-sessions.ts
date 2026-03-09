@@ -19,6 +19,7 @@ import {
   getAdjustmentSessionDetail,
   listFormatRules,
   recordAdjustmentEvent,
+  reopenAdjustmentSession,
   saveAdjustmentPreview
 } from "../lib/adjustment-repository.js";
 import { getImportJob } from "../lib/import-store.js";
@@ -74,6 +75,10 @@ export const adjustmentSessionsRoute = new Hono()
         },
         500
       );
+    }
+
+    if (latestDetail.session.status === "applied") {
+      reopenAdjustmentSession(sessionId);
     }
 
     const activeRules = listFormatRules(detail.session.importId, detail.session.targetFormat).filter(

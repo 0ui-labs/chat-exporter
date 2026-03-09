@@ -517,6 +517,28 @@ export function discardAdjustmentSession(sessionId: string) {
   return nextDetail;
 }
 
+export function reopenAdjustmentSession(sessionId: string) {
+  const session = getAdjustmentSession(sessionId);
+
+  if (!session) {
+    throw new Error("Anpassungssession nicht gefunden.");
+  }
+
+  updateAdjustmentSessionStatusStatement.run({
+    id: sessionId,
+    status: "open",
+    updated_at: now()
+  });
+
+  const updated = getAdjustmentSession(sessionId);
+
+  if (!updated) {
+    throw new Error("Anpassungssession konnte nicht neu geladen werden.");
+  }
+
+  return updated;
+}
+
 export function listAdjustmentMessages(sessionId: string) {
   return listAdjustmentMessagesStatement.all(sessionId).map(deserializeAdjustmentMessage);
 }
