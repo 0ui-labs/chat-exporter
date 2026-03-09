@@ -1,23 +1,23 @@
 import {
+  type AdjustmentMetrics,
+  type AdjustmentSessionDetail,
+  type AppendAdjustmentMessageRequest,
+  type ApplyAdjustmentSessionResponse,
   adjustmentMetricsSchema,
-  applyAdjustmentSessionResponseSchema,
   adjustmentSessionDetailSchema,
-  createAdjustmentSessionRequestSchema,
-  appendAdjustmentMessageRequestSchema,
   adjustmentTargetFormatSchema,
+  appendAdjustmentMessageRequestSchema,
+  applyAdjustmentSessionResponseSchema,
+  type CreateAdjustmentSessionRequest,
+  createAdjustmentSessionRequestSchema,
+  type FormatRule,
   formatRuleSchema,
+  type ImportJob,
+  type ImportRequest,
+  type ImportSnapshot,
   importJobSchema,
   importRequestSchema,
   importSnapshotSchema,
-  type ApplyAdjustmentSessionResponse,
-  type AdjustmentSessionDetail,
-  type AdjustmentMetrics,
-  type AppendAdjustmentMessageRequest,
-  type FormatRule,
-  type CreateAdjustmentSessionRequest,
-  type ImportJob,
-  type ImportRequest,
-  type ImportSnapshot
 } from "@chat-exporter/shared";
 
 export async function createImport(payload: ImportRequest) {
@@ -26,15 +26,17 @@ export async function createImport(payload: ImportRequest) {
   const response = await fetch("/api/imports", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(parsedPayload)
+    body: JSON.stringify(parsedPayload),
   });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Import konnte nicht erstellt werden.";
+      typeof body?.message === "string"
+        ? body.message
+        : "Import konnte nicht erstellt werden.";
     throw new Error(message);
   }
 
@@ -62,7 +64,9 @@ export async function listImports() {
   return payload.map((job) => importJobSchema.parse(job));
 }
 
-export async function getImportSnapshot(importId: string): Promise<ImportSnapshot> {
+export async function getImportSnapshot(
+  importId: string,
+): Promise<ImportSnapshot> {
   const response = await fetch(`/api/imports/${importId}/snapshot`);
 
   if (!response.ok) {
@@ -74,15 +78,15 @@ export async function getImportSnapshot(importId: string): Promise<ImportSnapsho
 
 export async function createAdjustmentSession(
   importId: string,
-  payload: CreateAdjustmentSessionRequest
+  payload: CreateAdjustmentSessionRequest,
 ): Promise<AdjustmentSessionDetail> {
   const parsedPayload = createAdjustmentSessionRequestSchema.parse(payload);
   const response = await fetch(`/api/imports/${importId}/adjustment-sessions`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(parsedPayload)
+    body: JSON.stringify(parsedPayload),
   });
 
   if (!response.ok) {
@@ -98,7 +102,7 @@ export async function createAdjustmentSession(
 }
 
 export async function getAdjustmentSessionDetail(
-  sessionId: string
+  sessionId: string,
 ): Promise<AdjustmentSessionDetail> {
   const response = await fetch(`/api/adjustment-sessions/${sessionId}`);
 
@@ -116,16 +120,19 @@ export async function getAdjustmentSessionDetail(
 
 export async function appendAdjustmentMessage(
   sessionId: string,
-  payload: AppendAdjustmentMessageRequest
+  payload: AppendAdjustmentMessageRequest,
 ): Promise<AdjustmentSessionDetail> {
   const parsedPayload = appendAdjustmentMessageRequestSchema.parse(payload);
-  const response = await fetch(`/api/adjustment-sessions/${sessionId}/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+  const response = await fetch(
+    `/api/adjustment-sessions/${sessionId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(parsedPayload),
     },
-    body: JSON.stringify(parsedPayload)
-  });
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -140,11 +147,14 @@ export async function appendAdjustmentMessage(
 }
 
 export async function generateAdjustmentPreview(
-  sessionId: string
+  sessionId: string,
 ): Promise<AdjustmentSessionDetail> {
-  const response = await fetch(`/api/adjustment-sessions/${sessionId}/preview`, {
-    method: "POST"
-  });
+  const response = await fetch(
+    `/api/adjustment-sessions/${sessionId}/preview`,
+    {
+      method: "POST",
+    },
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -159,10 +169,10 @@ export async function generateAdjustmentPreview(
 }
 
 export async function applyAdjustmentSession(
-  sessionId: string
+  sessionId: string,
 ): Promise<ApplyAdjustmentSessionResponse> {
   const response = await fetch(`/api/adjustment-sessions/${sessionId}/apply`, {
-    method: "POST"
+    method: "POST",
   });
 
   if (!response.ok) {
@@ -178,11 +188,14 @@ export async function applyAdjustmentSession(
 }
 
 export async function discardAdjustmentSession(
-  sessionId: string
+  sessionId: string,
 ): Promise<AdjustmentSessionDetail> {
-  const response = await fetch(`/api/adjustment-sessions/${sessionId}/discard`, {
-    method: "POST"
-  });
+  const response = await fetch(
+    `/api/adjustment-sessions/${sessionId}/discard`,
+    {
+      method: "POST",
+    },
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -198,13 +211,15 @@ export async function discardAdjustmentSession(
 
 export async function disableFormatRule(ruleId: string): Promise<FormatRule> {
   const response = await fetch(`/api/format-rules/${ruleId}/disable`, {
-    method: "POST"
+    method: "POST",
   });
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Formatregel konnte nicht deaktiviert werden.";
+      typeof body?.message === "string"
+        ? body.message
+        : "Formatregel konnte nicht deaktiviert werden.";
     throw new Error(message);
   }
 
@@ -213,15 +228,19 @@ export async function disableFormatRule(ruleId: string): Promise<FormatRule> {
 
 export async function getFormatRules(
   importId: string,
-  targetFormat: "reader" | "markdown" | "handover" | "json"
+  targetFormat: "reader" | "markdown" | "handover" | "json",
 ): Promise<FormatRule[]> {
   const parsedTargetFormat = adjustmentTargetFormatSchema.parse(targetFormat);
-  const response = await fetch(`/api/imports/${importId}/format-rules?format=${parsedTargetFormat}`);
+  const response = await fetch(
+    `/api/imports/${importId}/format-rules?format=${parsedTargetFormat}`,
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Formatregeln konnten nicht geladen werden.";
+      typeof body?.message === "string"
+        ? body.message
+        : "Formatregeln konnten nicht geladen werden.";
     throw new Error(message);
   }
 
@@ -231,17 +250,19 @@ export async function getFormatRules(
 
 export async function getAdjustmentMetrics(
   importId: string,
-  targetFormat: "reader" | "markdown" | "handover" | "json"
+  targetFormat: "reader" | "markdown" | "handover" | "json",
 ): Promise<AdjustmentMetrics> {
   const parsedTargetFormat = adjustmentTargetFormatSchema.parse(targetFormat);
   const response = await fetch(
-    `/api/imports/${importId}/adjustment-metrics?format=${parsedTargetFormat}`
+    `/api/imports/${importId}/adjustment-metrics?format=${parsedTargetFormat}`,
   );
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const message =
-      typeof body?.message === "string" ? body.message : "Anpassungsmetriken konnten nicht geladen werden.";
+      typeof body?.message === "string"
+        ? body.message
+        : "Anpassungsmetriken konnten nicht geladen werden.";
     throw new Error(message);
   }
 

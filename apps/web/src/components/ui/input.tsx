@@ -11,7 +11,7 @@ export const Input = React.forwardRef<
     type={type}
     className={cn(
       "flex h-12 w-full rounded-xl border border-input bg-background/95 px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring",
-      className
+      className,
     )}
     {...props}
   />

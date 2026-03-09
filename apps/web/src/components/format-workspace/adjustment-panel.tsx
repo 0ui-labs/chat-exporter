@@ -1,17 +1,19 @@
+import type {
+  AdjustmentPreview,
+  AdjustmentSessionDetail,
+} from "@chat-exporter/shared";
 import type { FormEvent, ReactNode } from "react";
-
-import type { AdjustmentPreview, AdjustmentSessionDetail } from "@chat-exporter/shared";
 
 import {
   getBlockTypeLabel,
   getRoleLabel,
   getRuleKindLabel,
-  getViewLabel
+  getViewLabel,
 } from "@/components/format-workspace/labels";
 import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import type {
   AdjustmentSelection,
-  ViewMode
+  ViewMode,
 } from "@/components/format-workspace/types";
 
 type AdjustmentPanelProps = {
@@ -35,29 +37,39 @@ type AdjustmentPanelProps = {
 
 const formatCopy: Record<ViewMode, { detail: string; nextStep: string }> = {
   reader: {
-    detail: "In diesem Modus passt du an, wie der integrierte Reader den ausgewählten Transkriptabschnitt darstellt.",
-    nextStep: "Wähle einen Block oder Textbereich aus, um einen kontextbezogenen Anpassungs-Chat zu öffnen."
+    detail:
+      "In diesem Modus passt du an, wie der integrierte Reader den ausgewählten Transkriptabschnitt darstellt.",
+    nextStep:
+      "Wähle einen Block oder Textbereich aus, um einen kontextbezogenen Anpassungs-Chat zu öffnen.",
   },
   markdown: {
-    detail: "In diesem Modus verfeinerst du die portable Markdown-Ausgabe mit formatbezogener KI-Hilfe.",
-    nextStep: "Wähle Zeilen oder einen gerenderten Abschnitt aus, um eine Markdown-sichere Anpassung anzufragen."
+    detail:
+      "In diesem Modus verfeinerst du die portable Markdown-Ausgabe mit formatbezogener KI-Hilfe.",
+    nextStep:
+      "Wähle Zeilen oder einen gerenderten Abschnitt aus, um eine Markdown-sichere Anpassung anzufragen.",
   },
   handover: {
     detail: "Anpassungen für die Übergabe sind noch nicht verfügbar.",
-    nextStep: "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten."
+    nextStep:
+      "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten.",
   },
   json: {
     detail: "Anpassungen für JSON sind noch nicht verfügbar.",
-    nextStep: "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten."
-  }
+    nextStep:
+      "Wechsle zurück zu Reader oder Markdown, um eine Anpassungssession zu starten.",
+  },
 };
 
-function describePreviewScope(preview: AdjustmentPreview, selection: AdjustmentSelection, view: ViewMode) {
+function describePreviewScope(
+  preview: AdjustmentPreview,
+  selection: AdjustmentSelection,
+  view: ViewMode,
+) {
   return describeSelectorScope({
     blockType: selection.blockType,
     exactLabel: "Diese Regel gilt nur für die aktuelle Auswahl.",
     selector: preview.draftRule.selector,
-    view
+    view,
   });
 }
 
@@ -85,12 +97,16 @@ export function AdjustmentPanel({
   previewContent,
   selection,
   sessionDetail,
-  view
+  view,
 }: AdjustmentPanelProps) {
   const copy = formatCopy[view];
-  const preview = sessionDetail?.session.previewArtifact as AdjustmentPreview | undefined;
+  const preview = sessionDetail?.session.previewArtifact as
+    | AdjustmentPreview
+    | undefined;
   const previewScope =
-    preview && selection ? describePreviewScope(preview, selection, view) : null;
+    preview && selection
+      ? describePreviewScope(preview, selection, view)
+      : null;
 
   return (
     <div
@@ -110,7 +126,9 @@ export function AdjustmentPanel({
             <p className="mt-2 text-sm font-medium text-foreground">
               {describeSelectionLabel(selection)}
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">{selection.textQuote}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {selection.textQuote}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{copy.nextStep}</p>
@@ -159,8 +177,9 @@ export function AdjustmentPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Beschreibe, was an dieser Auswahl falsch ist. Die Serversession ist bereit und der
-                nächste Schritt kann daraus eine formatspezifische Regel ableiten.
+                Beschreibe, was an dieser Auswahl falsch ist. Die Serversession
+                ist bereit und der nächste Schritt kann daraus eine
+                formatspezifische Regel ableiten.
               </p>
             )}
 
@@ -184,22 +203,30 @@ export function AdjustmentPanel({
                     disabled={
                       isPreviewing ||
                       isLoading ||
-                      sessionDetail.messages.every((message) => message.role !== "user")
+                      sessionDetail.messages.every(
+                        (message) => message.role !== "user",
+                      )
                     }
                     type="button"
                     onClick={onGeneratePreview}
                   >
-                    {isPreviewing ? "Vorschau wird erstellt..." : "Vorschau erzeugen"}
+                    {isPreviewing
+                      ? "Vorschau wird erstellt..."
+                      : "Vorschau erzeugen"}
                   </button>
 
                   <button
                     data-testid="adjustment-discard-draft"
                     className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDiscarding || sessionDetail.session.status === "applied"}
+                    disabled={
+                      isDiscarding || sessionDetail.session.status === "applied"
+                    }
                     type="button"
                     onClick={onDiscardSession}
                   >
-                    {isDiscarding ? "Entwurf wird verworfen..." : "Entwurf verwerfen"}
+                    {isDiscarding
+                      ? "Entwurf wird verworfen..."
+                      : "Entwurf verwerfen"}
                   </button>
                 </div>
 
@@ -223,8 +250,12 @@ export function AdjustmentPanel({
                   <span>Vorschau</span>
                   <span>{getRuleKindLabel(preview.draftRule.kind)}</span>
                 </div>
-                <p className="text-sm font-medium text-foreground">{preview.summary}</p>
-                <p className="text-sm text-muted-foreground">{preview.rationale}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {preview.summary}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {preview.rationale}
+                </p>
                 {previewScope ? (
                   <div className="rounded-2xl border border-primary/20 bg-background/80 px-3 py-2 text-sm text-foreground">
                     {previewScope}
@@ -234,7 +265,10 @@ export function AdjustmentPanel({
                 {preview.limitations.length > 0 ? (
                   <div className="space-y-1">
                     {preview.limitations.map((limitation) => (
-                      <p key={limitation} className="text-sm text-muted-foreground">
+                      <p
+                        key={limitation}
+                        className="text-sm text-muted-foreground"
+                      >
                         {limitation}
                       </p>
                     ))}
@@ -256,7 +290,9 @@ export function AdjustmentPanel({
                   <button
                     data-testid="adjustment-apply-rule"
                     className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isApplying || sessionDetail.session.status === "applied"}
+                    disabled={
+                      isApplying || sessionDetail.session.status === "applied"
+                    }
                     type="button"
                     onClick={onApplyPreview}
                   >

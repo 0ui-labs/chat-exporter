@@ -15,6 +15,6 @@ app.route("/api/imports", importsRoute);
 app.get("/", (c) =>
   c.json({
     name: "chat-exporter-api",
-    status: "ok"
-  })
+    status: "ok",
+  }),
 );

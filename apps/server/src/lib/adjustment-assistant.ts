@@ -1,7 +1,7 @@
 import type {
   AdjustmentSelection,
   AdjustmentSession,
-  AdjustmentTargetFormat
+  AdjustmentTargetFormat,
 } from "@chat-exporter/shared";
 
 import {
@@ -11,7 +11,7 @@ import {
   mentionsMarkdownStrongFormattingIssue,
   mentionsStructuralRequest,
   mentionsVisualStylingRequest,
-  wantsBroadRule
+  wantsBroadRule,
 } from "./adjustment-heuristics.js";
 
 function getRoleLabel(role: string) {
@@ -93,14 +93,20 @@ function buildMarkdownCapabilityHint(input: string) {
     return "Markdown trägt keine exakten Schriftgrößen oder Abstände zuverlässig. Ich kann das stattdessen als Überschrift, hervorgehobenes Label, Liste, Tabellenbereinigung oder klarere Struktur umsetzen.";
   }
 
-  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+  if (
+    mentionsStructuralRequest(input) ||
+    mentionsInlineEmphasisRequest(input)
+  ) {
     return "Das sieht nach einer Markdown-tauglichen Anpassung aus. Im nächsten Schritt kann ich daraus eine Struktur- oder Inline-Regel für diese Ausgabe ableiten.";
   }
 
   return "Für Markdown kann ich bei Struktur, Überschriften, Listen, hervorgehobenen Labels, Tabellenbereinigung und Absatzform helfen.";
 }
 
-function buildReaderCapabilityHint(selection: AdjustmentSelection, input: string) {
+function buildReaderCapabilityHint(
+  selection: AdjustmentSelection,
+  input: string,
+) {
   if (
     hasMarkdownStrongMarkers(selection.selectedText) &&
     mentionsMarkdownStrongFormattingIssue(input)
@@ -112,19 +118,28 @@ function buildReaderCapabilityHint(selection: AdjustmentSelection, input: string
     return "Das klingt nach einer Reader-Darstellungsregel. Im nächsten Schritt kann ich das in Abstand, Hervorhebung oder andere Präsentationslogik für die In-App-Ansicht übersetzen.";
   }
 
-  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+  if (
+    mentionsStructuralRequest(input) ||
+    mentionsInlineEmphasisRequest(input)
+  ) {
     return "Das kann entweder eine Reader-Darstellungskorrektur oder eine Strukturregel sein. Im nächsten Schritt kann ich entscheiden, was besser zur Auswahl passt.";
   }
 
   return "Für Reader-Anpassungen kann ich bei Abstand, Hervorhebung und lokaler Darstellung der ausgewählten Stelle helfen.";
 }
 
-function buildClarifyingQuestion(targetFormat: AdjustmentTargetFormat, input: string) {
+function buildClarifyingQuestion(
+  targetFormat: AdjustmentTargetFormat,
+  input: string,
+) {
   if (targetFormat === "markdown" && mentionsVisualStylingRequest(input)) {
     return "Soll ich deine Anfrage als Markdown-Strukturänderung umsetzen, zum Beispiel als Überschrift oder hervorgehobenes Label?";
   }
 
-  if (mentionsStructuralRequest(input) || mentionsInlineEmphasisRequest(input)) {
+  if (
+    mentionsStructuralRequest(input) ||
+    mentionsInlineEmphasisRequest(input)
+  ) {
     return "Soll das nur für diese konkrete Auswahl gelten oder künftig auch für ähnliche Stellen in diesem Format?";
   }
 
@@ -182,7 +197,9 @@ function buildScopeGuidance(params: {
   return null;
 }
 
-export function buildInitialAdjustmentAssistantMessage(session: AdjustmentSession) {
+export function buildInitialAdjustmentAssistantMessage(
+  session: AdjustmentSession,
+) {
   const selection = selectionDescriptor(session.selection);
 
   if (session.targetFormat === "markdown") {
@@ -212,18 +229,21 @@ export function buildAdjustmentAssistantReply(params: {
     targetFormat === "markdown"
       ? buildMarkdownCapabilityHint(trimmedMessage)
       : buildReaderCapabilityHint(selection, trimmedMessage);
-  const clarifyingQuestion = buildClarifyingQuestion(targetFormat, trimmedMessage);
+  const clarifyingQuestion = buildClarifyingQuestion(
+    targetFormat,
+    trimmedMessage,
+  );
   const scopeGuidance = buildScopeGuidance({
     input: trimmedMessage,
     selection,
-    targetFormat
+    targetFormat,
   });
 
   return [
     capabilityHint,
     `Ich verankere das an ${selectionDescriptor(selection)}.`,
     scopeGuidance,
-    clarifyingQuestion
+    clarifyingQuestion,
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -9,9 +9,9 @@ const port = Number(process.env.PORT ?? 8787);
 serve(
   {
     fetch: app.fetch,
-    port
+    port,
   },
   (info) => {
     console.log(`chat-exporter-api listening on http://localhost:${info.port}`);
-  }
+  },
 );

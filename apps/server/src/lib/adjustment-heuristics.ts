@@ -5,7 +5,7 @@ function mentions(input: string, pattern: RegExp) {
 export function wantsBroadRule(input: string) {
   return mentions(
     input,
-    /\b(always|whenever|every|all similar|same kind|all|immer|ueberall|überall|alle ähnlichen|aehnlichen|ähnlichen|ähnliche|aehnliche|ähnliche|generell|standardmäßig|standardmaessig|jeder|jede|jedes)\b/i
+    /\b(always|whenever|every|all similar|same kind|all|immer|ueberall|überall|alle ähnlichen|aehnlichen|ähnlichen|ähnliche|aehnliche|ähnliche|generell|standardmäßig|standardmaessig|jeder|jede|jedes)\b/i,
   );
 }
 
@@ -40,41 +40,41 @@ export function hasMarkdownStrongMarkers(text: string) {
 export function mentionsSpacingRequest(input: string) {
   return mentions(
     input,
-    /\b(space|spacing|gap|padding|margin|abstand|abstände|abstaende|luft|luftiger)\b/i
+    /\b(space|spacing|gap|padding|margin|abstand|abstände|abstaende|luft|luftiger)\b/i,
   );
 }
 
 export function mentionsHeadingEmphasisRequest(input: string) {
   return mentions(
     input,
-    /\b(bigger|larger|heading|headline|title|größer|groesser|titel|überschrift|ueberschrift)\b/i
+    /\b(bigger|larger|heading|headline|title|größer|groesser|titel|überschrift|ueberschrift)\b/i,
   );
 }
 
 export function mentionsInlineEmphasisRequest(input: string) {
   return mentions(
     input,
-    /\b(bold|italic|emphasis|highlight|colon|label|fett|fettdruck|kursiv|hervorheben|doppelpunkt|label)\b/i
+    /\b(bold|italic|emphasis|highlight|colon|label|fett|fettdruck|kursiv|hervorheben|doppelpunkt|label)\b/i,
   );
 }
 
 export function mentionsStructuralRequest(input: string) {
   return mentions(
     input,
-    /\b(heading|headline|title|list|bullet|table|code block|quote|paragraph|überschrift|ueberschrift|titel|liste|aufzählung|aufzaehlung|tabelle|codeblock|zitat|absatz)\b/i
+    /\b(heading|headline|title|list|bullet|table|code block|quote|paragraph|überschrift|ueberschrift|titel|liste|aufzählung|aufzaehlung|tabelle|codeblock|zitat|absatz)\b/i,
   );
 }
 
 export function mentionsVisualStylingRequest(input: string) {
   return mentions(
     input,
-    /\b(bigger|larger|smaller|spacing|space|gap|padding|margin|color|font|size|größer|groesser|kleiner|abstand|abstände|abstaende|farbe|schrift|schriftgröße|schriftgroesse|größe|groesse)\b/i
+    /\b(bigger|larger|smaller|spacing|space|gap|padding|margin|color|font|size|größer|groesser|kleiner|abstand|abstände|abstaende|farbe|schrift|schriftgröße|schriftgroesse|größe|groesse)\b/i,
   );
 }
 
 export function mentionsMarkdownStrongFormattingIssue(input: string) {
   return mentions(
     input,
-    /\b(bold|fett|fettdruck|markdown|asterisk|asterisks|sternchen|format|formatiert|formatierung|render|rendern|darstellung|darstellen)\b/i
+    /\b(bold|fett|fettdruck|markdown|asterisk|asterisks|sternchen|format|formatiert|formatierung|render|rendern|darstellung|darstellen)\b/i,
   );
 }

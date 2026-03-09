@@ -5,9 +5,13 @@ import type {
   AdjustmentTargetFormat,
   Block,
   FormatRule,
-  ImportJob
+  ImportJob,
 } from "@chat-exporter/shared";
-import { adjustmentPreviewSchema } from "@chat-exporter/shared";
+import {
+  adjustmentPreviewSchema,
+  markdownDraftRuleSchema,
+  readerDraftRuleSchema,
+} from "@chat-exporter/shared";
 
 import { readAdjustmentAiConfig } from "./adjustment-ai-config.js";
 import { hasMarkdownStrongMarkers } from "./adjustment-heuristics.js";
@@ -28,7 +32,10 @@ function blockToPlainText(block: Block) {
     case "list":
       return block.items.join("\n");
     case "table":
-      return [block.headers.join(" | "), ...block.rows.map((row) => row.join(" | "))].join("\n");
+      return [
+        block.headers.join(" | "),
+        ...block.rows.map((row) => row.join(" | ")),
+      ].join("\n");
   }
 }
 
@@ -39,7 +46,7 @@ function summarizeBlock(block: Block | undefined) {
 
   return {
     text: blockToPlainText(block),
-    type: block.type
+    type: block.type,
   };
 }
 
@@ -50,25 +57,37 @@ function summarizeActiveRules(activeRules: FormatRule[]) {
       compiledRule: rule.compiledRule,
       instruction: rule.instruction,
       kind: rule.kind,
-      selector: rule.selector
+      selector: rule.selector,
     }));
 }
 
-function buildReaderSelectionContext(selection: AdjustmentSelection, job: ImportJob | undefined) {
-  const message = job?.conversation?.messages.find((entry) => entry.id === selection.messageId);
+function buildReaderSelectionContext(
+  selection: AdjustmentSelection,
+  job: ImportJob | undefined,
+) {
+  const message = job?.conversation?.messages.find(
+    (entry) => entry.id === selection.messageId,
+  );
   const selectedBlock = message?.blocks[selection.blockIndex];
 
   return {
     currentBlock: summarizeBlock(selectedBlock),
-    currentRenderedExcerpt: selectedBlock ? blockToPlainText(selectedBlock) : selection.selectedText,
+    currentRenderedExcerpt: selectedBlock
+      ? blockToPlainText(selectedBlock)
+      : selection.selectedText,
     nextBlock: summarizeBlock(message?.blocks[selection.blockIndex + 1]),
     previousBlock: summarizeBlock(
-      selection.blockIndex > 0 ? message?.blocks[selection.blockIndex - 1] : undefined
-    )
+      selection.blockIndex > 0
+        ? message?.blocks[selection.blockIndex - 1]
+        : undefined,
+    ),
   };
 }
 
-function buildMarkdownSelectionContext(selection: AdjustmentSelection, job: ImportJob | undefined) {
+function buildMarkdownSelectionContext(
+  selection: AdjustmentSelection,
+  job: ImportJob | undefined,
+) {
   const markdown = job?.artifacts?.markdown ?? "";
   const lines = markdown.split("\n");
   const lineStart = selection.lineStart ?? 1;
@@ -79,7 +98,7 @@ function buildMarkdownSelectionContext(selection: AdjustmentSelection, job: Impo
     currentLines,
     currentRenderedExcerpt: currentLines.join("\n") || selection.selectedText,
     nextLine: lines[lineEnd] ?? null,
-    previousLine: lineStart > 1 ? lines[lineStart - 2] ?? null : null
+    previousLine: lineStart > 1 ? (lines[lineStart - 2] ?? null) : null,
   };
 }
 
@@ -90,41 +109,41 @@ function supportedRuleCatalog(targetFormat: AdjustmentTargetFormat) {
         effect: {
           amount: "sm | md | lg",
           direction: "after",
-          type: "adjust_block_spacing"
+          type: "adjust_block_spacing",
         },
         kind: "render",
-        selectors: ["exact selection", "block_type"]
+        selectors: ["exact selection", "block_type"],
       },
       {
         effect: {
           amount: "sm | md | lg",
-          type: "increase_heading_emphasis"
+          type: "increase_heading_emphasis",
         },
         kind: "render",
-        selectors: ["exact selection", "block_type"]
+        selectors: ["exact selection", "block_type"],
       },
       {
         effect: {
           emphasis: "balanced | subtle | strong",
-          type: "refine_selected_block_presentation"
+          type: "refine_selected_block_presentation",
         },
         kind: "render",
-        selectors: ["exact selection"]
+        selectors: ["exact selection"],
       },
       {
         effect: {
-          type: "bold_prefix_before_colon"
+          type: "bold_prefix_before_colon",
         },
         kind: "inline_semantics",
-        selectors: ["exact selection", "prefix_before_colon"]
+        selectors: ["exact selection", "prefix_before_colon"],
       },
       {
         effect: {
-          type: "render_markdown_strong"
+          type: "render_markdown_strong",
         },
         kind: "inline_semantics",
-        selectors: ["exact selection"]
-      }
+        selectors: ["exact selection"],
+      },
     ];
   }
 
@@ -132,39 +151,39 @@ function supportedRuleCatalog(targetFormat: AdjustmentTargetFormat) {
     {
       effect: {
         level: "1-6",
-        type: "promote_to_heading"
+        type: "promote_to_heading",
       },
       kind: "structure",
-      selectors: ["exact selection"]
+      selectors: ["exact selection"],
     },
     {
       effect: {
-        type: "bold_prefix_before_colon"
+        type: "bold_prefix_before_colon",
       },
       kind: "inline_semantics",
-      selectors: ["exact selection", "prefix_before_colon"]
+      selectors: ["exact selection", "prefix_before_colon"],
     },
     {
       effect: {
-        type: "normalize_list_structure"
+        type: "normalize_list_structure",
       },
       kind: "structure",
-      selectors: ["exact selection"]
+      selectors: ["exact selection"],
     },
     {
       effect: {
-        type: "normalize_markdown_table"
+        type: "normalize_markdown_table",
       },
       kind: "export_profile",
-      selectors: ["exact selection", "markdown_table"]
+      selectors: ["exact selection", "markdown_table"],
     },
     {
       effect: {
-        type: "reshape_markdown_block"
+        type: "reshape_markdown_block",
       },
       kind: "structure",
-      selectors: ["exact selection"]
-    }
+      selectors: ["exact selection"],
+    },
   ];
 }
 
@@ -172,7 +191,9 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
   const { activeRules, job, sessionDetail } = input;
   const { selection, targetFormat } = sessionDetail.session;
   const latestUserMessage =
-    [...sessionDetail.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+    [...sessionDetail.messages]
+      .reverse()
+      .find((message) => message.role === "user")?.content ?? "";
 
   return JSON.stringify(
     {
@@ -186,9 +207,10 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
         targetFormat === "markdown"
           ? "Markdown cannot express exact font sizes, spacing, or CSS. When needed, reinterpret the request as heading, list, table, or inline emphasis and explain the limitation."
           : "Reader rules may adjust spacing or emphasis, but should not rewrite transcript wording.",
-        targetFormat === "reader" && hasMarkdownStrongMarkers(selection.selectedText)
+        targetFormat === "reader" &&
+        hasMarkdownStrongMarkers(selection.selectedText)
           ? "If the selected Reader content contains literal Markdown bold markers like **text**, prefer render_markdown_strong with the exact selection."
-          : "Keep the compiled preview narrowly anchored unless clear reuse is justified."
+          : "Keep the compiled preview narrowly anchored unless clear reuse is justified.",
       ],
       selection,
       selectionContext:
@@ -197,13 +219,13 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
           : buildReaderSelectionContext(selection, job),
       sessionMessages: sessionDetail.messages.map((message) => ({
         content: message.content,
-        role: message.role
+        role: message.role,
       })),
       supportedRuleCatalog: supportedRuleCatalog(targetFormat),
-      targetFormat
+      targetFormat,
     },
     null,
-    2
+    2,
   );
 }
 
@@ -213,17 +235,21 @@ function exactReaderSelectorSchema() {
     properties: {
       blockIndex: {
         minimum: 0,
-        type: "integer"
+        type: "integer",
       },
       blockType: {
-        type: "string"
+        type: "string",
       },
       messageId: {
-        type: "string"
-      }
+        type: "string",
+      },
+      strategy: {
+        const: "exact",
+        type: "string",
+      },
     },
-    required: ["messageId", "blockIndex", "blockType"],
-    type: "object"
+    required: ["messageId", "blockIndex", "blockType", "strategy"],
+    type: "object",
   } as const;
 }
 
@@ -233,26 +259,37 @@ function exactMarkdownSelectorSchema() {
     properties: {
       blockIndex: {
         minimum: 0,
-        type: "integer"
+        type: "integer",
       },
       blockType: {
         const: "markdown-lines",
-        type: "string"
+        type: "string",
       },
       lineEnd: {
         minimum: 1,
-        type: "integer"
+        type: "integer",
       },
       lineStart: {
         minimum: 1,
-        type: "integer"
+        type: "integer",
       },
       messageId: {
-        type: "string"
-      }
+        type: "string",
+      },
+      strategy: {
+        const: "exact",
+        type: "string",
+      },
     },
-    required: ["messageId", "blockIndex", "blockType", "lineStart", "lineEnd"],
-    type: "object"
+    required: [
+      "messageId",
+      "blockIndex",
+      "blockType",
+      "lineStart",
+      "lineEnd",
+      "strategy",
+    ],
+    type: "object",
   } as const;
 }
 
@@ -261,15 +298,15 @@ function blockTypeSelectorSchema() {
     additionalProperties: false,
     properties: {
       blockType: {
-        type: "string"
+        type: "string",
       },
       strategy: {
         const: "block_type",
-        type: "string"
-      }
+        type: "string",
+      },
     },
     required: ["strategy", "blockType"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
@@ -278,15 +315,15 @@ function readerPrefixSelectorSchema() {
     additionalProperties: false,
     properties: {
       blockType: {
-        type: "string"
+        type: "string",
       },
       strategy: {
         const: "prefix_before_colon",
-        type: "string"
-      }
+        type: "string",
+      },
     },
     required: ["strategy", "blockType"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
@@ -296,11 +333,11 @@ function markdownPrefixSelectorSchema() {
     properties: {
       strategy: {
         const: "prefix_before_colon",
-        type: "string"
-      }
+        type: "string",
+      },
     },
     required: ["strategy"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
@@ -310,11 +347,11 @@ function markdownTableSelectorSchema() {
     properties: {
       strategy: {
         const: "markdown_table",
-        type: "string"
-      }
+        type: "string",
+      },
     },
     required: ["strategy"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
@@ -329,16 +366,16 @@ function buildRuleVariant(params: {
       effect: params.effect,
       kind: {
         const: params.kind,
-        type: "string"
+        type: "string",
       },
       scope: {
         const: "import_local",
-        type: "string"
+        type: "string",
       },
-      selector: params.selector
+      selector: params.selector,
     },
     required: ["kind", "scope", "selector", "effect"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
@@ -352,24 +389,24 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 amount: {
                   enum: ["sm", "md", "lg"],
-                  type: "string"
+                  type: "string",
                 },
                 direction: {
                   const: "after",
-                  type: "string"
+                  type: "string",
                 },
                 type: {
                   const: "adjust_block_spacing",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type", "direction", "amount"],
-              type: "object"
+              type: "object",
             },
             kind: "render",
             selector: {
-              anyOf: [exactReaderSelectorSchema(), blockTypeSelectorSchema()]
-            }
+              anyOf: [exactReaderSelectorSchema(), blockTypeSelectorSchema()],
+            },
           }),
           buildRuleVariant({
             effect: {
@@ -377,20 +414,20 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 amount: {
                   enum: ["sm", "md", "lg"],
-                  type: "string"
+                  type: "string",
                 },
                 type: {
                   const: "increase_heading_emphasis",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type", "amount"],
-              type: "object"
+              type: "object",
             },
             kind: "render",
             selector: {
-              anyOf: [exactReaderSelectorSchema(), blockTypeSelectorSchema()]
-            }
+              anyOf: [exactReaderSelectorSchema(), blockTypeSelectorSchema()],
+            },
           }),
           buildRuleVariant({
             effect: {
@@ -398,18 +435,18 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 emphasis: {
                   enum: ["balanced", "subtle", "strong"],
-                  type: "string"
+                  type: "string",
                 },
                 type: {
                   const: "refine_selected_block_presentation",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type", "emphasis"],
-              type: "object"
+              type: "object",
             },
             kind: "render",
-            selector: exactReaderSelectorSchema()
+            selector: exactReaderSelectorSchema(),
           }),
           buildRuleVariant({
             effect: {
@@ -417,16 +454,19 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "bold_prefix_before_colon",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "inline_semantics",
             selector: {
-              anyOf: [exactReaderSelectorSchema(), readerPrefixSelectorSchema()]
-            }
+              anyOf: [
+                exactReaderSelectorSchema(),
+                readerPrefixSelectorSchema(),
+              ],
+            },
           }),
           buildRuleVariant({
             effect: {
@@ -434,15 +474,15 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "render_markdown_strong",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "inline_semantics",
-            selector: exactReaderSelectorSchema()
-          })
+            selector: exactReaderSelectorSchema(),
+          }),
         ]
       : [
           buildRuleVariant({
@@ -452,18 +492,18 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
                 level: {
                   maximum: 6,
                   minimum: 1,
-                  type: "integer"
+                  type: "integer",
                 },
                 type: {
                   const: "promote_to_heading",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type", "level"],
-              type: "object"
+              type: "object",
             },
             kind: "structure",
-            selector: exactMarkdownSelectorSchema()
+            selector: exactMarkdownSelectorSchema(),
           }),
           buildRuleVariant({
             effect: {
@@ -471,16 +511,19 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "bold_prefix_before_colon",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "inline_semantics",
             selector: {
-              anyOf: [exactMarkdownSelectorSchema(), markdownPrefixSelectorSchema()]
-            }
+              anyOf: [
+                exactMarkdownSelectorSchema(),
+                markdownPrefixSelectorSchema(),
+              ],
+            },
           }),
           buildRuleVariant({
             effect: {
@@ -488,14 +531,14 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "normalize_list_structure",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "structure",
-            selector: exactMarkdownSelectorSchema()
+            selector: exactMarkdownSelectorSchema(),
           }),
           buildRuleVariant({
             effect: {
@@ -503,16 +546,19 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "normalize_markdown_table",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "export_profile",
             selector: {
-              anyOf: [exactMarkdownSelectorSchema(), markdownTableSelectorSchema()]
-            }
+              anyOf: [
+                exactMarkdownSelectorSchema(),
+                markdownTableSelectorSchema(),
+              ],
+            },
           }),
           buildRuleVariant({
             effect: {
@@ -520,50 +566,61 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
               properties: {
                 type: {
                   const: "reshape_markdown_block",
-                  type: "string"
-                }
+                  type: "string",
+                },
               },
               required: ["type"],
-              type: "object"
+              type: "object",
             },
             kind: "structure",
-            selector: exactMarkdownSelectorSchema()
-          })
+            selector: exactMarkdownSelectorSchema(),
+          }),
         ];
 
   return {
     additionalProperties: false,
     properties: {
       draftRule: {
-        anyOf: draftRuleVariants
+        anyOf: draftRuleVariants,
       },
       limitations: {
         items: {
-          type: "string"
+          type: "string",
         },
-        type: "array"
+        type: "array",
       },
       rationale: {
-        type: "string"
+        type: "string",
       },
       summary: {
-        type: "string"
-      }
+        type: "string",
+      },
     },
     required: ["summary", "rationale", "limitations", "draftRule"],
-    type: "object"
+    type: "object",
   } as const;
 }
 
 function validateCompiledPreview(
   payload: unknown,
-  sessionDetail: AdjustmentSessionDetail
+  sessionDetail: AdjustmentSessionDetail,
 ): AdjustmentPreview {
-  return adjustmentPreviewSchema.parse({
-    ...(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}),
+  const preview = adjustmentPreviewSchema.parse({
+    ...(payload && typeof payload === "object" && !Array.isArray(payload)
+      ? payload
+      : {}),
     sessionId: sessionDetail.session.id,
-    targetFormat: sessionDetail.session.targetFormat
+    targetFormat: sessionDetail.session.targetFormat,
   });
+
+  const formatSchema =
+    preview.targetFormat === "reader"
+      ? readerDraftRuleSchema
+      : markdownDraftRuleSchema;
+
+  formatSchema.parse(preview.draftRule);
+
+  return preview;
 }
 
 function getOutputText(payload: unknown) {
@@ -601,14 +658,18 @@ function getOutputText(payload: unknown) {
         }
 
         const maybeText = (entry as { text?: unknown }).text;
-        return typeof maybeText === "string" && maybeText.trim() ? [maybeText] : [];
+        return typeof maybeText === "string" && maybeText.trim()
+          ? [maybeText]
+          : [];
       });
     })
     .join("\n")
     .trim();
 
   if (!text) {
-    throw new Error("Responses API payload did not contain structured JSON text.");
+    throw new Error(
+      "Responses API payload did not contain structured JSON text.",
+    );
   }
 
   return text;
@@ -617,105 +678,112 @@ function getOutputText(payload: unknown) {
 async function requestOpenAiPreview(
   prompt: string,
   sessionDetail: AdjustmentSessionDetail,
-  config: ReturnType<typeof readAdjustmentAiConfig>
+  config: ReturnType<typeof readAdjustmentAiConfig>,
 ) {
-  const response = await fetch(`${config.openai!.apiBaseUrl}/responses`, {
+  const response = await fetch(`${config.openai?.apiBaseUrl}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.openai!.apiKey}`
+      Authorization: `Bearer ${config.openai?.apiKey}`,
     },
     body: JSON.stringify({
       input: [
         {
           content: [
             {
-              text:
-                "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields.",
-              type: "input_text"
-            }
+              text: "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields.",
+              type: "input_text",
+            },
           ],
-          role: "system"
+          role: "system",
         },
         {
           content: [
             {
               text: prompt,
-              type: "input_text"
-            }
+              type: "input_text",
+            },
           ],
-          role: "user"
-        }
+          role: "user",
+        },
       ],
       model: config.model,
       reasoning: {
-        effort: "minimal"
+        effort: "minimal",
       },
       text: {
         format: {
           name: `chat_exporter_${sessionDetail.session.targetFormat}_adjustment_preview`,
           schema: buildPreviewSchema(sessionDetail.session.targetFormat),
           strict: true,
-          type: "json_schema"
-        }
-      }
-    }),
-    signal: AbortSignal.timeout(config.timeoutMs)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI Responses API returned ${response.status}: ${errorText.slice(0, 400)}`);
-  }
-
-  const payload = (await response.json()) as unknown;
-  return validateCompiledPreview(JSON.parse(getOutputText(payload)) as unknown, sessionDetail);
-}
-
-async function requestCerebrasPreview(
-  prompt: string,
-  sessionDetail: AdjustmentSessionDetail,
-  config: ReturnType<typeof readAdjustmentAiConfig>
-) {
-  const response = await fetch(`${config.cerebras!.apiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.cerebras!.apiKey}`
-    },
-    body: JSON.stringify({
-      max_completion_tokens: config.cerebras!.maxCompletionTokens,
-      messages: [
-        {
-          content:
-            "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields.",
-          role: "system"
+          type: "json_schema",
         },
-        {
-          content: prompt,
-          role: "user"
-        }
-      ],
-      model: config.model,
-      reasoning_effort: config.cerebras!.reasoningEffort,
-      response_format: {
-        json_schema: {
-          name: `chat_exporter_${sessionDetail.session.targetFormat}_adjustment_preview`,
-          schema: buildPreviewSchema(sessionDetail.session.targetFormat),
-          strict: true
-        },
-        type: "json_schema"
       },
-      temperature: 0,
-      top_p: 1
     }),
-    signal: AbortSignal.timeout(config.timeoutMs)
+    signal: AbortSignal.timeout(config.timeoutMs),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Cerebras Chat Completions returned ${response.status}: ${errorText.slice(0, 400)}`
+      `OpenAI Responses API returned ${response.status}: ${errorText.slice(0, 400)}`,
+    );
+  }
+
+  const payload = (await response.json()) as unknown;
+  return validateCompiledPreview(
+    JSON.parse(getOutputText(payload)) as unknown,
+    sessionDetail,
+  );
+}
+
+async function requestCerebrasPreview(
+  prompt: string,
+  sessionDetail: AdjustmentSessionDetail,
+  config: ReturnType<typeof readAdjustmentAiConfig>,
+) {
+  const response = await fetch(
+    `${config.cerebras?.apiBaseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.cerebras?.apiKey}`,
+      },
+      body: JSON.stringify({
+        max_completion_tokens: config.cerebras?.maxCompletionTokens,
+        messages: [
+          {
+            content:
+              "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields.",
+            role: "system",
+          },
+          {
+            content: prompt,
+            role: "user",
+          },
+        ],
+        model: config.model,
+        reasoning_effort: config.cerebras?.reasoningEffort,
+        response_format: {
+          json_schema: {
+            name: `chat_exporter_${sessionDetail.session.targetFormat}_adjustment_preview`,
+            schema: buildPreviewSchema(sessionDetail.session.targetFormat),
+            strict: true,
+          },
+          type: "json_schema",
+        },
+        temperature: 0,
+        top_p: 1,
+      }),
+      signal: AbortSignal.timeout(config.timeoutMs),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Cerebras Chat Completions returned ${response.status}: ${errorText.slice(0, 400)}`,
     );
   }
 
@@ -729,14 +797,19 @@ async function requestCerebrasPreview(
   const outputText = payload.choices?.[0]?.message?.content?.trim();
 
   if (!outputText) {
-    throw new Error("Cerebras response did not contain structured JSON content.");
+    throw new Error(
+      "Cerebras response did not contain structured JSON content.",
+    );
   }
 
-  return validateCompiledPreview(JSON.parse(outputText) as unknown, sessionDetail);
+  return validateCompiledPreview(
+    JSON.parse(outputText) as unknown,
+    sessionDetail,
+  );
 }
 
 export async function compileAdjustmentPreviewWithAi(
-  input: CompileAdjustmentPreviewInput
+  input: CompileAdjustmentPreviewInput,
 ): Promise<AdjustmentPreview | null> {
   const { job, sessionDetail } = input;
   const config = readAdjustmentAiConfig();

@@ -1,46 +1,45 @@
-import { startTransition, useEffect, useState, type FormEvent } from "react";
-import { ExternalLink } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
-
 import type { ImportJob } from "@chat-exporter/shared";
+import { ExternalLink } from "lucide-react";
+import { type FormEvent, startTransition, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
 import type { ViewMode } from "@/components/format-workspace/types";
-import { createImport, getImport, listImports } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { createImport, getImport, listImports } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const importStages = {
   validate: {
     label: "Link wird geprüft",
-    detail: "Der Link wird geprüft und dem passenden Importer zugeordnet."
+    detail: "Der Link wird geprüft und dem passenden Importer zugeordnet.",
   },
   fetch: {
     label: "Seite wird geladen",
-    detail: "Die freigegebene Seite wird geöffnet und als Quelle erfasst."
+    detail: "Die freigegebene Seite wird geöffnet und als Quelle erfasst.",
   },
   extract: {
     label: "Nachrichten werden extrahiert",
-    detail: "Die Unterhaltung wird aus dem Markup des Anbieters extrahiert."
+    detail: "Die Unterhaltung wird aus dem Markup des Anbieters extrahiert.",
   },
   normalize: {
     label: "Transkript wird bereinigt",
-    detail: "Rohfragmente werden in lesbare Nachrichten umgewandelt."
+    detail: "Rohfragmente werden in lesbare Nachrichten umgewandelt.",
   },
   structure: {
     label: "Struktur wird repariert",
-    detail: "Abschnitte mit zusätzlichem Bereinigungsbedarf werden korrigiert."
+    detail: "Abschnitte mit zusätzlichem Bereinigungsbedarf werden korrigiert.",
   },
   render: {
     label: "Ausgaben werden erzeugt",
-    detail: "Reader- und Exportformate werden vorbereitet."
+    detail: "Reader- und Exportformate werden vorbereitet.",
   },
   done: {
     label: "Bereit",
-    detail: "Das Transkript ist bereit."
-  }
+    detail: "Das Transkript ist bereit.",
+  },
 } as const;
 
 function getSafeExternalUrl(value: string) {
@@ -60,7 +59,11 @@ function getSafeExternalUrl(value: string) {
 function formatSourceLabel(url: string) {
   try {
     const parsed = new URL(url);
-    const value = `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname}`.replace(/\/$/, "");
+    const value =
+      `${parsed.hostname.replace(/^www\./, "")}${parsed.pathname}`.replace(
+        /\/$/,
+        "",
+      );
     return value.length > 46 ? `${value.slice(0, 43)}...` : value;
   } catch {
     return url.length > 46 ? `${url.slice(0, 43)}...` : url;
@@ -88,7 +91,8 @@ function getActiveStage(job: ImportJob) {
   if (job.status === "queued") {
     return {
       label: "Wartet auf Start",
-      detail: "Der Job ist in der Warteschlange und startet, sobald ein Worker frei ist."
+      detail:
+        "Der Job ist in der Warteschlange und startet, sobald ein Worker frei ist.",
     };
   }
 
@@ -127,8 +131,11 @@ export function HomePage() {
         setRecentJobs(
           jobs
             .slice()
-            .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
-            .slice(0, 2)
+            .sort(
+              (left, right) =>
+                Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+            )
+            .slice(0, 2),
         );
       } catch {
         if (!cancelled) {
@@ -142,11 +149,11 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [activeImportId]);
+  }, []);
 
   useEffect(() => {
     setView("reader");
-  }, [activeImportId]);
+  }, []);
 
   useEffect(() => {
     if (!activeImportId) {
@@ -178,7 +185,9 @@ export function HomePage() {
       } catch (loadError) {
         if (!cancelled) {
           setJobError(
-            loadError instanceof Error ? loadError.message : "Import konnte nicht geladen werden."
+            loadError instanceof Error
+              ? loadError.message
+              : "Import konnte nicht geladen werden.",
           );
         }
       }
@@ -251,7 +260,9 @@ export function HomePage() {
       });
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : "Der Import konnte nicht gestartet werden."
+        submitError instanceof Error
+          ? submitError.message
+          : "Der Import konnte nicht gestartet werden.",
       );
     } finally {
       setSubmitting(false);
@@ -288,7 +299,7 @@ export function HomePage() {
                     aria-label="Freigabelink"
                     className={cn(
                       "h-12 pr-4 text-base",
-                      showInlineOriginalButton ? "pr-24 sm:pr-40" : null
+                      showInlineOriginalButton ? "pr-24 sm:pr-40" : null,
                     )}
                     inputMode="url"
                     placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
@@ -313,7 +324,11 @@ export function HomePage() {
                   ) : null}
                 </div>
 
-                <Button className="h-12 px-5 lg:min-w-[8rem]" disabled={submitting} type="submit">
+                <Button
+                  className="h-12 px-5 lg:min-w-[8rem]"
+                  disabled={submitting}
+                  type="submit"
+                >
                   {submitting ? "Import läuft..." : "Importieren"}
                 </Button>
               </div>
@@ -338,12 +353,14 @@ export function HomePage() {
                         "inline-flex max-w-full items-center rounded-full border px-4 py-2 text-sm transition",
                         activeImportId === recentJob.id
                           ? "border-primary/30 bg-primary/10 text-primary"
-                          : "border-border/80 bg-background/65 text-foreground hover:bg-foreground/5"
+                          : "border-border/80 bg-background/65 text-foreground hover:bg-foreground/5",
                       )}
                       type="button"
                       onClick={() => handleSelectJob(recentJob)}
                     >
-                      <span className="max-w-[22rem] truncate">{formatSourceLabel(recentJob.sourceUrl)}</span>
+                      <span className="max-w-[22rem] truncate">
+                        {formatSourceLabel(recentJob.sourceUrl)}
+                      </span>
                     </button>
                   ))}
                 </div>

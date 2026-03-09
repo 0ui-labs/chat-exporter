@@ -6,7 +6,7 @@ const viewLabels: Record<ViewMode, string> = {
   reader: "Reader",
   markdown: "Markdown",
   handover: "Übergabe",
-  json: "JSON"
+  json: "JSON",
 };
 
 const roleLabels: Record<string, string> = {
@@ -14,7 +14,7 @@ const roleLabels: Record<string, string> = {
   markdown: "Markdown",
   system: "System",
   tool: "Werkzeug",
-  user: "Nutzer"
+  user: "Nutzer",
 };
 
 const blockTypeLabels: Record<string, string> = {
@@ -24,7 +24,7 @@ const blockTypeLabels: Record<string, string> = {
   "markdown-lines": "Markdown-Zeilen",
   paragraph: "Absatz",
   quote: "Zitat",
-  table: "Tabelle"
+  table: "Tabelle",
 };
 
 const ruleKindLabels: Record<FormatRuleKind, string> = {
@@ -32,7 +32,7 @@ const ruleKindLabels: Record<FormatRuleKind, string> = {
   export_profile: "Export-Profil",
   inline_semantics: "Inline-Semantik",
   render: "Darstellung",
-  structure: "Struktur"
+  structure: "Struktur",
 };
 
 export function getViewLabel(view: ViewMode) {

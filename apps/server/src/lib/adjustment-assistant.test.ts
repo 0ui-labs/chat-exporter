@@ -5,7 +5,9 @@ import type { AdjustmentSelection } from "@chat-exporter/shared";
 
 import { buildAdjustmentAssistantReply } from "./adjustment-assistant.js";
 
-function createSelection(overrides: Partial<AdjustmentSelection> = {}): AdjustmentSelection {
+function createSelection(
+  overrides: Partial<AdjustmentSelection> = {},
+): AdjustmentSelection {
   return {
     blockIndex: 0,
     blockType: "paragraph",
@@ -14,7 +16,7 @@ function createSelection(overrides: Partial<AdjustmentSelection> = {}): Adjustme
     messageRole: "assistant",
     selectedText: "Example content",
     textQuote: "Example content",
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -27,10 +29,10 @@ test("markdown replies explain portable limits and suggest broader label scopes"
       messageId: "markdown:8-8",
       messageRole: "markdown",
       selectedText: "Important: check the logs",
-      textQuote: "Important: check the logs"
+      textQuote: "Important: check the logs",
     }),
     targetFormat: "markdown",
-    userMessage: "Labels with a colon should always be bold everywhere."
+    userMessage: "Labels with a colon should always be bold everywhere.",
   });
 
   assert.match(reply, /Markdown-sicher/i);
@@ -42,10 +44,10 @@ test("reader replies explain reusable heading spacing rules", () => {
     selection: createSelection({
       blockType: "heading",
       selectedText: "Project plan",
-      textQuote: "Project plan"
+      textQuote: "Project plan",
     }),
     targetFormat: "reader",
-    userMessage: "Please add more spacing under headings here."
+    userMessage: "Please add more spacing under headings here.",
   });
 
   assert.match(reply, /Reader-Darstellungsregel/i);
@@ -58,10 +60,10 @@ test("reader replies explain markdown bold marker rendering in German", () => {
       selectedText:
         "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:",
       textQuote:
-        "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:"
+        "**Normale Zusammenfassungen sind verlustbehaftet.** Für einen Endlos-Thread brauchst du stattdessen etwas wie:",
     }),
     targetFormat: "reader",
-    userMessage: "Bold scheint fehlerhaft formatiert zu sein."
+    userMessage: "Bold scheint fehlerhaft formatiert zu sein.",
   });
 
   assert.match(reply, /Markdown-Markierungen/i);

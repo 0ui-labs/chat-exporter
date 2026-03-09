@@ -1,4 +1,8 @@
-import type { Conversation, ImportArtifacts, ImportJob } from "@chat-exporter/shared";
+import type {
+  Conversation,
+  ImportArtifacts,
+  ImportJob,
+} from "@chat-exporter/shared";
 import { importJobSchema } from "@chat-exporter/shared";
 
 import { db } from "./database.js";
@@ -93,11 +97,11 @@ const updateImportStatement = db.prepare(`
 `);
 
 const selectImportStatement = db.prepare<unknown[], ImportRow>(
-  `SELECT * FROM imports WHERE id = ?`
+  `SELECT * FROM imports WHERE id = ?`,
 );
 
 const listImportsStatement = db.prepare<unknown[], ImportRow>(
-  `SELECT * FROM imports ORDER BY created_at DESC`
+  `SELECT * FROM imports ORDER BY created_at DESC`,
 );
 
 const saveSnapshotStatement = db.prepare(`
@@ -134,7 +138,7 @@ const saveSnapshotStatement = db.prepare(`
 `);
 
 const selectSnapshotStatement = db.prepare<unknown[], SnapshotRow>(
-  `SELECT * FROM import_snapshots WHERE import_id = ?`
+  `SELECT * FROM import_snapshots WHERE import_id = ?`,
 );
 
 function serializeImport(job: ImportJob) {
@@ -150,8 +154,10 @@ function serializeImport(job: ImportJob) {
     warnings_json: JSON.stringify(job.warnings),
     error: job.error ?? null,
     summary_json: job.summary ? JSON.stringify(job.summary) : null,
-    conversation_json: job.conversation ? JSON.stringify(job.conversation) : null,
-    artifacts_json: job.artifacts ? JSON.stringify(job.artifacts) : null
+    conversation_json: job.conversation
+      ? JSON.stringify(job.conversation)
+      : null,
+    artifacts_json: job.artifacts ? JSON.stringify(job.artifacts) : null,
   };
 }
 
@@ -177,7 +183,7 @@ function deserializeImport(row: ImportRow) {
     error: row.error ?? undefined,
     summary: parseJson<ImportJob["summary"]>(row.summary_json),
     conversation: parseJson<Conversation>(row.conversation_json),
-    artifacts: parseJson<ImportArtifacts>(row.artifacts_json)
+    artifacts: parseJson<ImportArtifacts>(row.artifacts_json),
   });
 }
 
@@ -208,7 +214,7 @@ export function saveImportSnapshot(input: SnapshotInput) {
     raw_html: input.rawHtml,
     normalized_payload_json: JSON.stringify(input.normalizedPayload),
     fetch_metadata_json: JSON.stringify(input.fetchMetadata),
-    updated_at: input.fetchedAt
+    updated_at: input.fetchedAt,
   });
 }
 
@@ -227,6 +233,9 @@ export function getPersistedImportSnapshot(importId: string) {
     pageTitle: row.page_title,
     rawHtml: row.raw_html,
     normalizedPayload: JSON.parse(row.normalized_payload_json) as unknown,
-    fetchMetadata: JSON.parse(row.fetch_metadata_json) as Record<string, unknown>
+    fetchMetadata: JSON.parse(row.fetch_metadata_json) as Record<
+      string,
+      unknown
+    >,
   };
 }

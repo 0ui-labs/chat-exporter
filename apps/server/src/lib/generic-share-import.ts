@@ -1,8 +1,8 @@
 import {
   conversationSchema,
-  normalizedSnapshotPayloadSchema,
   type ImportStage,
-  type SourcePlatform
+  normalizedSnapshotPayloadSchema,
+  type SourcePlatform,
 } from "@chat-exporter/shared";
 import { chromium, type Page } from "playwright";
 
@@ -10,7 +10,7 @@ import { applyOpenAiStructuring } from "./openai-structuring.js";
 import { looksLikeSharedConversationUrl } from "./source-platform.js";
 
 type StageCallback = (
-  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">
+  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
 ) => void;
 
 function normalizeHostname(hostname: string) {
@@ -21,7 +21,10 @@ function isGoogleConsentUrl(urlString: string) {
   const url = new URL(urlString);
   const hostname = normalizeHostname(url.hostname);
 
-  return hostname === "consent.google.com" || hostname.endsWith(".consent.google.com");
+  return (
+    hostname === "consent.google.com" ||
+    hostname.endsWith(".consent.google.com")
+  );
 }
 
 function isGoogleSourcePlatform(sourcePlatform: SourcePlatform) {
@@ -48,7 +51,7 @@ async function maybeDismissGoogleConsentGate(page: Page) {
   await page
     .waitForSelector('button[jsname="tWT92d"], button[jsname="b3VHJd"]', {
       state: "visible",
-      timeout: 10_000
+      timeout: 10_000,
     })
     .catch(() => undefined);
 
@@ -69,9 +72,11 @@ async function maybeDismissGoogleConsentGate(page: Page) {
 
   for (let attempt = 0; attempt < 60; attempt += 1) {
     if (!isGoogleConsentUrl(page.url())) {
-      await page.waitForLoadState("domcontentloaded", {
-        timeout: 15_000
-      }).catch(() => undefined);
+      await page
+        .waitForLoadState("domcontentloaded", {
+          timeout: 15_000,
+        })
+        .catch(() => undefined);
       return true;
     }
 
@@ -86,10 +91,10 @@ export async function importGenericSharePage(
   options: {
     onStage?: StageCallback;
     sourcePlatform: SourcePlatform;
-  }
+  },
 ) {
   const browser = await chromium.launch({
-    headless: true
+    headless: true,
   });
 
   try {
@@ -99,7 +104,11 @@ export async function importGenericSharePage(
       await context.route("**/*", (route) => {
         const resourceType = route.request().resourceType();
 
-        if (resourceType === "image" || resourceType === "media" || resourceType === "font") {
+        if (
+          resourceType === "image" ||
+          resourceType === "media" ||
+          resourceType === "font"
+        ) {
           return route.abort();
         }
 
@@ -109,19 +118,23 @@ export async function importGenericSharePage(
 
     const page = await context.newPage();
     await page.addInitScript({
-      content: "globalThis.__name = (value) => value;"
+      content: "globalThis.__name = (value) => value;",
     });
 
-    const navigationTimeout = isGoogleSourcePlatform(options.sourcePlatform) ? 60_000 : 30_000;
+    const navigationTimeout = isGoogleSourcePlatform(options.sourcePlatform)
+      ? 60_000
+      : 30_000;
 
     options.onStage?.("fetch");
     await page.goto(url, {
       waitUntil: "commit",
-      timeout: navigationTimeout
+      timeout: navigationTimeout,
     });
-    await page.waitForLoadState("domcontentloaded", {
-      timeout: 20_000
-    }).catch(() => undefined);
+    await page
+      .waitForLoadState("domcontentloaded", {
+        timeout: 20_000,
+      })
+      .catch(() => undefined);
 
     if (isGoogleSourcePlatform(options.sourcePlatform)) {
       await maybeDismissGoogleConsentGate(page);
@@ -129,7 +142,7 @@ export async function importGenericSharePage(
 
     if (isGoogleConsentUrl(page.url())) {
       throw new Error(
-        `Google showed a cookie consent gate instead of the ${options.sourcePlatform} share page.`
+        `Google showed a cookie consent gate instead of the ${options.sourcePlatform} share page.`,
       );
     }
 
@@ -137,18 +150,21 @@ export async function importGenericSharePage(
       .waitForFunction(
         () => {
           const root =
-            document.querySelector("main, [role='main'], article, body") ?? document.body;
+            document.querySelector("main, [role='main'], article, body") ??
+            document.body;
           return (root.textContent ?? "").trim().length > 32;
         },
         {
-          timeout: 20_000
-        }
+          timeout: 20_000,
+        },
       )
       .catch(() => undefined);
 
-    await page.waitForLoadState("networkidle", {
-      timeout: 5_000
-    }).catch(() => undefined);
+    await page
+      .waitForLoadState("networkidle", {
+        timeout: 5_000,
+      })
+      .catch(() => undefined);
     await page.waitForTimeout(1_200);
 
     options.onStage?.("extract");
@@ -159,7 +175,7 @@ export async function importGenericSharePage(
         "DIV",
         "SPAN",
         "FIGURE",
-        "MAIN"
+        "MAIN",
       ]);
       const blockTags = new Set([
         "P",
@@ -174,7 +190,7 @@ export async function importGenericSharePage(
         "PRE",
         "BLOCKQUOTE",
         "TABLE",
-        "HR"
+        "HR",
       ]);
       const codeLanguageLabels = new Set([
         "plain text",
@@ -193,7 +209,7 @@ export async function importGenericSharePage(
         "markdown",
         "md",
         "yaml",
-        "yml"
+        "yml",
       ]);
 
       function normalizeWhitespace(value: string | null | undefined) {
@@ -233,7 +249,9 @@ export async function importGenericSharePage(
           return "\n";
         }
 
-        const childText = Array.from(element.childNodes).map(inlineText).join("");
+        const childText = Array.from(element.childNodes)
+          .map(inlineText)
+          .join("");
 
         switch (tagName) {
           case "A": {
@@ -270,13 +288,15 @@ export async function importGenericSharePage(
       }
 
       function inlineFromElement(element: Element) {
-        return normalizeWhitespace(Array.from(element.childNodes).map(inlineText).join(""));
+        return normalizeWhitespace(
+          Array.from(element.childNodes).map(inlineText).join(""),
+        );
       }
 
       function extractListItems(listElement: Element, depth = 0): string[] {
         const items: string[] = [];
         const listItems = Array.from(listElement.children).filter(
-          (child) => child.tagName === "LI"
+          (child) => child.tagName === "LI",
         );
 
         for (const listItem of listItems) {
@@ -299,7 +319,7 @@ export async function importGenericSharePage(
           }
 
           const nestedLists = Array.from(listItem.children).filter((child) =>
-            ["UL", "OL"].includes(child.tagName)
+            ["UL", "OL"].includes(child.tagName),
           );
 
           for (const nestedList of nestedLists) {
@@ -311,7 +331,8 @@ export async function importGenericSharePage(
       }
 
       function detectCodeLanguage(preElement: HTMLElement) {
-        const firstLine = preElement.innerText.split("\n")[0]?.trim().toLowerCase() ?? "";
+        const firstLine =
+          preElement.innerText.split("\n")[0]?.trim().toLowerCase() ?? "";
 
         if (codeLanguageLabels.has(firstLine)) {
           return firstLine === "plain text" ? "text" : firstLine;
@@ -329,7 +350,11 @@ export async function importGenericSharePage(
 
         while (lines.length > 1) {
           const firstLine = lines[0]?.trim().toLowerCase() ?? "";
-          if (!codeLanguageLabels.has(firstLine) && firstLine !== "kopieren" && firstLine !== "copy") {
+          if (
+            !codeLanguageLabels.has(firstLine) &&
+            firstLine !== "kopieren" &&
+            firstLine !== "copy"
+          ) {
             break;
           }
           lines.shift();
@@ -339,22 +364,28 @@ export async function importGenericSharePage(
       }
 
       function extractTable(tableElement: HTMLTableElement) {
-        const headerRows = Array.from(tableElement.querySelectorAll("thead tr"));
+        const headerRows = Array.from(
+          tableElement.querySelectorAll("thead tr"),
+        );
         const bodyRows = Array.from(tableElement.querySelectorAll("tbody tr"));
         const fallbackRows = Array.from(tableElement.querySelectorAll("tr"));
         const firstHeaderRow = headerRows[0];
 
-        const headers =
-          firstHeaderRow
-            ? Array.from(firstHeaderRow.querySelectorAll("th,td")).map((cell) =>
-                inlineFromElement(cell)
-              )
-            : [];
+        const headers = firstHeaderRow
+          ? Array.from(firstHeaderRow.querySelectorAll("th,td")).map((cell) =>
+              inlineFromElement(cell),
+            )
+          : [];
 
-        const rowSource = bodyRows.length > 0 ? bodyRows : fallbackRows.slice(headers.length > 0 ? 1 : 0);
+        const rowSource =
+          bodyRows.length > 0
+            ? bodyRows
+            : fallbackRows.slice(headers.length > 0 ? 1 : 0);
         const rows = rowSource
           .map((row) =>
-            Array.from(row.querySelectorAll("th,td")).map((cell) => inlineFromElement(cell))
+            Array.from(row.querySelectorAll("th,td")).map((cell) =>
+              inlineFromElement(cell),
+            ),
           )
           .filter((row) => row.some(Boolean));
 
@@ -365,11 +396,13 @@ export async function importGenericSharePage(
         return {
           type: "table" as const,
           headers,
-          rows
+          rows,
         };
       }
 
-      function elementToBlocks(element: Element): Array<Record<string, unknown>> {
+      function elementToBlocks(
+        element: Element,
+      ): Array<Record<string, unknown>> {
         const tagName = element.tagName.toUpperCase();
 
         if (tagName === "P") {
@@ -390,8 +423,8 @@ export async function importGenericSharePage(
                 {
                   type: "list",
                   ordered: tagName === "OL",
-                  items
-                }
+                  items,
+                },
               ]
             : [];
         }
@@ -403,8 +436,8 @@ export async function importGenericSharePage(
                 {
                   type: "code",
                   language: detectCodeLanguage(element as HTMLElement),
-                  text
-                }
+                  text,
+                },
               ]
             : [];
         }
@@ -424,18 +457,20 @@ export async function importGenericSharePage(
         }
 
         if (wrapperTags.has(tagName)) {
-          const childBlocks = Array.from(element.childNodes).flatMap((childNode) => {
-            if (childNode.nodeType === Node.TEXT_NODE) {
-              const text = normalizeWhitespace(childNode.textContent ?? "");
-              return text ? [{ type: "paragraph" as const, text }] : [];
-            }
+          const childBlocks = Array.from(element.childNodes).flatMap(
+            (childNode) => {
+              if (childNode.nodeType === Node.TEXT_NODE) {
+                const text = normalizeWhitespace(childNode.textContent ?? "");
+                return text ? [{ type: "paragraph" as const, text }] : [];
+              }
 
-            if (childNode.nodeType !== Node.ELEMENT_NODE) {
-              return [];
-            }
+              if (childNode.nodeType !== Node.ELEMENT_NODE) {
+                return [];
+              }
 
-            return elementToBlocks(childNode as Element);
-          });
+              return elementToBlocks(childNode as Element);
+            },
+          );
 
           if (childBlocks.length > 0) {
             return childBlocks;
@@ -443,11 +478,13 @@ export async function importGenericSharePage(
         }
 
         const hasBlockChildren = Array.from(element.children).some((child) =>
-          blockTags.has(child.tagName)
+          blockTags.has(child.tagName),
         );
 
         if (hasBlockChildren) {
-          return Array.from(element.children).flatMap((child) => elementToBlocks(child));
+          return Array.from(element.children).flatMap((child) =>
+            elementToBlocks(child),
+          );
         }
 
         const text = inlineFromElement(element);
@@ -459,7 +496,7 @@ export async function importGenericSharePage(
           .replace(/\|\s*shared .*$/i, "")
           .replace(
             /^(chatgpt|claude|gemini|grok|deepseek|notebooklm)\s*[-|:]\s*/i,
-            ""
+            "",
           )
           .replace(/^shared\s+/i, "")
           .trim();
@@ -472,12 +509,14 @@ export async function importGenericSharePage(
           document.querySelector("main"),
           document.querySelector("[role='main']"),
           document.querySelector("article"),
-          document.body
+          document.body,
         ].filter(Boolean) as Element[];
 
         return (
-          candidates.find((candidate) =>
-            normalizeWhitespace((candidate as HTMLElement).innerText).length > 32
+          candidates.find(
+            (candidate) =>
+              normalizeWhitespace((candidate as HTMLElement).innerText).length >
+              32,
           ) ?? document.body
         );
       }
@@ -485,8 +524,8 @@ export async function importGenericSharePage(
       function isExcluded(element: Element) {
         return Boolean(
           element.closest(
-            "nav,header,footer,aside,form,dialog,[role='navigation'],[aria-hidden='true']"
-          )
+            "nav,header,footer,aside,form,dialog,[role='navigation'],[aria-hidden='true']",
+          ),
         );
       }
 
@@ -511,7 +550,7 @@ export async function importGenericSharePage(
 
       function blockDescendantCount(element: Element) {
         return element.querySelectorAll(
-          "p,h1,h2,h3,h4,h5,h6,ul,ol,pre,blockquote,table"
+          "p,h1,h2,h3,h4,h5,h6,ul,ol,pre,blockquote,table",
         ).length;
       }
 
@@ -524,7 +563,7 @@ export async function importGenericSharePage(
           element.getAttribute("data-testid") ?? "",
           element.getAttribute("aria-label") ?? "",
           node.id ?? "",
-          typeof node.className === "string" ? node.className : ""
+          typeof node.className === "string" ? node.className : "",
         ]
           .join(" ")
           .toLowerCase();
@@ -532,7 +571,7 @@ export async function importGenericSharePage(
 
       function hasConversationHints(element: Element) {
         return /(message|conversation|turn|chat|prompt|response|assistant|user|claude|gemini|grok|deepseek|notebooklm)/i.test(
-          attributeHintText(element)
+          attributeHintText(element),
         );
       }
 
@@ -576,7 +615,7 @@ export async function importGenericSharePage(
         if (children.length < 2) {
           return {
             score: Number.NEGATIVE_INFINITY,
-            children
+            children,
           };
         }
 
@@ -584,14 +623,14 @@ export async function importGenericSharePage(
         const avgTextLength =
           sampleChildren.reduce(
             (sum, child) => sum + Math.min(textContentLength(child), 4_000),
-            0
+            0,
           ) / sampleChildren.length;
         const blockHeavyCount = sampleChildren.filter(
-          (child) => blockDescendantCount(child) > 0
+          (child) => blockDescendantCount(child) > 0,
         ).length;
         const hintedCount = sampleChildren.filter(hasConversationHints).length;
         const actionBarCount = sampleChildren.filter(
-          (child) => child.querySelectorAll("button").length > 0
+          (child) => child.querySelectorAll("button").length > 0,
         ).length;
         const tagCounts = new Map<string, number>();
 
@@ -601,10 +640,13 @@ export async function importGenericSharePage(
 
         const repeatedTagRatio =
           sampleChildren.length > 0
-            ? Math.max(...Array.from(tagCounts.values())) / sampleChildren.length
+            ? Math.max(...Array.from(tagCounts.values())) /
+              sampleChildren.length
             : 0;
 
-        const formPenalty = element.querySelectorAll("input,textarea,select").length;
+        const formPenalty = element.querySelectorAll(
+          "input,textarea,select",
+        ).length;
 
         return {
           score:
@@ -616,13 +658,16 @@ export async function importGenericSharePage(
             Math.min(avgTextLength / 35, 16) -
             elementDepth(element) * 1.5 -
             formPenalty * 10,
-          children
+          children,
         };
       }
 
-      function dedupeCandidates(elements: Element[], maxRootTextLength: number) {
+      function dedupeCandidates(
+        elements: Element[],
+        maxRootTextLength: number,
+      ) {
         const sorted = Array.from(new Set(elements)).sort(
-          (left, right) => elementDepth(right) - elementDepth(left)
+          (left, right) => elementDepth(right) - elementDepth(left),
         );
         const unique: Element[] = [];
         const seenText = new Set<string>();
@@ -645,7 +690,12 @@ export async function importGenericSharePage(
             continue;
           }
 
-          if (unique.some((existing) => existing.contains(element) || element.contains(existing))) {
+          if (
+            unique.some(
+              (existing) =>
+                existing.contains(element) || element.contains(existing),
+            )
+          ) {
             continue;
           }
 
@@ -659,7 +709,7 @@ export async function importGenericSharePage(
       function contentRootFor(element: Element) {
         return (
           element.querySelector(
-            ".markdown, [data-testid*='markdown'], [class*='markdown'], [data-testid*='response-content'], [data-testid*='message-content'], [data-message-content]"
+            ".markdown, [data-testid*='markdown'], [class*='markdown'], [data-testid*='response-content'], [data-testid*='message-content'], [data-message-content]",
           ) ?? element
         );
       }
@@ -678,14 +728,14 @@ export async function importGenericSharePage(
             .slice(0, 24)
             .map((node) => ((node as HTMLElement).className || "").toString())
             .join(" ")
-            .toLowerCase()
+            .toLowerCase(),
         );
 
         const hintText = hints.join(" ");
 
         if (
           /(^|\b)(user|human|prompt|question|author-user|from-user|self-end|justify-end|ml-auto|text-right|end-)(\b|$)/.test(
-            hintText
+            hintText,
           )
         ) {
           return "user" as const;
@@ -693,7 +743,7 @@ export async function importGenericSharePage(
 
         if (
           /(^|\b)(assistant|model|bot|claude|gemini|grok|deepseek|notebooklm|response|answer|self-start|justify-start|mr-auto|text-left|start-)(\b|$)/.test(
-            hintText
+            hintText,
           )
         ) {
           return "assistant" as const;
@@ -706,7 +756,7 @@ export async function importGenericSharePage(
         const rootRect = (root as HTMLElement).getBoundingClientRect();
         const target =
           (element.querySelector(
-            "p,pre,ul,ol,blockquote,table,h1,h2,h3,h4,h5,h6"
+            "p,pre,ul,ol,blockquote,table,h1,h2,h3,h4,h5,h6",
           ) as HTMLElement | null) ?? (element as HTMLElement);
         const rect = target.getBoundingClientRect();
 
@@ -715,7 +765,8 @@ export async function importGenericSharePage(
         }
 
         const centerRatio =
-          (rect.left + rect.width / 2 - rootRect.left) / Math.max(rootRect.width, 1);
+          (rect.left + rect.width / 2 - rootRect.left) /
+          Math.max(rootRect.width, 1);
 
         if (centerRatio >= 0.62) {
           return "user" as const;
@@ -739,7 +790,9 @@ export async function importGenericSharePage(
           document.querySelector("h1");
 
         if (explicitTitle) {
-          const title = normalizeWhitespace((explicitTitle as HTMLElement).innerText);
+          const title = normalizeWhitespace(
+            (explicitTitle as HTMLElement).innerText,
+          );
 
           if (title) {
             return normalizeTitle(title);
@@ -754,9 +807,9 @@ export async function importGenericSharePage(
       }
 
       function parseGeminiTurns() {
-        const turnElements = Array.from(document.querySelectorAll(".share-turn-viewer")).filter(
-          (element) => isVisible(element) && !isExcluded(element)
-        );
+        const turnElements = Array.from(
+          document.querySelectorAll(".share-turn-viewer"),
+        ).filter((element) => isVisible(element) && !isExcluded(element));
 
         if (turnElements.length === 0) {
           return null;
@@ -777,13 +830,15 @@ export async function importGenericSharePage(
         }> = [];
 
         turnElements.forEach((turnElement, index) => {
-          const turnId = turnElement.getAttribute("data-turn-id") ?? `gemini-turn-${index + 1}`;
+          const turnId =
+            turnElement.getAttribute("data-turn-id") ??
+            `gemini-turn-${index + 1}`;
           const userElement =
             turnElement.querySelector("user-query .user-query-container") ??
             turnElement.querySelector(".user-query-container");
           const responseElement =
             turnElement.querySelector(
-              "response-container .response-container-with-gpi, response-container"
+              "response-container .response-container-with-gpi, response-container",
             ) ?? turnElement.querySelector("response-container");
 
           const userText = userElement
@@ -801,8 +856,8 @@ export async function importGenericSharePage(
                 source: "gemini-user-query",
                 blockCount: 1,
                 usedFallback: false,
-                strategy: "deterministic" as const
-              }
+                strategy: "deterministic" as const,
+              },
             });
           }
 
@@ -811,24 +866,28 @@ export async function importGenericSharePage(
           }
 
           const responseRoot = contentRootFor(responseElement);
-          const responseText = normalizeWhitespace((responseRoot as HTMLElement).innerText);
+          const responseText = normalizeWhitespace(
+            (responseRoot as HTMLElement).innerText,
+          );
 
           if (!responseText) {
             return;
           }
 
-          const responseBlocks = Array.from(responseRoot.childNodes).flatMap((childNode) => {
-            if (childNode.nodeType === Node.TEXT_NODE) {
-              const text = normalizeWhitespace(childNode.textContent ?? "");
-              return text ? [{ type: "paragraph" as const, text }] : [];
-            }
+          const responseBlocks = Array.from(responseRoot.childNodes).flatMap(
+            (childNode) => {
+              if (childNode.nodeType === Node.TEXT_NODE) {
+                const text = normalizeWhitespace(childNode.textContent ?? "");
+                return text ? [{ type: "paragraph" as const, text }] : [];
+              }
 
-            if (childNode.nodeType !== Node.ELEMENT_NODE) {
-              return [];
-            }
+              if (childNode.nodeType !== Node.ELEMENT_NODE) {
+                return [];
+              }
 
-            return elementToBlocks(childNode as Element);
-          });
+              return elementToBlocks(childNode as Element);
+            },
+          );
           const finalBlocks =
             responseBlocks.length > 0
               ? responseBlocks
@@ -850,8 +909,8 @@ export async function importGenericSharePage(
               strategy:
                 responseBlocks.length > 0
                   ? ("deterministic" as const)
-                  : ("fallback" as const)
-            }
+                  : ("fallback" as const),
+            },
           });
         });
 
@@ -863,8 +922,8 @@ export async function importGenericSharePage(
           title: pickGeminiTitle(),
           messages,
           warnings: [
-            `Parsed ${turnElements.length} Gemini share turn(s) from provider-specific containers.`
-          ]
+            `Parsed ${turnElements.length} Gemini share turn(s) from provider-specific containers.`,
+          ],
         };
       }
 
@@ -879,10 +938,14 @@ export async function importGenericSharePage(
       }
 
       const extractionRoot = pickExtractionRoot();
-      const rootText = normalizeWhitespace((extractionRoot as HTMLElement).innerText);
+      const rootText = normalizeWhitespace(
+        (extractionRoot as HTMLElement).innerText,
+      );
       const containerCandidates = [
         extractionRoot,
-        ...Array.from(extractionRoot.querySelectorAll("div,section,article,ol,ul,main"))
+        ...Array.from(
+          extractionRoot.querySelectorAll("div,section,article,ol,ul,main"),
+        ),
       ].slice(0, 500);
 
       let bestContainer: Element | null = null;
@@ -906,13 +969,25 @@ export async function importGenericSharePage(
 
       if (messageElements.length < 2) {
         const explicitCandidates = [
-          ...Array.from(extractionRoot.querySelectorAll("[data-message-author-role]")),
+          ...Array.from(
+            extractionRoot.querySelectorAll("[data-message-author-role]"),
+          ),
           ...Array.from(extractionRoot.querySelectorAll("[data-message-id]")),
-          ...Array.from(extractionRoot.querySelectorAll("[data-testid*='conversation-turn']")),
-          ...Array.from(extractionRoot.querySelectorAll("[data-testid*='chat-turn']")),
-          ...Array.from(extractionRoot.querySelectorAll("[data-testid*='message']")),
-          ...Array.from(extractionRoot.querySelectorAll("[data-testid*='response']")),
-          ...Array.from(extractionRoot.querySelectorAll("article"))
+          ...Array.from(
+            extractionRoot.querySelectorAll(
+              "[data-testid*='conversation-turn']",
+            ),
+          ),
+          ...Array.from(
+            extractionRoot.querySelectorAll("[data-testid*='chat-turn']"),
+          ),
+          ...Array.from(
+            extractionRoot.querySelectorAll("[data-testid*='message']"),
+          ),
+          ...Array.from(
+            extractionRoot.querySelectorAll("[data-testid*='response']"),
+          ),
+          ...Array.from(extractionRoot.querySelectorAll("article")),
         ];
 
         messageElements = dedupeCandidates(explicitCandidates, rootText.length);
@@ -920,7 +995,7 @@ export async function importGenericSharePage(
 
       if (messageElements.length < 2) {
         const fallbackCandidates = Array.from(
-          extractionRoot.querySelectorAll("article,section,div")
+          extractionRoot.querySelectorAll("article,section,div"),
         )
           .filter((element) => {
             if (!isVisible(element) || isExcluded(element)) {
@@ -933,7 +1008,9 @@ export async function importGenericSharePage(
             }
 
             const childCandidates = meaningfulDirectChildren(element);
-            return blockDescendantCount(element) > 0 && childCandidates.length === 0;
+            return (
+              blockDescendantCount(element) > 0 && childCandidates.length === 0
+            );
           })
           .slice(0, 64);
 
@@ -942,11 +1019,11 @@ export async function importGenericSharePage(
 
       if (bestContainer && bestScore >= 42) {
         warnings.push(
-          `Parsed ${messageElements.length} message candidate(s) from a repeating ${platform} share-page container.`
+          `Parsed ${messageElements.length} message candidate(s) from a repeating ${platform} share-page container.`,
         );
       } else {
         warnings.push(
-          `Parsed ${messageElements.length} message candidate(s) using generic ${platform} fallback heuristics.`
+          `Parsed ${messageElements.length} message candidate(s) using generic ${platform} fallback heuristics.`,
         );
       }
 
@@ -965,17 +1042,18 @@ export async function importGenericSharePage(
       }> = [];
 
       messageElements.forEach((element, index) => {
-          const messageId =
-            element.getAttribute("data-message-id") ?? `${platform}-${index + 1}`;
-          const rawText = normalizeWhitespace((element as HTMLElement).innerText);
-          const rawHtml = (element as HTMLElement).innerHTML;
+        const messageId =
+          element.getAttribute("data-message-id") ?? `${platform}-${index + 1}`;
+        const rawText = normalizeWhitespace((element as HTMLElement).innerText);
+        const rawHtml = (element as HTMLElement).innerHTML;
 
-          if (!rawText) {
-            return;
-          }
+        if (!rawText) {
+          return;
+        }
 
-          const contentRoot = contentRootFor(element);
-          const blocks = Array.from(contentRoot.childNodes).flatMap((childNode) => {
+        const contentRoot = contentRootFor(element);
+        const blocks = Array.from(contentRoot.childNodes).flatMap(
+          (childNode) => {
             if (childNode.nodeType === Node.TEXT_NODE) {
               const text = normalizeWhitespace(childNode.textContent ?? "");
               return text ? [{ type: "paragraph" as const, text }] : [];
@@ -986,45 +1064,47 @@ export async function importGenericSharePage(
             }
 
             return elementToBlocks(childNode as Element);
-          });
+          },
+        );
 
-          const hintedRole = roleFromHints(element) ?? roleFromLayout(element, extractionRoot);
-          const finalBlocks =
-            blocks.length > 0
-              ? blocks
-              : [{ type: "paragraph" as const, text: rawText }];
+        const hintedRole =
+          roleFromHints(element) ?? roleFromLayout(element, extractionRoot);
+        const finalBlocks =
+          blocks.length > 0
+            ? blocks
+            : [{ type: "paragraph" as const, text: rawText }];
 
-          parsedMessages.push({
-            id: messageId,
-            role: hintedRole ?? ("unknown" as const),
-            rawText,
-            rawHtml,
-            blocks: finalBlocks,
-            parser: {
-              source:
-                blocks.length > 0
-                  ? `${platform}-generic-dom`
-                  : `${platform}-generic-fallback`,
-              blockCount: finalBlocks.length,
-              usedFallback: blocks.length === 0,
-              strategy:
-                blocks.length > 0
-                  ? ("deterministic" as const)
-                  : ("fallback" as const)
-            }
-          });
+        parsedMessages.push({
+          id: messageId,
+          role: hintedRole ?? ("unknown" as const),
+          rawText,
+          rawHtml,
+          blocks: finalBlocks,
+          parser: {
+            source:
+              blocks.length > 0
+                ? `${platform}-generic-dom`
+                : `${platform}-generic-fallback`,
+            blockCount: finalBlocks.length,
+            usedFallback: blocks.length === 0,
+            strategy:
+              blocks.length > 0
+                ? ("deterministic" as const)
+                : ("fallback" as const),
+          },
         });
+      });
 
       if (parsedMessages.length === 0) {
         return {
           title: normalizeTitle(document.title),
           messages: [],
-          warnings
+          warnings,
         };
       }
 
       const resolvedRoles = parsedMessages.map((message) =>
-        message.role === "unknown" ? null : message.role
+        message.role === "unknown" ? null : message.role,
       );
       const firstResolvedIndex = resolvedRoles.findIndex(Boolean);
 
@@ -1034,13 +1114,19 @@ export async function importGenericSharePage(
         }
       } else {
         for (let index = firstResolvedIndex - 1; index >= 0; index -= 1) {
-          resolvedRoles[index] = oppositeRole(resolvedRoles[index + 1] as "user" | "assistant");
+          resolvedRoles[index] = oppositeRole(
+            resolvedRoles[index + 1] as "user" | "assistant",
+          );
         }
 
-        for (let index = firstResolvedIndex + 1; index < resolvedRoles.length; index += 1) {
+        for (
+          let index = firstResolvedIndex + 1;
+          index < resolvedRoles.length;
+          index += 1
+        ) {
           if (!resolvedRoles[index]) {
             resolvedRoles[index] = oppositeRole(
-              resolvedRoles[index - 1] as "user" | "assistant"
+              resolvedRoles[index - 1] as "user" | "assistant",
             );
           }
         }
@@ -1056,20 +1142,20 @@ export async function importGenericSharePage(
 
         return {
           ...message,
-          role: resolvedRole
+          role: resolvedRole,
         };
       });
 
       if (inferredRoleCount > 0) {
         warnings.push(
-          `${inferredRoleCount} message role(s) were inferred from layout or turn order because the page did not expose explicit author markers.`
+          `${inferredRoleCount} message role(s) were inferred from layout or turn order because the page did not expose explicit author markers.`,
         );
       }
 
       return {
         title: normalizeTitle(document.title),
         messages,
-        warnings
+        warnings,
       };
     }, options.sourcePlatform);
 
@@ -1094,7 +1180,7 @@ export async function importGenericSharePage(
                 return [...block.headers, ...block.rows.flat()].join(" ");
             }
           })
-          .filter(Boolean)
+          .filter(Boolean),
       )
       .join(" ")
       .slice(0, 2_000);
@@ -1104,13 +1190,13 @@ export async function importGenericSharePage(
       looksLikeGoogleConsentContent(normalizedPayload.title, previewText)
     ) {
       throw new Error(
-        `Google returned a cookie consent screen instead of the ${options.sourcePlatform} conversation.`
+        `Google returned a cookie consent screen instead of the ${options.sourcePlatform} conversation.`,
       );
     }
 
     if (normalizedPayload.messages.length === 0) {
       throw new Error(
-        `No importable messages were detected on this ${options.sourcePlatform} page.`
+        `No importable messages were detected on this ${options.sourcePlatform} page.`,
       );
     }
 
@@ -1120,7 +1206,7 @@ export async function importGenericSharePage(
 
     if (!looksLikeSharedConversationUrl(url)) {
       warnings.push(
-        "The URL does not look like a typical public share page path, so extraction may be noisier than usual."
+        "The URL does not look like a typical public share page path, so extraction may be noisier than usual.",
       );
     }
 
@@ -1128,7 +1214,7 @@ export async function importGenericSharePage(
       ...normalizedPayload,
       messages: structured.messages,
       warnings,
-      structuring: structured.structuring
+      structuring: structured.structuring,
     });
     const rawHtml = await page.content();
     const fetchedAt = new Date().toISOString();
@@ -1138,9 +1224,9 @@ export async function importGenericSharePage(
       title: finalPayload.title,
       source: {
         url,
-        platform: options.sourcePlatform
+        platform: options.sourcePlatform,
       },
-      messages: finalPayload.messages
+      messages: finalPayload.messages,
     });
 
     return {
@@ -1155,9 +1241,9 @@ export async function importGenericSharePage(
         fetchMetadata: {
           articleCount: normalizedPayload.messages.length,
           messageCount: conversation.messages.length,
-          rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8")
-        }
-      }
+          rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8"),
+        },
+      },
     };
   } finally {
     await browser.close();

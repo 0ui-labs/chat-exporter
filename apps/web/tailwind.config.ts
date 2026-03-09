@@ -6,7 +6,7 @@ const config: Config = {
     extend: {
       borderRadius: {
         xl: "var(--radius)",
-        "2xl": "calc(var(--radius) + 0.5rem)"
+        "2xl": "calc(var(--radius) + 0.5rem)",
       },
       colors: {
         border: "hsl(var(--border))",
@@ -16,36 +16,35 @@ const config: Config = {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))"
+          foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))"
+          foreground: "hsl(var(--secondary-foreground))",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))"
+          foreground: "hsl(var(--accent-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))"
+          foreground: "hsl(var(--muted-foreground))",
         },
         card: {
           DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))"
-        }
+          foreground: "hsl(var(--card-foreground))",
+        },
       },
       boxShadow: {
         panel:
-          "0 1px 0 hsl(var(--foreground) / 0.06), 0 24px 64px hsl(190 80% 10% / 0.08)"
+          "0 1px 0 hsl(var(--foreground) / 0.06), 0 24px 64px hsl(190 80% 10% / 0.08)",
       },
       backgroundImage: {
-        mesh:
-          "radial-gradient(circle at top left, hsl(var(--accent) / 0.15), transparent 36%), radial-gradient(circle at right 10% top 10%, hsl(var(--primary) / 0.18), transparent 28%)"
-      }
-    }
+        mesh: "radial-gradient(circle at top left, hsl(var(--accent) / 0.15), transparent 36%), radial-gradient(circle at right 10% top 10%, hsl(var(--primary) / 0.18), transparent 28%)",
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 };
 
 export default config;

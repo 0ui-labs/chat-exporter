@@ -1,7 +1,7 @@
 import type {
   Block,
   NormalizedSnapshotMessage,
-  NormalizedSnapshotPayload
+  NormalizedSnapshotPayload,
 } from "@chat-exporter/shared";
 import { blockSchema } from "@chat-exporter/shared";
 
@@ -24,7 +24,9 @@ const PARAGRAPH_BLOCK_SYNTAX_PATTERN =
   /(^|\n)(#{1,6}\s+\S+|[-*]\s+\S+|\d+\.\s+\S+|>\s+\S+|```|\|.+\|)/gm;
 const EMPHASIZED_STEP_PATTERN = /(?:^|\n\n)\*\*\d+\.\s+.+?\*\*(?=\n\n|$)/gm;
 
-type StructuringMetadata = NonNullable<NormalizedSnapshotPayload["structuring"]>;
+type StructuringMetadata = NonNullable<
+  NormalizedSnapshotPayload["structuring"]
+>;
 type StructuredSnapshotMessage = NormalizedSnapshotMessage & {
   parser: NonNullable<NormalizedSnapshotMessage["parser"]>;
 };
@@ -86,7 +88,11 @@ function readPositiveInteger(value: string | undefined, fallback: number) {
 function readProviderSelection() {
   const rawValue = process.env.STRUCTURING_PROVIDER?.trim().toLowerCase();
 
-  if (rawValue === "openai" || rawValue === "cerebras" || rawValue === "deterministic") {
+  if (
+    rawValue === "openai" ||
+    rawValue === "cerebras" ||
+    rawValue === "deterministic"
+  ) {
     return rawValue;
   }
 
@@ -108,37 +114,43 @@ function readReasoningEffort(value: string | undefined) {
 function readStructuringConfig(): StructuringConfig {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const cerebrasApiKey = process.env.CEREBRAS_API_KEY?.trim();
-  const rawEnabled = process.env.STRUCTURING_ENABLED?.trim().toLowerCase()
-    ?? process.env.OPENAI_STRUCTURING_ENABLED?.trim().toLowerCase();
+  const rawEnabled =
+    process.env.STRUCTURING_ENABLED?.trim().toLowerCase() ??
+    process.env.OPENAI_STRUCTURING_ENABLED?.trim().toLowerCase();
   const explicitlyDisabled =
     rawEnabled === "0" || rawEnabled === "false" || rawEnabled === "off";
   const providerSelection = readProviderSelection();
-  const openAiModel = process.env.OPENAI_STRUCTURING_MODEL?.trim() || DEFAULT_MODEL;
+  const openAiModel =
+    process.env.OPENAI_STRUCTURING_MODEL?.trim() || DEFAULT_MODEL;
   const cerebrasModel =
     process.env.CEREBRAS_STRUCTURING_MODEL?.trim() || DEFAULT_CEREBRAS_MODEL;
   const openAiApiBaseUrl =
-    process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") || DEFAULT_API_BASE_URL;
+    process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+    DEFAULT_API_BASE_URL;
   const cerebrasApiBaseUrl =
     process.env.CEREBRAS_API_BASE_URL?.trim().replace(/\/+$/, "") ||
     DEFAULT_CEREBRAS_API_BASE_URL;
   const sharedConfig = {
     concurrency: readPositiveInteger(
-      process.env.STRUCTURING_CONCURRENCY ?? process.env.OPENAI_STRUCTURING_CONCURRENCY,
-      DEFAULT_CONCURRENCY
+      process.env.STRUCTURING_CONCURRENCY ??
+        process.env.OPENAI_STRUCTURING_CONCURRENCY,
+      DEFAULT_CONCURRENCY,
     ),
     maxMessages: readPositiveInteger(
-      process.env.STRUCTURING_MAX_MESSAGES ?? process.env.OPENAI_STRUCTURING_MAX_MESSAGES,
-      DEFAULT_MAX_MESSAGES
+      process.env.STRUCTURING_MAX_MESSAGES ??
+        process.env.OPENAI_STRUCTURING_MAX_MESSAGES,
+      DEFAULT_MAX_MESSAGES,
     ),
     maxMessageChars: readPositiveInteger(
       process.env.STRUCTURING_MAX_MESSAGE_CHARS ??
         process.env.OPENAI_STRUCTURING_MAX_MESSAGE_CHARS,
-      DEFAULT_MAX_MESSAGE_CHARS
+      DEFAULT_MAX_MESSAGE_CHARS,
     ),
     timeoutMs: readPositiveInteger(
-      process.env.STRUCTURING_TIMEOUT_MS ?? process.env.OPENAI_STRUCTURING_TIMEOUT_MS,
-      DEFAULT_TIMEOUT_MS
-    )
+      process.env.STRUCTURING_TIMEOUT_MS ??
+        process.env.OPENAI_STRUCTURING_TIMEOUT_MS,
+      DEFAULT_TIMEOUT_MS,
+    ),
   };
 
   if (explicitlyDisabled) {
@@ -147,7 +159,7 @@ function readStructuringConfig(): StructuringConfig {
       enabled: false,
       provider: "deterministic",
       model: openAiModel,
-      disabledReason: "STRUCTURING_ENABLED is disabled."
+      disabledReason: "STRUCTURING_ENABLED is disabled.",
     };
   }
 
@@ -170,9 +182,9 @@ function readStructuringConfig(): StructuringConfig {
       openai: apiKey
         ? {
             apiKey,
-            apiBaseUrl: openAiApiBaseUrl
+            apiBaseUrl: openAiApiBaseUrl,
           }
-        : undefined
+        : undefined,
     };
   }
 
@@ -182,20 +194,22 @@ function readStructuringConfig(): StructuringConfig {
       enabled: Boolean(cerebrasApiKey),
       provider: "cerebras",
       model: cerebrasModel,
-      disabledReason: cerebrasApiKey ? undefined : "CEREBRAS_API_KEY is not configured.",
+      disabledReason: cerebrasApiKey
+        ? undefined
+        : "CEREBRAS_API_KEY is not configured.",
       cerebras: cerebrasApiKey
         ? {
             apiKey: cerebrasApiKey,
             apiBaseUrl: cerebrasApiBaseUrl,
             maxCompletionTokens: readPositiveInteger(
               process.env.CEREBRAS_STRUCTURING_MAX_COMPLETION_TOKENS,
-              DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS
+              DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS,
             ),
             reasoningEffort: readReasoningEffort(
-              process.env.CEREBRAS_STRUCTURING_REASONING_EFFORT
-            )
+              process.env.CEREBRAS_STRUCTURING_REASONING_EFFORT,
+            ),
           }
-        : undefined
+        : undefined,
     };
   }
 
@@ -204,7 +218,7 @@ function readStructuringConfig(): StructuringConfig {
     enabled: false,
     provider: "deterministic",
     model: openAiModel,
-    disabledReason: "No structuring provider key is configured."
+    disabledReason: "No structuring provider key is configured.",
   };
 }
 
@@ -215,22 +229,23 @@ function defaultParserStrategy(message: NormalizedSnapshotMessage) {
     ...parser,
     blockCount: parser.blockCount ?? message.blocks.length,
     strategy:
-      parser.strategy ??
-      (parser.usedFallback ? "fallback" : "deterministic")
+      parser.strategy ?? (parser.usedFallback ? "fallback" : "deterministic"),
   } satisfies NonNullable<NormalizedSnapshotMessage["parser"]>;
 }
 
 function normalizeMessages(
-  messages: NormalizedSnapshotPayload["messages"]
+  messages: NormalizedSnapshotPayload["messages"],
 ): StructuredSnapshotMessage[] {
   return messages.map((message) => ({
     ...message,
-    parser: defaultParserStrategy(message)
+    parser: defaultParserStrategy(message),
   }));
 }
 
 function countMatches(value: string, pattern: RegExp) {
-  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const flags = pattern.flags.includes("g")
+    ? pattern.flags
+    : `${pattern.flags}g`;
   return Array.from(value.matchAll(new RegExp(pattern.source, flags))).length;
 }
 
@@ -254,7 +269,10 @@ function collectParagraphRepairSignals(message: StructuredSnapshotMessage) {
       score += 4;
     }
 
-    const syntaxMatches = countMatches(block.text, PARAGRAPH_BLOCK_SYNTAX_PATTERN);
+    const syntaxMatches = countMatches(
+      block.text,
+      PARAGRAPH_BLOCK_SYNTAX_PATTERN,
+    );
 
     if (syntaxMatches >= 2 && block.text.includes("\n")) {
       reasons.add("block-markdown-leaked-into-paragraph");
@@ -278,7 +296,7 @@ function collectParagraphRepairSignals(message: StructuredSnapshotMessage) {
     signals.push({
       blockIndex,
       reasons: [...reasons],
-      score
+      score,
     });
   }
 
@@ -319,7 +337,7 @@ function collectRawHtmlRepairSignals(message: StructuredSnapshotMessage) {
 
   return {
     reasons: [...reasons],
-    score
+    score,
   };
 }
 
@@ -339,14 +357,12 @@ function detectMessageRepairCandidate(message: StructuredSnapshotMessage) {
   if (
     message.blocks.length === 1 &&
     message.blocks[0]?.type === "paragraph" &&
-    (
-      STRUCTURE_HINT_PATTERN.test(message.rawText) ||
+    (STRUCTURE_HINT_PATTERN.test(message.rawText) ||
       message.rawHtml?.includes("<pre") ||
       message.rawHtml?.includes("<table") ||
       message.rawHtml?.includes("<ul") ||
       message.rawHtml?.includes("<ol") ||
-      message.rawHtml?.includes("<blockquote")
-    )
+      message.rawHtml?.includes("<blockquote"))
   ) {
     reasons.add("single-paragraph-structure-hints");
     score += 6;
@@ -366,7 +382,7 @@ function detectMessageRepairCandidate(message: StructuredSnapshotMessage) {
 
   return {
     reasons: [...reasons],
-    score
+    score,
   };
 }
 
@@ -380,7 +396,10 @@ function blockToPlainText(block: Block) {
     case "list":
       return block.items.join("\n");
     case "table":
-      return [block.headers.join(" | "), ...block.rows.map((row) => row.join(" | "))].join("\n");
+      return [
+        block.headers.join(" | "),
+        ...block.rows.map((row) => row.join(" | ")),
+      ].join("\n");
   }
 }
 
@@ -396,7 +415,9 @@ function normalizeComparisonText(value: string) {
 
 function contentLooksPreserved(rawText: string, blocks: Block[]) {
   const original = normalizeComparisonText(rawText);
-  const candidate = normalizeComparisonText(blocks.map(blockToPlainText).join("\n"));
+  const candidate = normalizeComparisonText(
+    blocks.map(blockToPlainText).join("\n"),
+  );
 
   if (!original) {
     return candidate.length === 0;
@@ -471,14 +492,18 @@ function getOutputText(payload: unknown) {
         }
 
         const maybeText = (entry as { text?: unknown }).text;
-        return typeof maybeText === "string" && maybeText.trim() ? [maybeText] : [];
+        return typeof maybeText === "string" && maybeText.trim()
+          ? [maybeText]
+          : [];
       });
     })
     .join("\n")
     .trim();
 
   if (!text) {
-    throw new Error("Responses API payload did not contain structured JSON text.");
+    throw new Error(
+      "Responses API payload did not contain structured JSON text.",
+    );
   }
 
   return text;
@@ -500,8 +525,8 @@ function buildSchema() {
               required: ["type", "text"],
               properties: {
                 type: { type: "string", enum: ["paragraph"] },
-                text: { type: "string" }
-              }
+                text: { type: "string" },
+              },
             },
             {
               type: "object",
@@ -510,8 +535,8 @@ function buildSchema() {
               properties: {
                 type: { type: "string", enum: ["heading"] },
                 level: { type: "integer", minimum: 1, maximum: 6 },
-                text: { type: "string" }
-              }
+                text: { type: "string" },
+              },
             },
             {
               type: "object",
@@ -522,9 +547,9 @@ function buildSchema() {
                 ordered: { type: "boolean" },
                 items: {
                   type: "array",
-                  items: { type: "string" }
-                }
-              }
+                  items: { type: "string" },
+                },
+              },
             },
             {
               type: "object",
@@ -533,8 +558,8 @@ function buildSchema() {
               properties: {
                 type: { type: "string", enum: ["code"] },
                 language: { type: "string" },
-                text: { type: "string" }
-              }
+                text: { type: "string" },
+              },
             },
             {
               type: "object",
@@ -542,8 +567,8 @@ function buildSchema() {
               required: ["type", "text"],
               properties: {
                 type: { type: "string", enum: ["quote"] },
-                text: { type: "string" }
-              }
+                text: { type: "string" },
+              },
             },
             {
               type: "object",
@@ -553,25 +578,29 @@ function buildSchema() {
                 type: { type: "string", enum: ["table"] },
                 headers: {
                   type: "array",
-                  items: { type: "string" }
+                  items: { type: "string" },
                 },
                 rows: {
                   type: "array",
                   items: {
                     type: "array",
-                    items: { type: "string" }
-                  }
-                }
-              }
-            }
-          ]
-        }
-      }
-    }
+                    items: { type: "string" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    },
   } as const;
 }
 
-function excerptAround(value: string | undefined, needle: string, radius: number) {
+function excerptAround(
+  value: string | undefined,
+  needle: string,
+  radius: number,
+) {
   if (!value?.trim()) {
     return undefined;
   }
@@ -615,17 +644,22 @@ function buildPrompt(candidate: CandidateMessage) {
         score: candidate.score,
         blockIndex,
         currentBlock: block,
-        previousBlock: blockIndex > 0 ? candidate.message.blocks[blockIndex - 1] : null,
+        previousBlock:
+          blockIndex > 0 ? candidate.message.blocks[blockIndex - 1] : null,
         nextBlock:
           blockIndex < candidate.message.blocks.length - 1
             ? candidate.message.blocks[blockIndex + 1]
             : null,
         rawTextExcerpt: block
-          ? excerptAround(candidate.message.rawText, blockToPlainText(block), 900)
-          : candidate.message.rawText?.slice(0, 1_800)
+          ? excerptAround(
+              candidate.message.rawText,
+              blockToPlainText(block),
+              900,
+            )
+          : candidate.message.rawText?.slice(0, 1_800),
       },
       null,
-      2
+      2,
     );
   }
 
@@ -637,14 +671,17 @@ function buildPrompt(candidate: CandidateMessage) {
       score: candidate.score,
       rawText: candidate.message.rawText,
       rawHtml: candidate.message.rawHtml?.slice(0, 8_000),
-      currentBlocks: candidate.message.blocks
+      currentBlocks: candidate.message.blocks,
     },
     null,
-    2
+    2,
   );
 }
 
-async function requestRepair(candidate: CandidateMessage, config: StructuringConfig) {
+async function requestRepair(
+  candidate: CandidateMessage,
+  config: StructuringConfig,
+) {
   if (config.provider === "openai" && config.openai) {
     return requestOpenAiRepair(candidate, config);
   }
@@ -656,17 +693,20 @@ async function requestRepair(candidate: CandidateMessage, config: StructuringCon
   throw new Error("No active AI provider is configured for structuring.");
 }
 
-async function requestOpenAiRepair(candidate: CandidateMessage, config: StructuringConfig) {
-  const response = await fetch(`${config.openai!.apiBaseUrl}/responses`, {
+async function requestOpenAiRepair(
+  candidate: CandidateMessage,
+  config: StructuringConfig,
+) {
+  const response = await fetch(`${config.openai?.apiBaseUrl}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.openai!.apiKey}`
+      Authorization: `Bearer ${config.openai?.apiKey}`,
     },
     body: JSON.stringify({
       model: config.model,
       reasoning: {
-        effort: "minimal"
+        effort: "minimal",
       },
       input: [
         {
@@ -677,35 +717,37 @@ async function requestOpenAiRepair(candidate: CandidateMessage, config: Structur
               text:
                 candidate.kind === "block"
                   ? "Repair one suspicious assistant block from an archived chat transcript. Return replacement blocks for that block only, not the whole message. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Convert leaked block-level markdown, repeated step markers, code fences, or table markup into semantic blocks when clearly supported."
-                  : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks."
-            }
-          ]
+                  : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks.",
+            },
+          ],
         },
         {
           role: "user",
           content: [
             {
               type: "input_text",
-              text: buildPrompt(candidate)
-            }
-          ]
-        }
+              text: buildPrompt(candidate),
+            },
+          ],
+        },
       ],
       text: {
         format: {
           type: "json_schema",
           name: "chat_exporter_blocks",
           strict: true,
-          schema: buildSchema()
-        }
-      }
+          schema: buildSchema(),
+        },
+      },
     }),
-    signal: AbortSignal.timeout(config.timeoutMs)
+    signal: AbortSignal.timeout(config.timeoutMs),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`OpenAI Responses API returned ${response.status}: ${errorText.slice(0, 400)}`);
+    throw new Error(
+      `OpenAI Responses API returned ${response.status}: ${errorText.slice(0, 400)}`,
+    );
   }
 
   const payload = (await response.json()) as unknown;
@@ -713,48 +755,54 @@ async function requestOpenAiRepair(candidate: CandidateMessage, config: Structur
   return parseStructuredBlocks(JSON.parse(outputText) as unknown);
 }
 
-async function requestCerebrasRepair(candidate: CandidateMessage, config: StructuringConfig) {
-  const response = await fetch(`${config.cerebras!.apiBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.cerebras!.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        {
-          role: "system",
-          content:
-            candidate.kind === "block"
-              ? "Repair one suspicious assistant block from an archived chat transcript. Return replacement blocks for that block only, not the whole message. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Convert leaked block-level markdown, repeated step markers, code fences, or table markup into semantic blocks when clearly supported."
-              : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks."
+async function requestCerebrasRepair(
+  candidate: CandidateMessage,
+  config: StructuringConfig,
+) {
+  const response = await fetch(
+    `${config.cerebras?.apiBaseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.cerebras?.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: "system",
+            content:
+              candidate.kind === "block"
+                ? "Repair one suspicious assistant block from an archived chat transcript. Return replacement blocks for that block only, not the whole message. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Convert leaked block-level markdown, repeated step markers, code fences, or table markup into semantic blocks when clearly supported."
+                : "Repair assistant message structure for an archived chat transcript. Preserve wording, code, and ordering. Do not summarize, translate, or add content. Prefer paragraph blocks when structure is ambiguous. Use headings, lists, quotes, code, and tables only when they are clearly supported by the raw text or HTML. If block-level markdown or repeated step markers leaked into a single paragraph, split that paragraph into the correct semantic blocks.",
+          },
+          {
+            role: "user",
+            content: buildPrompt(candidate),
+          },
+        ],
+        temperature: 0,
+        top_p: 1,
+        max_completion_tokens: config.cerebras?.maxCompletionTokens,
+        reasoning_effort: config.cerebras?.reasoningEffort,
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "chat_exporter_blocks",
+            strict: true,
+            schema: buildSchema(),
+          },
         },
-        {
-          role: "user",
-          content: buildPrompt(candidate)
-        }
-      ],
-      temperature: 0,
-      top_p: 1,
-      max_completion_tokens: config.cerebras!.maxCompletionTokens,
-      reasoning_effort: config.cerebras!.reasoningEffort,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "chat_exporter_blocks",
-          strict: true,
-          schema: buildSchema()
-        }
-      }
-    }),
-    signal: AbortSignal.timeout(config.timeoutMs)
-  });
+      }),
+      signal: AbortSignal.timeout(config.timeoutMs),
+    },
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(
-      `Cerebras Chat Completions returned ${response.status}: ${errorText.slice(0, 400)}`
+      `Cerebras Chat Completions returned ${response.status}: ${errorText.slice(0, 400)}`,
     );
   }
 
@@ -768,26 +816,32 @@ async function requestCerebrasRepair(candidate: CandidateMessage, config: Struct
   const outputText = payload.choices?.[0]?.message?.content?.trim();
 
   if (!outputText) {
-    throw new Error("Cerebras response did not contain structured JSON content.");
+    throw new Error(
+      "Cerebras response did not contain structured JSON content.",
+    );
   }
 
   return parseStructuredBlocks(JSON.parse(outputText) as unknown);
 }
 
-async function repairCandidate(candidate: CandidateMessage, config: StructuringConfig): Promise<RepairResult> {
+async function repairCandidate(
+  candidate: CandidateMessage,
+  config: StructuringConfig,
+): Promise<RepairResult> {
   try {
     const repairedBlocks = await requestRepair(candidate, config);
 
     const comparisonSource =
       candidate.kind === "block"
         ? blockToPlainText(candidate.message.blocks[candidate.blockIndex ?? 0]!)
-        : candidate.message.rawText ?? "";
+        : (candidate.message.rawText ?? "");
 
     if (!contentLooksPreserved(comparisonSource, repairedBlocks)) {
       return {
         ok: false,
         index: candidate.index,
-        reason: "AI repair changed the message too aggressively and was rejected."
+        reason:
+          "AI repair changed the message too aggressively and was rejected.",
       };
     }
 
@@ -796,7 +850,7 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
         ? [
             ...candidate.message.blocks.slice(0, candidate.blockIndex),
             ...repairedBlocks,
-            ...candidate.message.blocks.slice((candidate.blockIndex ?? 0) + 1)
+            ...candidate.message.blocks.slice((candidate.blockIndex ?? 0) + 1),
           ]
         : repairedBlocks;
 
@@ -811,9 +865,9 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
           blockCount: nextBlocks.length,
           usedFallback: false,
           strategy: "ai-repair",
-          model: config.model
-        }
-      }
+          model: config.model,
+        },
+      },
     };
   } catch (error) {
     return {
@@ -822,7 +876,7 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
       reason:
         error instanceof Error
           ? error.message
-          : "AI repair failed before a structured result could be validated."
+          : "AI repair failed before a structured result could be validated.",
     };
   }
 }
@@ -830,7 +884,7 @@ async function repairCandidate(candidate: CandidateMessage, config: StructuringC
 async function mapWithConcurrency<T, TResult>(
   items: T[],
   concurrency: number,
-  mapper: (item: T) => Promise<TResult>
+  mapper: (item: T) => Promise<TResult>,
 ) {
   const results: TResult[] = new Array(items.length);
   let nextIndex = 0;
@@ -844,53 +898,59 @@ async function mapWithConcurrency<T, TResult>(
   }
 
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, () => worker())
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
   );
 
   return results;
 }
 
 export async function applyOpenAiStructuring(
-  messages: NormalizedSnapshotPayload["messages"]
+  messages: NormalizedSnapshotPayload["messages"],
 ): Promise<{
   messages: NormalizedSnapshotPayload["messages"];
   warnings: string[];
   structuring: StructuringMetadata;
 }> {
   const normalizedMessages = normalizeMessages(messages);
-  const candidateMessages: CandidateMessage[] = normalizedMessages.flatMap<CandidateMessage>(
-    (message, index) => {
-    const messageLevelCandidate = detectMessageRepairCandidate(message);
+  const candidateMessages: CandidateMessage[] = normalizedMessages
+    .flatMap<CandidateMessage>((message, index) => {
+      const messageLevelCandidate = detectMessageRepairCandidate(message);
 
-    if (messageLevelCandidate) {
-      return [
-        {
-          kind: "message" as const,
-          index,
-          message,
-          reasons: messageLevelCandidate.reasons,
-          score: messageLevelCandidate.score
-        }
-      ];
-    }
-
-    const bestParagraphCandidate = collectParagraphRepairSignals(message)
-      .sort((left, right) => right.score - left.score || left.blockIndex - right.blockIndex)[0];
-
-    return bestParagraphCandidate
-      ? [
+      if (messageLevelCandidate) {
+        return [
           {
-            kind: "block" as const,
+            kind: "message" as const,
             index,
             message,
-            reasons: bestParagraphCandidate.reasons,
-            score: bestParagraphCandidate.score,
-            blockIndex: bestParagraphCandidate.blockIndex
-          }
-        ]
-      : [];
-    }
-  ).sort((left, right) => right.score - left.score || left.index - right.index);
+            reasons: messageLevelCandidate.reasons,
+            score: messageLevelCandidate.score,
+          },
+        ];
+      }
+
+      const bestParagraphCandidate = collectParagraphRepairSignals(
+        message,
+      ).sort(
+        (left, right) =>
+          right.score - left.score || left.blockIndex - right.blockIndex,
+      )[0];
+
+      return bestParagraphCandidate
+        ? [
+            {
+              kind: "block" as const,
+              index,
+              message,
+              reasons: bestParagraphCandidate.reasons,
+              score: bestParagraphCandidate.score,
+              blockIndex: bestParagraphCandidate.blockIndex,
+            },
+          ]
+        : [];
+    })
+    .sort(
+      (left, right) => right.score - left.score || left.index - right.index,
+    );
 
   if (candidateMessages.length === 0) {
     return {
@@ -904,8 +964,9 @@ export async function applyOpenAiStructuring(
         repairedCount: 0,
         failedCount: 0,
         skippedCount: 0,
-        skippedReason: "No low-confidence assistant messages required AI repair."
-      }
+        skippedReason:
+          "No low-confidence assistant messages required AI repair.",
+      },
     };
   }
 
@@ -924,17 +985,20 @@ export async function applyOpenAiStructuring(
         repairedCount: 0,
         failedCount: 0,
         skippedCount: candidateMessages.length,
-        skippedReason: config.disabledReason
-      }
+        skippedReason: config.disabledReason,
+      },
     };
   }
 
   const eligibleCandidates = candidateMessages.filter(
-    (candidate) => candidateInputSize(candidate) <= config.maxMessageChars
+    (candidate) => candidateInputSize(candidate) <= config.maxMessageChars,
   );
   const oversizedCount = candidateMessages.length - eligibleCandidates.length;
   const attemptedCandidates = eligibleCandidates.slice(0, config.maxMessages);
-  const cappedCount = Math.max(0, eligibleCandidates.length - attemptedCandidates.length);
+  const cappedCount = Math.max(
+    0,
+    eligibleCandidates.length - attemptedCandidates.length,
+  );
 
   if (attemptedCandidates.length === 0) {
     const skippedReason =
@@ -947,7 +1011,7 @@ export async function applyOpenAiStructuring(
       warnings:
         oversizedCount > 0
           ? [
-              `Skipped AI repair for ${oversizedCount} assistant message(s) because they exceeded the raw text size limit.`
+              `Skipped AI repair for ${oversizedCount} assistant message(s) because they exceeded the raw text size limit.`,
             ]
           : [],
       structuring: {
@@ -959,15 +1023,15 @@ export async function applyOpenAiStructuring(
         repairedCount: 0,
         failedCount: 0,
         skippedCount: candidateMessages.length,
-        skippedReason
-      }
+        skippedReason,
+      },
     };
   }
 
   const repairs = await mapWithConcurrency(
     attemptedCandidates,
     config.concurrency,
-    (candidate) => repairCandidate(candidate, config)
+    (candidate) => repairCandidate(candidate, config),
   );
 
   const nextMessages = [...normalizedMessages];
@@ -990,19 +1054,19 @@ export async function applyOpenAiStructuring(
 
   if (oversizedCount > 0) {
     warnings.push(
-      `Skipped AI repair for ${oversizedCount} assistant message(s) because they exceeded the raw text size limit.`
+      `Skipped AI repair for ${oversizedCount} assistant message(s) because they exceeded the raw text size limit.`,
     );
   }
 
   if (cappedCount > 0) {
     warnings.push(
-      `Skipped AI repair for ${cappedCount} assistant message(s) because the STRUCTURING_MAX_MESSAGES limit was reached.`
+      `Skipped AI repair for ${cappedCount} assistant message(s) because the STRUCTURING_MAX_MESSAGES limit was reached.`,
     );
   }
 
   if (failedCount > 0) {
     warnings.push(
-      `AI repair failed for ${failedCount} assistant message(s). Deterministic blocks were kept.`
+      `AI repair failed for ${failedCount} assistant message(s). Deterministic blocks were kept.`,
     );
   }
 
@@ -1020,7 +1084,7 @@ export async function applyOpenAiStructuring(
   return {
     messages: nextMessages,
     warnings,
-      structuring: {
+    structuring: {
       status,
       provider: config.provider,
       model: config.model,
@@ -1029,7 +1093,10 @@ export async function applyOpenAiStructuring(
       repairedCount,
       failedCount,
       skippedCount: oversizedCount + cappedCount,
-      skippedReason: oversizedCount + cappedCount > 0 ? "Some candidates were skipped before repair." : undefined
-    }
+      skippedReason:
+        oversizedCount + cappedCount > 0
+          ? "Some candidates were skipped before repair."
+          : undefined,
+    },
   };
 }

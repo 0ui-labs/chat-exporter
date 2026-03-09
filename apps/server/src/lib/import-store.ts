@@ -1,16 +1,20 @@
-import type { ImportArtifacts, ImportJob, ImportRequest } from "@chat-exporter/shared";
+import type {
+  ImportArtifacts,
+  ImportJob,
+  ImportRequest,
+} from "@chat-exporter/shared";
 
 import {
-  conversationToMarkdown,
   conversationToHandover,
-  conversationWordCount
+  conversationToMarkdown,
+  conversationWordCount,
 } from "./conversation-artifacts.js";
 import {
   getPersistedImport,
   insertImport,
   listPersistedImports,
   replaceImport,
-  saveImportSnapshot
+  saveImportSnapshot,
 } from "./import-repository.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
@@ -26,14 +30,14 @@ function buildArtifacts(job: ImportJob): ImportArtifacts {
     return {
       markdown: "",
       handover: "",
-      json: ""
+      json: "",
     };
   }
 
   return {
     markdown: conversationToMarkdown(conversation),
     handover: conversationToHandover(conversation),
-    json: JSON.stringify(conversation, null, 2)
+    json: JSON.stringify(conversation, null, 2),
   };
 }
 
@@ -46,7 +50,7 @@ function patchJob(id: string, patch: Partial<ImportJob>) {
   replaceImport({
     ...existing,
     ...patch,
-    updatedAt: now()
+    updatedAt: now(),
   });
 }
 
@@ -69,7 +73,7 @@ export function createImportJob(input: ImportRequest) {
     currentStage: "validate",
     createdAt: timestamp,
     updatedAt: timestamp,
-    warnings: []
+    warnings: [],
   };
 
   insertImport(job);
@@ -85,7 +89,7 @@ export async function runImportJob(id: string) {
   patchJob(id, {
     status: "running",
     currentStage: "validate",
-    error: undefined
+    error: undefined,
   });
 
   try {
@@ -93,9 +97,9 @@ export async function runImportJob(id: string) {
       sourcePlatform: job.sourcePlatform,
       onStage: (stage) => {
         patchJob(id, {
-          currentStage: stage
+          currentStage: stage,
         });
-      }
+      },
     });
 
     patchJob(id, {
@@ -103,9 +107,9 @@ export async function runImportJob(id: string) {
       conversation: imported.conversation,
       summary: {
         messageCount: imported.conversation.messages.length,
-        transcriptWords: conversationWordCount(imported.conversation)
+        transcriptWords: conversationWordCount(imported.conversation),
       },
-      warnings: imported.warnings
+      warnings: imported.warnings,
     });
 
     saveImportSnapshot({
@@ -116,7 +120,7 @@ export async function runImportJob(id: string) {
       pageTitle: imported.snapshot.pageTitle,
       rawHtml: imported.snapshot.rawHtml,
       normalizedPayload: imported.snapshot.normalizedPayload,
-      fetchMetadata: imported.snapshot.fetchMetadata
+      fetchMetadata: imported.snapshot.fetchMetadata,
     });
 
     const rendered = getImportJob(id);
@@ -127,7 +131,7 @@ export async function runImportJob(id: string) {
     patchJob(id, {
       status: "completed",
       currentStage: "done",
-      artifacts: buildArtifacts(rendered)
+      artifacts: buildArtifacts(rendered),
     });
   } catch (error) {
     patchJob(id, {
@@ -136,7 +140,7 @@ export async function runImportJob(id: string) {
       error:
         error instanceof Error
           ? error.message
-          : "The import pipeline failed before a conversation could be extracted."
+          : "The import pipeline failed before a conversation could be extracted.",
     });
   }
 }

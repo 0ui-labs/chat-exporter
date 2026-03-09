@@ -5,7 +5,7 @@ import { importGenericSharePage } from "./generic-share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
 type StageCallback = (
-  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">
+  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
 ) => void;
 
 export async function importSharePage(
@@ -13,18 +13,18 @@ export async function importSharePage(
   options?: {
     onStage?: StageCallback;
     sourcePlatform?: SourcePlatform;
-  }
+  },
 ) {
   const sourcePlatform = options?.sourcePlatform ?? classifySourcePlatform(url);
 
   if (sourcePlatform === "chatgpt") {
     return importChatGptSharePage(url, {
-      onStage: options?.onStage
+      onStage: options?.onStage,
     });
   }
 
   return importGenericSharePage(url, {
     onStage: options?.onStage,
-    sourcePlatform
+    sourcePlatform,
   });
 }

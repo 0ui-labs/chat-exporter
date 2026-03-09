@@ -1,10 +1,9 @@
-import { useMemo } from "react";
-
 import type { FormatRule } from "@chat-exporter/shared";
+import { useMemo } from "react";
 
 import type {
   AdjustmentSelection,
-  ViewportAnchor
+  ViewportAnchor,
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +12,10 @@ type MarkdownViewProps = {
   adjustModeEnabled: boolean;
   content: string;
   highlightedRuleId: string | null;
-  onSelectLines: (selection: AdjustmentSelection, anchor: ViewportAnchor) => void;
+  onSelectLines: (
+    selection: AdjustmentSelection,
+    anchor: ViewportAnchor,
+  ) => void;
   selectedRange: AdjustmentSelection | null;
 };
 
@@ -27,7 +29,7 @@ function toViewportAnchor(rect: DOMRect): ViewportAnchor {
     height: rect.height,
     left: rect.left,
     top: rect.top,
-    width: rect.width
+    width: rect.width,
   };
 }
 
@@ -37,7 +39,7 @@ export function MarkdownView({
   content,
   highlightedRuleId,
   onSelectLines,
-  selectedRange
+  selectedRange,
 }: MarkdownViewProps) {
   const lines = content.split("\n");
 
@@ -46,7 +48,9 @@ export function MarkdownView({
       return null;
     }
 
-    const rule = activeRules.find((r) => r.id === highlightedRuleId && r.status === "active");
+    const rule = activeRules.find(
+      (r) => r.id === highlightedRuleId && r.status === "active",
+    );
 
     if (!rule) {
       return null;
@@ -61,14 +65,21 @@ export function MarkdownView({
       return null;
     }
 
-    const strategy = typeof selector.strategy === "string" ? selector.strategy : null;
+    const strategy =
+      typeof selector.strategy === "string" ? selector.strategy : null;
 
-    if (strategy === "prefix_before_colon" || strategy === "block_type" || strategy === "markdown_table") {
+    if (
+      strategy === "prefix_before_colon" ||
+      strategy === "block_type" ||
+      strategy === "markdown_table"
+    ) {
       return { start: 1, end: lines.length };
     }
 
-    const lineStart = typeof selector.lineStart === "number" ? selector.lineStart : null;
-    const lineEnd = typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
+    const lineStart =
+      typeof selector.lineStart === "number" ? selector.lineStart : null;
+    const lineEnd =
+      typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
 
     if (!lineStart || !lineEnd) {
       return null;
@@ -101,8 +112,10 @@ export function MarkdownView({
                 adjustModeEnabled
                   ? "cursor-pointer hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   : "cursor-text",
-                isHighlighted && !isSelected ? "bg-primary/10 ring-1 ring-primary/20" : null,
-                isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null
+                isHighlighted && !isSelected
+                  ? "bg-primary/10 ring-1 ring-primary/20"
+                  : null,
+                isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null,
               )}
               type="button"
               onClick={(event) => {
@@ -115,14 +128,17 @@ export function MarkdownView({
                   selectedRange?.lineEnd !== undefined &&
                   selectedRange.lineStart === selectedRange.lineEnd &&
                   selectedRange.lineStart !== lineNumber;
-                const existingLineStart = selectedRange?.lineStart ?? lineNumber;
+                const existingLineStart =
+                  selectedRange?.lineStart ?? lineNumber;
                 const nextStart = canExpandExistingSelection
                   ? Math.min(existingLineStart, lineNumber)
                   : lineNumber;
                 const nextEnd = canExpandExistingSelection
                   ? Math.max(existingLineStart, lineNumber)
                   : lineNumber;
-                const selectedLines = lines.slice(nextStart - 1, nextEnd).join("\n");
+                const selectedLines = lines
+                  .slice(nextStart - 1, nextEnd)
+                  .join("\n");
 
                 onSelectLines(
                   {
@@ -137,9 +153,9 @@ export function MarkdownView({
                     textQuote:
                       selectedLines.length > 180
                         ? `${selectedLines.slice(0, 177).trimEnd()}...`
-                        : selectedLines
+                        : selectedLines,
                   },
-                  toViewportAnchor(event.currentTarget.getBoundingClientRect())
+                  toViewportAnchor(event.currentTarget.getBoundingClientRect()),
                 );
               }}
             >

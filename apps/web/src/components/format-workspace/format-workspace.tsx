@@ -1,39 +1,44 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
-
 import type {
   AdjustmentSessionDetail,
   FormatRule,
-  ImportJob
+  ImportJob,
 } from "@chat-exporter/shared";
+import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
+import {
+  type FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
-import { MarkdownView } from "@/components/format-workspace/markdown-view";
-import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   getBlockTypeLabel,
   getRoleLabel,
-  getViewLabel
+  getViewLabel,
 } from "@/components/format-workspace/labels";
+import { MarkdownView } from "@/components/format-workspace/markdown-view";
+import { ReaderView } from "@/components/format-workspace/reader-view";
 import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
 import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
 import type {
   AdjustmentSelection,
   FloatingAdjustmentAnchor,
   ViewMode,
-  ViewportAnchor
+  ViewportAnchor,
 } from "@/components/format-workspace/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   appendAdjustmentMessage,
   createAdjustmentSession,
   disableFormatRule,
   discardAdjustmentSession,
-  getFormatRules
+  getFormatRules,
 } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 type ActiveStage = {
   detail: string;
@@ -52,12 +57,12 @@ const outputViews: { value: ViewMode; label: string }[] = [
   { value: "reader", label: getViewLabel("reader") },
   { value: "markdown", label: getViewLabel("markdown") },
   { value: "handover", label: getViewLabel("handover") },
-  { value: "json", label: getViewLabel("json") }
+  { value: "json", label: getViewLabel("json") },
 ];
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
-function describeSelectionLabel(selection: AdjustmentSelection) {
+function _describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
     return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
   }
@@ -101,27 +106,35 @@ export function FormatWorkspace({
   elapsedTime,
   job,
   view,
-  onViewChange
+  onViewChange,
 }: FormatWorkspaceProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [draftMessageByView, setDraftMessageByView] = useState<Record<ViewMode, string>>({
+  const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [draftMessageByView, setDraftMessageByView] = useState<
+    Record<ViewMode, string>
+  >({
     reader: "",
     markdown: "",
     handover: "",
-    json: ""
+    json: "",
   });
-  const [adjustModeByView, setAdjustModeByView] = useState<Record<ViewMode, boolean>>({
+  const [adjustModeByView, setAdjustModeByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
-  const [guideDismissedByView, setGuideDismissedByView] = useState<Record<ViewMode, boolean>>({
+  const [guideDismissedByView, setGuideDismissedByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
   const [sessionDetailByView, setSessionDetailByView] = useState<
     Record<ViewMode, AdjustmentSessionDetail | null>
@@ -129,19 +142,23 @@ export function FormatWorkspace({
     reader: null,
     markdown: null,
     handover: null,
-    json: null
+    json: null,
   });
-  const [sessionErrorByView, setSessionErrorByView] = useState<Record<ViewMode, string | null>>({
+  const [sessionErrorByView, setSessionErrorByView] = useState<
+    Record<ViewMode, string | null>
+  >({
     reader: null,
     markdown: null,
     handover: null,
-    json: null
+    json: null,
   });
-  const [sessionLoadingByView, setSessionLoadingByView] = useState<Record<ViewMode, boolean>>({
+  const [sessionLoadingByView, setSessionLoadingByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
   const [sessionSelectionKeyByView, setSessionSelectionKeyByView] = useState<
     Record<ViewMode, string | null>
@@ -149,49 +166,66 @@ export function FormatWorkspace({
     reader: null,
     markdown: null,
     handover: null,
-    json: null
+    json: null,
   });
-  const [submittingMessageByView, setSubmittingMessageByView] = useState<Record<ViewMode, boolean>>({
+  const [submittingMessageByView, setSubmittingMessageByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
-  const [discardingByView, setDiscardingByView] = useState<Record<ViewMode, boolean>>({
+  const [discardingByView, setDiscardingByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
-  const [replyVisibleByView, setReplyVisibleByView] = useState<Record<ViewMode, boolean>>({
+  const [replyVisibleByView, setReplyVisibleByView] = useState<
+    Record<ViewMode, boolean>
+  >({
     reader: false,
     markdown: false,
     handover: false,
-    json: false
+    json: false,
   });
   const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
-  const [disablingRuleById, setDisablingRuleById] = useState<Record<string, boolean>>({});
-  const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
+  const [disablingRuleById, setDisablingRuleById] = useState<
+    Record<string, boolean>
+  >({});
+  const [rulesByView, setRulesByView] = useState<
+    Record<ViewMode, FormatRule[]>
+  >({
     reader: [],
     markdown: [],
     handover: [],
-    json: []
+    json: [],
   });
-  const [selectionByView, setSelectionByView] = useState<Record<ViewMode, AdjustmentSelection | null>>({
+  const [selectionByView, setSelectionByView] = useState<
+    Record<ViewMode, AdjustmentSelection | null>
+  >({
     reader: null,
     markdown: null,
     handover: null,
-    json: null
+    json: null,
   });
-  const [anchorByView, setAnchorByView] = useState<Record<ViewMode, FloatingAdjustmentAnchor | null>>({
+  const [anchorByView, setAnchorByView] = useState<
+    Record<ViewMode, FloatingAdjustmentAnchor | null>
+  >({
     reader: null,
     markdown: null,
     handover: null,
-    json: null
+    json: null,
   });
-  const [containerDimensions, setContainerDimensions] = useState<{ width: number; height: number }>({
+  const [containerDimensions, setContainerDimensions] = useState<{
+    width: number;
+    height: number;
+  }>({
     width: 0,
-    height: 0
+    height: 0,
   });
 
   useLayoutEffect(() => {
@@ -217,7 +251,9 @@ export function FormatWorkspace({
     updateDimensions();
 
     const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDimensions);
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateDimensions);
 
     resizeObserver?.observe(node);
 
@@ -237,11 +273,14 @@ export function FormatWorkspace({
   const activeAnchor = anchorByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
   const activeRules = rulesByView[view];
-  const displayedMarkdown = view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
+  const displayedMarkdown =
+    view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
   const isDiscarding = discardingByView[view];
   const isSubmittingMessage = submittingMessageByView[view];
-  const showGuide = isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
-  const showPopover = isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
+  const showGuide =
+    isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
+  const showPopover =
+    isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
 
   async function refreshFormatRules(targetView: ViewMode) {
     if (!adjustableViews.has(targetView)) {
@@ -252,12 +291,12 @@ export function FormatWorkspace({
       const rules = await getFormatRules(job.id, targetView);
       setRulesByView((current) => ({
         ...current,
-        [targetView]: rules
+        [targetView]: rules,
       }));
     } catch {
       setRulesByView((current) => ({
         ...current,
-        [targetView]: []
+        [targetView]: [],
       }));
     }
   }
@@ -265,31 +304,31 @@ export function FormatWorkspace({
   function clearCurrentAdjustmentState(targetView: ViewMode) {
     setDraftMessageByView((current) => ({
       ...current,
-      [targetView]: ""
+      [targetView]: "",
     }));
     setSelectionByView((current) => ({
       ...current,
-      [targetView]: null
+      [targetView]: null,
     }));
     setAnchorByView((current) => ({
       ...current,
-      [targetView]: null
+      [targetView]: null,
     }));
     setSessionDetailByView((current) => ({
       ...current,
-      [targetView]: null
+      [targetView]: null,
     }));
     setSessionSelectionKeyByView((current) => ({
       ...current,
-      [targetView]: null
+      [targetView]: null,
     }));
     setSessionErrorByView((current) => ({
       ...current,
-      [targetView]: null
+      [targetView]: null,
     }));
     setReplyVisibleByView((current) => ({
       ...current,
-      [targetView]: false
+      [targetView]: false,
     }));
   }
 
@@ -297,7 +336,7 @@ export function FormatWorkspace({
     if (!isAdjustableView && isAdjustModeEnabled) {
       setAdjustModeByView((current) => ({
         ...current,
-        [view]: false
+        [view]: false,
       }));
     }
   }, [isAdjustModeEnabled, isAdjustableView, view]);
@@ -317,7 +356,7 @@ export function FormatWorkspace({
 
         setRulesByView((current) => ({
           ...current,
-          [view]: rules
+          [view]: rules,
         }));
       })
       .catch(() => {
@@ -327,7 +366,7 @@ export function FormatWorkspace({
 
         setRulesByView((current) => ({
           ...current,
-          [view]: []
+          [view]: [],
         }));
       });
 
@@ -360,16 +399,16 @@ export function FormatWorkspace({
     selectionDebounceRef.current = setTimeout(() => {
       setSessionLoadingByView((current) => ({
         ...current,
-        [view]: true
+        [view]: true,
       }));
       setSessionErrorByView((current) => ({
         ...current,
-        [view]: null
+        [view]: null,
       }));
 
       void createAdjustmentSession(job.id, {
         selection: activeSelection,
-        targetFormat: view
+        targetFormat: view,
       })
         .then((detail) => {
           if (cancelled) {
@@ -378,11 +417,11 @@ export function FormatWorkspace({
 
           setSessionDetailByView((current) => ({
             ...current,
-            [view]: detail
+            [view]: detail,
           }));
           setSessionSelectionKeyByView((current) => ({
             ...current,
-            [view]: nextSelectionKey
+            [view]: nextSelectionKey,
           }));
         })
         .catch((error) => {
@@ -395,7 +434,7 @@ export function FormatWorkspace({
             [view]:
               error instanceof Error
                 ? error.message
-                : "Anpassungssession konnte nicht erstellt werden."
+                : "Anpassungssession konnte nicht erstellt werden.",
           }));
         })
         .finally(() => {
@@ -405,7 +444,7 @@ export function FormatWorkspace({
 
           setSessionLoadingByView((current) => ({
             ...current,
-            [view]: false
+            [view]: false,
           }));
         });
     }, 250);
@@ -423,7 +462,7 @@ export function FormatWorkspace({
     isAdjustModeEnabled,
     isAdjustableView,
     job.id,
-    view
+    view,
   ]);
 
   function toggleAdjustMode() {
@@ -435,11 +474,11 @@ export function FormatWorkspace({
 
     setAdjustModeByView((current) => ({
       ...current,
-      [view]: nextEnabled
+      [view]: nextEnabled,
     }));
     setGuideDismissedByView((current) => ({
       ...current,
-      [view]: false
+      [view]: false,
     }));
 
     if (!nextEnabled) {
@@ -449,7 +488,7 @@ export function FormatWorkspace({
 
   function handleSelectionChange(
     selection: AdjustmentSelection,
-    anchor: ViewportAnchor
+    anchor: ViewportAnchor,
   ) {
     const container = sectionRef.current;
     let containerAnchor = anchor;
@@ -461,36 +500,36 @@ export function FormatWorkspace({
         bottom: anchor.bottom - containerRect.top + container.scrollTop,
         left: anchor.left - containerRect.left,
         width: anchor.width,
-        height: anchor.height
+        height: anchor.height,
       };
     }
 
     setSelectionByView((current) => ({
       ...current,
-      [view]: selection
+      [view]: selection,
     }));
     setAnchorByView((current) => ({
       ...current,
-      [view]: containerAnchor
+      [view]: containerAnchor,
     }));
     setGuideDismissedByView((current) => ({
       ...current,
-      [view]: true
+      [view]: true,
     }));
     setSessionErrorByView((current) => ({
       ...current,
-      [view]: null
+      [view]: null,
     }));
     setReplyVisibleByView((current) => ({
       ...current,
-      [view]: false
+      [view]: false,
     }));
   }
 
   function handleDraftMessageChange(value: string) {
     setDraftMessageByView((current) => ({
       ...current,
-      [view]: value
+      [view]: value,
     }));
   }
 
@@ -509,29 +548,32 @@ export function FormatWorkspace({
 
     setSubmittingMessageByView((current) => ({
       ...current,
-      [view]: true
+      [view]: true,
     }));
     setSessionErrorByView((current) => ({
       ...current,
-      [view]: null
+      [view]: null,
     }));
 
     try {
-      const nextDetail = await appendAdjustmentMessage(activeSessionDetail.session.id, {
-        content
-      });
+      const nextDetail = await appendAdjustmentMessage(
+        activeSessionDetail.session.id,
+        {
+          content,
+        },
+      );
 
       setSessionDetailByView((current) => ({
         ...current,
-        [view]: nextDetail
+        [view]: nextDetail,
       }));
       setDraftMessageByView((current) => ({
         ...current,
-        [view]: ""
+        [view]: "",
       }));
       setReplyVisibleByView((current) => ({
         ...current,
-        [view]: true
+        [view]: true,
       }));
 
       if (nextDetail.session.status === "applied") {
@@ -541,12 +583,14 @@ export function FormatWorkspace({
       setSessionErrorByView((current) => ({
         ...current,
         [view]:
-          error instanceof Error ? error.message : "Anpassungsnachricht konnte nicht gespeichert werden."
+          error instanceof Error
+            ? error.message
+            : "Anpassungsnachricht konnte nicht gespeichert werden.",
       }));
     } finally {
       setSubmittingMessageByView((current) => ({
         ...current,
-        [view]: false
+        [view]: false,
       }));
     }
   }
@@ -559,11 +603,11 @@ export function FormatWorkspace({
 
     setDiscardingByView((current) => ({
       ...current,
-      [view]: true
+      [view]: true,
     }));
     setSessionErrorByView((current) => ({
       ...current,
-      [view]: null
+      [view]: null,
     }));
 
     try {
@@ -576,13 +620,15 @@ export function FormatWorkspace({
         setSessionErrorByView((current) => ({
           ...current,
           [view]:
-            error instanceof Error ? error.message : "Anpassungssession konnte nicht verworfen werden."
+            error instanceof Error
+              ? error.message
+              : "Anpassungssession konnte nicht verworfen werden.",
         }));
       }
     } finally {
       setDiscardingByView((current) => ({
         ...current,
-        [view]: false
+        [view]: false,
       }));
     }
   }
@@ -595,7 +641,7 @@ export function FormatWorkspace({
     let matchingRule = activeRules.find(
       (rule) =>
         rule.sourceSessionId === activeSessionDetail.session.id &&
-        rule.status === "active"
+        rule.status === "active",
     );
 
     if (!matchingRule) {
@@ -603,12 +649,12 @@ export function FormatWorkspace({
         const freshRules = await getFormatRules(job.id, view);
         setRulesByView((current) => ({
           ...current,
-          [view]: freshRules
+          [view]: freshRules,
         }));
         matchingRule = freshRules.find(
           (rule) =>
             rule.sourceSessionId === activeSessionDetail.session.id &&
-            rule.status === "active"
+            rule.status === "active",
         );
       } catch {
         // Rules konnten nicht neu geladen werden – Reply bleibt sichtbar.
@@ -625,7 +671,7 @@ export function FormatWorkspace({
     if (success) {
       setReplyVisibleByView((current) => ({
         ...current,
-        [view]: false
+        [view]: false,
       }));
     }
   }
@@ -633,11 +679,11 @@ export function FormatWorkspace({
   async function handleDisableRule(ruleId: string): Promise<boolean> {
     setDisablingRuleById((current) => ({
       ...current,
-      [ruleId]: true
+      [ruleId]: true,
     }));
     setSessionErrorByView((current) => ({
       ...current,
-      [view]: null
+      [view]: null,
     }));
 
     try {
@@ -645,14 +691,19 @@ export function FormatWorkspace({
 
       setRulesByView((current) => ({
         ...current,
-        [view]: current[view].map((rule) => (rule.id === nextRule.id ? nextRule : rule))
+        [view]: current[view].map((rule) =>
+          rule.id === nextRule.id ? nextRule : rule,
+        ),
       }));
       setHoveredRuleId((current) => (current === ruleId ? null : current));
       return true;
     } catch (error) {
       setSessionErrorByView((current) => ({
         ...current,
-        [view]: error instanceof Error ? error.message : "Formatregel konnte nicht deaktiviert werden."
+        [view]:
+          error instanceof Error
+            ? error.message
+            : "Formatregel konnte nicht deaktiviert werden.",
       }));
       return false;
     } finally {
@@ -675,7 +726,8 @@ export function FormatWorkspace({
         </Badge>
         {job.summary ? (
           <p className="text-sm text-muted-foreground">
-            {job.summary.messageCount} Nachrichten · {job.summary.transcriptWords} Wörter
+            {job.summary.messageCount} Nachrichten ·{" "}
+            {job.summary.transcriptWords} Wörter
           </p>
         ) : null}
         {job.status !== "completed" && activeStage ? (
@@ -698,7 +750,8 @@ export function FormatWorkspace({
         </div>
       ) : null}
 
-      {job.status === "failed" ? null : job.status === "queued" || job.status === "running" ? (
+      {job.status === "failed" ? null : job.status === "queued" ||
+        job.status === "running" ? (
         <div className="space-y-3">
           <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
@@ -738,7 +791,9 @@ export function FormatWorkspace({
                   disablingRuleById={disablingRuleById}
                   rules={activeRules}
                   view={view}
-                  onDisableRule={(ruleId) => { void handleDisableRule(ruleId); }}
+                  onDisableRule={(ruleId) => {
+                    void handleDisableRule(ruleId);
+                  }}
                   onHoverRule={(ruleId) => setHoveredRuleId(ruleId)}
                   onLeaveRule={() => setHoveredRuleId(null)}
                 />
@@ -750,7 +805,9 @@ export function FormatWorkspace({
                   onClick={toggleAdjustMode}
                 >
                   <Settings2 className="mr-2 h-4 w-4" />
-                  {isAdjustModeEnabled ? "Anpassungsmodus beenden" : `${getViewLabel(view)} anpassen`}
+                  {isAdjustModeEnabled
+                    ? "Anpassungsmodus beenden"
+                    : `${getViewLabel(view)} anpassen`}
                 </Button>
               </div>
             ) : null}
@@ -790,7 +847,7 @@ export function FormatWorkspace({
               onDismiss={() => {
                 setGuideDismissedByView((current) => ({
                   ...current,
-                  [view]: true
+                  [view]: true,
                 }));
               }}
             />

@@ -1,6 +1,5 @@
-import { useMemo, useRef } from "react";
-
 import type { Conversation, FormatRule } from "@chat-exporter/shared";
+import { useMemo, useRef } from "react";
 
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import {
@@ -8,11 +7,11 @@ import {
   getBlocksMatchingRule,
   getReaderBlockClassName,
   renderReaderBlock,
-  resolveReaderBlockEffects
+  resolveReaderBlockEffects,
 } from "@/components/format-workspace/rule-engine";
 import type {
   AdjustmentSelection,
-  ViewportAnchor
+  ViewportAnchor,
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +20,10 @@ type ReaderViewProps = {
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
   highlightedRuleId: string | null;
-  onSelectBlock: (selection: AdjustmentSelection, anchor: ViewportAnchor) => void;
+  onSelectBlock: (
+    selection: AdjustmentSelection,
+    anchor: ViewportAnchor,
+  ) => void;
   selectedBlock: AdjustmentSelection | null;
 };
 
@@ -35,7 +37,7 @@ function toViewportAnchor(rect: DOMRect): ViewportAnchor {
     height: rect.height,
     left: rect.left,
     top: rect.top,
-    width: rect.width
+    width: rect.width,
   };
 }
 
@@ -45,7 +47,7 @@ export function ReaderView({
   conversation,
   highlightedRuleId,
   onSelectBlock,
-  selectedBlock
+  selectedBlock,
 }: ReaderViewProps) {
   const lastSelectionInteractionAt = useRef(0);
 
@@ -54,7 +56,9 @@ export function ReaderView({
       return new Set<string>();
     }
 
-    const rule = activeRules.find((r) => r.id === highlightedRuleId);
+    const rule = activeRules.find(
+      (r) => r.id === highlightedRuleId && r.status === "active",
+    );
 
     if (!rule) {
       return new Set<string>();
@@ -79,7 +83,7 @@ export function ReaderView({
           key={message.id}
           className={cn(
             "rounded-[1.55rem] border border-border/80 px-4 py-5 sm:px-5",
-            message.role === "assistant" ? "bg-card/92" : "bg-secondary/30"
+            message.role === "assistant" ? "bg-card/92" : "bg-secondary/30",
           )}
         >
           <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
@@ -94,12 +98,18 @@ export function ReaderView({
                 message.id,
                 blockIndex,
                 block.type,
-                blockText
+                blockText,
               );
               const isSelected =
-                selectedBlock?.messageId === message.id && selectedBlock.blockIndex === blockIndex;
-              const isHighlighted = highlightedBlocks.has(`${message.id}:${blockIndex}`);
-              const emitSelection = (anchor: ViewportAnchor, selectedText: string) => {
+                selectedBlock?.messageId === message.id &&
+                selectedBlock.blockIndex === blockIndex;
+              const isHighlighted = highlightedBlocks.has(
+                `${message.id}:${blockIndex}`,
+              );
+              const emitSelection = (
+                anchor: ViewportAnchor,
+                selectedText: string,
+              ) => {
                 lastSelectionInteractionAt.current = Date.now();
 
                 onSelectBlock(
@@ -110,9 +120,9 @@ export function ReaderView({
                     messageIndex: index,
                     messageRole: message.role,
                     selectedText,
-                    textQuote: truncateSelectionText(selectedText)
+                    textQuote: truncateSelectionText(selectedText),
                   },
-                  anchor
+                  anchor,
                 );
               };
 
@@ -124,7 +134,7 @@ export function ReaderView({
                     adjustModeEnabled,
                     effects: blockEffects,
                     isHighlighted,
-                    isSelected
+                    isSelected,
                   })}
                   data-selected={isSelected ? "true" : "false"}
                   onPointerUp={(event) => {
@@ -133,7 +143,10 @@ export function ReaderView({
                     }
 
                     const selection = window.getSelection();
-                    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                    const range =
+                      selection && selection.rangeCount > 0
+                        ? selection.getRangeAt(0)
+                        : null;
                     const selectedText = selection?.toString().trim() ?? "";
                     const container = event.currentTarget;
                     const rangeStartContainer = range?.startContainer ?? null;
@@ -151,7 +164,7 @@ export function ReaderView({
 
                     emitSelection(
                       toViewportAnchor(anchorRect),
-                      hasLocalTextSelection ? selectedText : blockText
+                      hasLocalTextSelection ? selectedText : blockText,
                     );
 
                     if (selection && hasLocalTextSelection) {
@@ -168,8 +181,10 @@ export function ReaderView({
                     }
 
                     emitSelection(
-                      toViewportAnchor(event.currentTarget.getBoundingClientRect()),
-                      blockText
+                      toViewportAnchor(
+                        event.currentTarget.getBoundingClientRect(),
+                      ),
+                      blockText,
                     );
                   }}
                 >

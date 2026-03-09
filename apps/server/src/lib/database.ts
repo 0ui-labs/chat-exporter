@@ -7,16 +7,17 @@ import Database from "better-sqlite3";
 import "../load-env.js";
 
 const defaultDbPath = fileURLToPath(
-  new URL("../../../../data/chat-exporter.db", import.meta.url)
+  new URL("../../../../data/chat-exporter.db", import.meta.url),
 );
 
 export const databasePath =
-  process.env.CHAT_EXPORTER_DB_PATH && process.env.CHAT_EXPORTER_DB_PATH.trim().length > 0
+  process.env.CHAT_EXPORTER_DB_PATH &&
+  process.env.CHAT_EXPORTER_DB_PATH.trim().length > 0
     ? path.resolve(process.env.CHAT_EXPORTER_DB_PATH)
     : defaultDbPath;
 
 fs.mkdirSync(path.dirname(databasePath), {
-  recursive: true
+  recursive: true,
 });
 
 export const db = new Database(databasePath);

@@ -1,6 +1,6 @@
 import type {
+  AdjustmentTargetFormat,
   AdjustmentSelection as SharedAdjustmentSelection,
-  AdjustmentTargetFormat
 } from "@chat-exporter/shared";
 
 export type ViewMode = Extract<
@@ -9,6 +9,19 @@ export type ViewMode = Extract<
 >;
 
 export type AdjustmentSelection = SharedAdjustmentSelection;
+
+/**
+ * Viewport-relative anchor coordinates as returned by `getBoundingClientRect()`.
+ * Produced by child views (`ReaderView`, `MarkdownView`) and converted to
+ * `FloatingAdjustmentAnchor` (container-relative) in `FormatWorkspace`.
+ */
+export type ViewportAnchor = {
+  bottom: number;
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
 
 /**
  * Anchor coordinates for the floating adjustment popover.

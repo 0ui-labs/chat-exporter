@@ -1,7 +1,7 @@
 import type {
   AdjustmentPreview,
   Conversation,
-  FormatRule
+  FormatRule,
 } from "@chat-exporter/shared";
 
 import {
@@ -9,7 +9,7 @@ import {
   blockToPlainText,
   getReaderBlockClassName,
   renderReaderBlock,
-  resolveReaderBlockEffects
+  resolveReaderBlockEffects,
 } from "@/components/format-workspace/rule-engine";
 import type { AdjustmentSelection } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
@@ -37,7 +37,7 @@ function buildPreviewRule(preview: AdjustmentPreview): FormatRule {
     compiledRule: preview.draftRule.effect,
     sourceSessionId: preview.sessionId,
     createdAt: timestamp,
-    updatedAt: timestamp
+    updatedAt: timestamp,
   };
 }
 
@@ -54,14 +54,20 @@ function MarkdownPreviewDiff(props: {
   const { activeRules, content, preview, selection } = props;
   const previewRule = buildPreviewRule(preview);
   const beforeContent = applyMarkdownRules(content, activeRules);
-  const afterContent = applyMarkdownRules(content, [...activeRules, previewRule]);
+  const afterContent = applyMarkdownRules(content, [
+    ...activeRules,
+    previewRule,
+  ]);
   const beforeLines = beforeContent.split("\n");
   const afterLines = afterContent.split("\n");
   const lineStart = selection.lineStart ?? 1;
   const lineEnd = selection.lineEnd ?? lineStart;
   const contextStart = Math.max(1, lineStart - 1);
   const contextEnd = Math.min(afterLines.length, lineEnd + 1);
-  const lineNumbers = Array.from({ length: contextEnd - contextStart + 1 }, (_, index) => contextStart + index);
+  const lineNumbers = Array.from(
+    { length: contextEnd - contextStart + 1 },
+    (_, index) => contextStart + index,
+  );
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -71,18 +77,25 @@ function MarkdownPreviewDiff(props: {
         </p>
         <div className="space-y-1 rounded-2xl bg-zinc-950 p-3">
           {lineNumbers.map((lineNumber) => {
-            const isSelectedLine = lineNumber >= lineStart && lineNumber <= lineEnd;
+            const isSelectedLine =
+              lineNumber >= lineStart && lineNumber <= lineEnd;
 
             return (
               <div
                 key={`before-${lineNumber}`}
                 className={cn(
                   "grid grid-cols-[auto_1fr] gap-3 rounded-lg px-2 py-1 font-mono text-xs text-zinc-100",
-                  isSelectedLine ? "bg-primary/15 ring-1 ring-primary/30" : null
+                  isSelectedLine
+                    ? "bg-primary/15 ring-1 ring-primary/30"
+                    : null,
                 )}
               >
-                <span className="select-none text-zinc-500">{formatLineNumber(lineNumber)}</span>
-                <span className="whitespace-pre-wrap break-words">{beforeLines[lineNumber - 1] ?? ""}</span>
+                <span className="select-none text-zinc-500">
+                  {formatLineNumber(lineNumber)}
+                </span>
+                <span className="whitespace-pre-wrap break-words">
+                  {beforeLines[lineNumber - 1] ?? ""}
+                </span>
               </div>
             );
           })}
@@ -95,20 +108,31 @@ function MarkdownPreviewDiff(props: {
         </p>
         <div className="space-y-1 rounded-2xl bg-zinc-950 p-3">
           {lineNumbers.map((lineNumber) => {
-            const isSelectedLine = lineNumber >= lineStart && lineNumber <= lineEnd;
-            const hasChanged = (beforeLines[lineNumber - 1] ?? "") !== (afterLines[lineNumber - 1] ?? "");
+            const isSelectedLine =
+              lineNumber >= lineStart && lineNumber <= lineEnd;
+            const hasChanged =
+              (beforeLines[lineNumber - 1] ?? "") !==
+              (afterLines[lineNumber - 1] ?? "");
 
             return (
               <div
                 key={`after-${lineNumber}`}
                 className={cn(
                   "grid grid-cols-[auto_1fr] gap-3 rounded-lg px-2 py-1 font-mono text-xs text-zinc-100",
-                  isSelectedLine ? "bg-primary/15 ring-1 ring-primary/30" : null,
-                  hasChanged ? "border border-emerald-400/30 bg-emerald-500/10" : null
+                  isSelectedLine
+                    ? "bg-primary/15 ring-1 ring-primary/30"
+                    : null,
+                  hasChanged
+                    ? "border border-emerald-400/30 bg-emerald-500/10"
+                    : null,
                 )}
               >
-                <span className="select-none text-zinc-500">{formatLineNumber(lineNumber)}</span>
-                <span className="whitespace-pre-wrap break-words">{afterLines[lineNumber - 1] ?? ""}</span>
+                <span className="select-none text-zinc-500">
+                  {formatLineNumber(lineNumber)}
+                </span>
+                <span className="whitespace-pre-wrap break-words">
+                  {afterLines[lineNumber - 1] ?? ""}
+                </span>
               </div>
             );
           })}
@@ -131,8 +155,11 @@ function ReaderPreviewDiff(props: {
   }
 
   const previewRule = buildPreviewRule(preview);
-  const messageIndex = conversation.messages.findIndex((message) => message.id === selection.messageId);
-  const message = messageIndex >= 0 ? conversation.messages[messageIndex] : undefined;
+  const messageIndex = conversation.messages.findIndex(
+    (message) => message.id === selection.messageId,
+  );
+  const message =
+    messageIndex >= 0 ? conversation.messages[messageIndex] : undefined;
 
   if (!message) {
     return null;
@@ -150,22 +177,26 @@ function ReaderPreviewDiff(props: {
     {
       block: selectedBlock,
       blockIndex: selection.blockIndex,
-      label: "Ausgewählter Block"
+      label: "Ausgewählter Block",
     },
     nextBlock
       ? {
           block: nextBlock,
           blockIndex: selection.blockIndex + 1,
-          label: "Folgender Block"
+          label: "Folgender Block",
         }
-      : null
+      : null,
   ].filter(Boolean) as Array<{
     block: typeof selectedBlock;
     blockIndex: number;
     label: string;
   }>;
 
-  function renderVariant(title: string, rules: FormatRule[], accentClassName: string) {
+  function renderVariant(
+    title: string,
+    rules: FormatRule[],
+    accentClassName: string,
+  ) {
     return (
       <div className={cn("space-y-2 rounded-2xl border p-3", accentClassName)}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -179,7 +210,7 @@ function ReaderPreviewDiff(props: {
               selectedMessage.id,
               blockIndex,
               block.type,
-              blockText
+              blockText,
             );
 
             return (
@@ -190,7 +221,7 @@ function ReaderPreviewDiff(props: {
                 <div
                   className={getReaderBlockClassName({
                     effects,
-                    isSelected: blockIndex === selection.blockIndex
+                    isSelected: blockIndex === selection.blockIndex,
                   })}
                 >
                   {renderReaderBlock(block, effects)}
@@ -205,14 +236,23 @@ function ReaderPreviewDiff(props: {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {renderVariant("Aktuelle Ausgabe", activeRules, "border-border/80 bg-background/85")}
-      {renderVariant("Vorschau nach Anwendung", [...activeRules, previewRule], "border-primary/20 bg-primary/5")}
+      {renderVariant(
+        "Aktuelle Ausgabe",
+        activeRules,
+        "border-border/80 bg-background/85",
+      )}
+      {renderVariant(
+        "Vorschau nach Anwendung",
+        [...activeRules, previewRule],
+        "border-primary/20 bg-primary/5",
+      )}
     </div>
   );
 }
 
 export function AdjustmentPreviewRender(props: AdjustmentPreviewRenderProps) {
-  const { activeRules, conversation, markdownContent, preview, selection } = props;
+  const { activeRules, conversation, markdownContent, preview, selection } =
+    props;
 
   if (preview.targetFormat === "markdown") {
     return (

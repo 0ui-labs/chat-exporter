@@ -9,7 +9,7 @@ export const adjustmentTargetFormatSchema = z.enum([
   "json",
   "html",
   "rich_text",
-  "clipboard_html"
+  "clipboard_html",
 ]);
 
 export const adjustmentSessionStatusSchema = z.enum([
@@ -17,7 +17,7 @@ export const adjustmentSessionStatusSchema = z.enum([
   "preview_ready",
   "applied",
   "discarded",
-  "failed"
+  "failed",
 ]);
 
 export const formatRuleKindSchema = z.enum([
@@ -25,20 +25,20 @@ export const formatRuleKindSchema = z.enum([
   "inline_semantics",
   "render",
   "export_profile",
-  "clipboard"
+  "clipboard",
 ]);
 
 export const formatRuleScopeSchema = z.enum([
   "import_local",
   "format_profile",
-  "workspace_global"
+  "workspace_global",
 ]);
 
 export const formatRuleStatusSchema = z.enum([
   "draft",
   "active",
   "disabled",
-  "rejected"
+  "rejected",
 ]);
 
 export const adjustmentEventTypeSchema = z.enum([
@@ -48,7 +48,7 @@ export const adjustmentEventTypeSchema = z.enum([
   "preview_failed",
   "rule_applied",
   "rule_disabled",
-  "session_discarded"
+  "session_discarded",
 ]);
 
 export const adjustmentSelectionSchema = z.object({
@@ -60,69 +60,81 @@ export const adjustmentSelectionSchema = z.object({
   messageIndex: z.number().int().nonnegative(),
   messageRole: z.string(),
   selectedText: z.string(),
-  textQuote: z.string()
+  textQuote: z.string(),
 });
 
 export const createAdjustmentSessionRequestSchema = z.object({
   selection: adjustmentSelectionSchema,
-  targetFormat: adjustmentTargetFormatSchema
+  targetFormat: adjustmentTargetFormatSchema,
 });
 
 export const appendAdjustmentMessageRequestSchema = z.object({
-  content: z.string().trim().min(1)
+  content: z.string().trim().min(1),
 });
 
 // --- Selector schemas ---
 
-export const exactReaderSelectorSchema = z.object({
-  blockIndex: z.number().int().nonnegative(),
-  blockType: z.string(),
-  messageId: z.string(),
-  strategy: z.literal("exact").optional()
-});
+export const exactReaderSelectorSchema = z
+  .object({
+    blockIndex: z.number().int().nonnegative(),
+    blockType: z.string(),
+    messageId: z.string(),
+    strategy: z.literal("exact"),
+  })
+  .strict();
 
-export const exactMarkdownSelectorSchema = z.object({
-  blockIndex: z.number().int().nonnegative(),
-  blockType: z.literal("markdown-lines"),
-  lineEnd: z.number().int().positive(),
-  lineStart: z.number().int().positive(),
-  messageId: z.string(),
-  strategy: z.literal("exact").optional()
-});
+export const exactMarkdownSelectorSchema = z
+  .object({
+    blockIndex: z.number().int().nonnegative(),
+    blockType: z.literal("markdown-lines"),
+    lineEnd: z.number().int().positive(),
+    lineStart: z.number().int().positive(),
+    messageId: z.string(),
+    strategy: z.literal("exact"),
+  })
+  .strict();
 
-export const blockTypeSelectorSchema = z.object({
-  blockType: z.string(),
-  strategy: z.literal("block_type")
-});
+export const blockTypeSelectorSchema = z
+  .object({
+    blockType: z.string(),
+    strategy: z.literal("block_type"),
+  })
+  .strict();
 
-export const readerPrefixSelectorSchema = z.object({
-  blockType: z.string(),
-  strategy: z.literal("prefix_before_colon")
-});
+export const readerPrefixSelectorSchema = z
+  .object({
+    blockType: z.string(),
+    strategy: z.literal("prefix_before_colon"),
+  })
+  .strict();
 
-export const markdownPrefixSelectorSchema = z.object({
-  strategy: z.literal("prefix_before_colon")
-});
+export const markdownPrefixSelectorSchema = z
+  .object({
+    strategy: z.literal("prefix_before_colon"),
+  })
+  .strict();
 
-export const markdownTableSelectorSchema = z.object({
-  strategy: z.literal("markdown_table")
-});
+export const markdownTableSelectorSchema = z
+  .object({
+    strategy: z.literal("markdown_table"),
+  })
+  .strict();
 
 export const readerRuleSelectorSchema = z.union([
   exactReaderSelectorSchema,
   blockTypeSelectorSchema,
-  readerPrefixSelectorSchema
+  readerPrefixSelectorSchema,
 ]);
 
 export const markdownRuleSelectorSchema = z.union([
   exactMarkdownSelectorSchema,
   markdownPrefixSelectorSchema,
-  markdownTableSelectorSchema
+  markdownTableSelectorSchema,
 ]);
 
 export const ruleSelectorSchema = z.union([
   readerRuleSelectorSchema,
-  markdownRuleSelectorSchema
+  markdownRuleSelectorSchema,
 ]);
 
 // --- Effect schemas ---
@@ -130,42 +142,42 @@ export const ruleSelectorSchema = z.union([
 export const adjustBlockSpacingEffectSchema = z.object({
   amount: z.enum(["sm", "md", "lg"]),
   direction: z.literal("after"),
-  type: z.literal("adjust_block_spacing")
+  type: z.literal("adjust_block_spacing"),
 });
 
 export const increaseHeadingEmphasisEffectSchema = z.object({
   amount: z.enum(["sm", "md", "lg"]),
-  type: z.literal("increase_heading_emphasis")
+  type: z.literal("increase_heading_emphasis"),
 });
 
 export const refineBlockPresentationEffectSchema = z.object({
   emphasis: z.enum(["balanced", "subtle", "strong"]),
-  type: z.literal("refine_selected_block_presentation")
+  type: z.literal("refine_selected_block_presentation"),
 });
 
 export const boldPrefixEffectSchema = z.object({
-  type: z.literal("bold_prefix_before_colon")
+  type: z.literal("bold_prefix_before_colon"),
 });
 
 export const renderMarkdownStrongEffectSchema = z.object({
-  type: z.literal("render_markdown_strong")
+  type: z.literal("render_markdown_strong"),
 });
 
 export const promoteToHeadingEffectSchema = z.object({
   level: z.number().int().min(1).max(6),
-  type: z.literal("promote_to_heading")
+  type: z.literal("promote_to_heading"),
 });
 
 export const normalizeListStructureEffectSchema = z.object({
-  type: z.literal("normalize_list_structure")
+  type: z.literal("normalize_list_structure"),
 });
 
 export const normalizeMarkdownTableEffectSchema = z.object({
-  type: z.literal("normalize_markdown_table")
+  type: z.literal("normalize_markdown_table"),
 });
 
 export const reshapeMarkdownBlockEffectSchema = z.object({
-  type: z.literal("reshape_markdown_block")
+  type: z.literal("reshape_markdown_block"),
 });
 
 export const ruleEffectSchema = z.discriminatedUnion("type", [
@@ -177,7 +189,81 @@ export const ruleEffectSchema = z.discriminatedUnion("type", [
   promoteToHeadingEffectSchema,
   normalizeListStructureEffectSchema,
   normalizeMarkdownTableEffectSchema,
-  reshapeMarkdownBlockEffectSchema
+  reshapeMarkdownBlockEffectSchema,
+]);
+
+// --- Format-specific draftRule schemas (semantic validation) ---
+
+export const readerDraftRuleSchema = z.union([
+  z.object({
+    effect: adjustBlockSpacingEffectSchema,
+    kind: z.literal("render"),
+    scope: formatRuleScopeSchema,
+    selector: z.union([exactReaderSelectorSchema, blockTypeSelectorSchema]),
+  }),
+  z.object({
+    effect: increaseHeadingEmphasisEffectSchema,
+    kind: z.literal("render"),
+    scope: formatRuleScopeSchema,
+    selector: z.union([exactReaderSelectorSchema, blockTypeSelectorSchema]),
+  }),
+  z.object({
+    effect: refineBlockPresentationEffectSchema,
+    kind: z.literal("render"),
+    scope: formatRuleScopeSchema,
+    selector: exactReaderSelectorSchema,
+  }),
+  z.object({
+    effect: boldPrefixEffectSchema,
+    kind: z.literal("inline_semantics"),
+    scope: formatRuleScopeSchema,
+    selector: z.union([exactReaderSelectorSchema, readerPrefixSelectorSchema]),
+  }),
+  z.object({
+    effect: renderMarkdownStrongEffectSchema,
+    kind: z.literal("inline_semantics"),
+    scope: formatRuleScopeSchema,
+    selector: exactReaderSelectorSchema,
+  }),
+]);
+
+export const markdownDraftRuleSchema = z.union([
+  z.object({
+    effect: promoteToHeadingEffectSchema,
+    kind: z.literal("structure"),
+    scope: formatRuleScopeSchema,
+    selector: exactMarkdownSelectorSchema,
+  }),
+  z.object({
+    effect: boldPrefixEffectSchema,
+    kind: z.literal("inline_semantics"),
+    scope: formatRuleScopeSchema,
+    selector: z.union([
+      exactMarkdownSelectorSchema,
+      markdownPrefixSelectorSchema,
+    ]),
+  }),
+  z.object({
+    effect: normalizeListStructureEffectSchema,
+    kind: z.literal("structure"),
+    scope: formatRuleScopeSchema,
+    selector: exactMarkdownSelectorSchema,
+  }),
+  z.object({
+    effect: normalizeMarkdownTableEffectSchema,
+    kind: z.literal("export_profile"),
+    scope: formatRuleScopeSchema,
+    selector: z.union([
+      exactMarkdownSelectorSchema,
+      markdownTableSelectorSchema,
+    ]),
+  }),
+  z.object({
+    effect: reshapeMarkdownBlockEffectSchema,
+    kind: z.literal("structure"),
+    scope: formatRuleScopeSchema,
+    selector: exactMarkdownSelectorSchema,
+  }),
 ]);
 
 // --- Preview and rule schemas ---
@@ -187,13 +273,13 @@ export const adjustmentPreviewSchema = z.object({
     effect: ruleEffectSchema,
     kind: formatRuleKindSchema,
     scope: formatRuleScopeSchema,
-    selector: ruleSelectorSchema
+    selector: ruleSelectorSchema,
   }),
   limitations: z.array(z.string()),
   rationale: z.string(),
   sessionId: z.string(),
   summary: z.string(),
-  targetFormat: adjustmentTargetFormatSchema
+  targetFormat: adjustmentTargetFormatSchema,
 });
 
 export const adjustmentSessionSchema = z.object({
@@ -204,7 +290,7 @@ export const adjustmentSessionSchema = z.object({
   selection: adjustmentSelectionSchema,
   previewArtifact: adjustmentPreviewSchema.optional(),
   createdAt: z.string(),
-  updatedAt: z.string()
+  updatedAt: z.string(),
 });
 
 export const adjustmentMessageSchema = z.object({
@@ -212,17 +298,17 @@ export const adjustmentMessageSchema = z.object({
   sessionId: z.string(),
   role: roleSchema,
   content: z.string(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 
 export const adjustmentSessionDetailSchema = z.object({
   messages: z.array(adjustmentMessageSchema),
-  session: adjustmentSessionSchema
+  session: adjustmentSessionSchema,
 });
 
 export const applyAdjustmentSessionResponseSchema = z.object({
   rule: z.lazy(() => formatRuleSchema),
-  session: adjustmentSessionSchema
+  session: adjustmentSessionSchema,
 });
 
 export const formatRuleSchema = z.object({
@@ -237,7 +323,7 @@ export const formatRuleSchema = z.object({
   compiledRule: ruleEffectSchema.optional(),
   sourceSessionId: z.string().optional(),
   createdAt: z.string(),
-  updatedAt: z.string()
+  updatedAt: z.string(),
 });
 
 export const adjustmentMetricsSchema = z.object({
@@ -248,27 +334,39 @@ export const adjustmentMetricsSchema = z.object({
     rulesApplied: z.number().int().nonnegative(),
     rulesDisabled: z.number().int().nonnegative(),
     sessionsCreated: z.number().int().nonnegative(),
-    sessionsDiscarded: z.number().int().nonnegative()
+    sessionsDiscarded: z.number().int().nonnegative(),
   }),
   importId: z.string(),
   targetFormat: adjustmentTargetFormatSchema,
-  updatedAt: z.string().nullable()
+  updatedAt: z.string().nullable(),
 });
 
-export type AdjustmentTargetFormat = z.infer<typeof adjustmentTargetFormatSchema>;
-export type AdjustmentSessionStatus = z.infer<typeof adjustmentSessionStatusSchema>;
+export type AdjustmentTargetFormat = z.infer<
+  typeof adjustmentTargetFormatSchema
+>;
+export type AdjustmentSessionStatus = z.infer<
+  typeof adjustmentSessionStatusSchema
+>;
 export type FormatRuleKind = z.infer<typeof formatRuleKindSchema>;
 export type FormatRuleScope = z.infer<typeof formatRuleScopeSchema>;
 export type FormatRuleStatus = z.infer<typeof formatRuleStatusSchema>;
 export type AdjustmentEventType = z.infer<typeof adjustmentEventTypeSchema>;
 export type AdjustmentSelection = z.infer<typeof adjustmentSelectionSchema>;
-export type CreateAdjustmentSessionRequest = z.infer<typeof createAdjustmentSessionRequestSchema>;
-export type AppendAdjustmentMessageRequest = z.infer<typeof appendAdjustmentMessageRequestSchema>;
+export type CreateAdjustmentSessionRequest = z.infer<
+  typeof createAdjustmentSessionRequestSchema
+>;
+export type AppendAdjustmentMessageRequest = z.infer<
+  typeof appendAdjustmentMessageRequestSchema
+>;
 export type AdjustmentPreview = z.infer<typeof adjustmentPreviewSchema>;
 export type AdjustmentSession = z.infer<typeof adjustmentSessionSchema>;
 export type AdjustmentMessage = z.infer<typeof adjustmentMessageSchema>;
-export type AdjustmentSessionDetail = z.infer<typeof adjustmentSessionDetailSchema>;
-export type ApplyAdjustmentSessionResponse = z.infer<typeof applyAdjustmentSessionResponseSchema>;
+export type AdjustmentSessionDetail = z.infer<
+  typeof adjustmentSessionDetailSchema
+>;
+export type ApplyAdjustmentSessionResponse = z.infer<
+  typeof applyAdjustmentSessionResponseSchema
+>;
 export type FormatRule = z.infer<typeof formatRuleSchema>;
 export type AdjustmentMetrics = z.infer<typeof adjustmentMetricsSchema>;
 export type RuleSelector = z.infer<typeof ruleSelectorSchema>;

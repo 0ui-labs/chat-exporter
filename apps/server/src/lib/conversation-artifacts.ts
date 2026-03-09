@@ -21,7 +21,8 @@ function blocksToWords(blocks: Block[]) {
 export function conversationToMarkdown(conversation: Conversation) {
   return conversation.messages
     .map((message) => {
-      const heading = message.role.charAt(0).toUpperCase() + message.role.slice(1);
+      const heading =
+        message.role.charAt(0).toUpperCase() + message.role.slice(1);
       const body = message.blocks
         .map((block) => {
           switch (block.type) {
@@ -32,7 +33,7 @@ export function conversationToMarkdown(conversation: Conversation) {
             case "list":
               return block.items
                 .map((item, index) =>
-                  block.ordered ? `${index + 1}. ${item}` : `- ${item}`
+                  block.ordered ? `${index + 1}. ${item}` : `- ${item}`,
                 )
                 .join("\n");
             case "quote":
@@ -46,7 +47,7 @@ export function conversationToMarkdown(conversation: Conversation) {
               const header = `| ${block.headers.map(escapePipe).join(" | ")} |`;
               const divider = `| ${block.headers.map(() => "---").join(" | ")} |`;
               const rows = block.rows.map(
-                (row) => `| ${row.map(escapePipe).join(" | ")} |`
+                (row) => `| ${row.map(escapePipe).join(" | ")} |`,
               );
               return [header, divider, ...rows].join("\n");
             }
@@ -78,7 +79,7 @@ export function conversationToHandover(conversation: Conversation) {
             case "table":
               return [
                 block.headers.join(" | "),
-                ...block.rows.map((row) => row.join(" | "))
+                ...block.rows.map((row) => row.join(" | ")),
               ].join("\n");
           }
         })
@@ -94,6 +95,6 @@ export function conversationToHandover(conversation: Conversation) {
 export function conversationWordCount(conversation: Conversation) {
   return conversation.messages.reduce(
     (count, message) => count + blocksToWords(message.blocks),
-    0
+    0,
   );
 }

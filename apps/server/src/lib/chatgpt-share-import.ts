@@ -1,16 +1,16 @@
 import {
-  conversationSchema,
-  normalizedSnapshotPayloadSchema,
   type Conversation,
+  conversationSchema,
   type ImportStage,
-  type NormalizedSnapshotPayload
+  type NormalizedSnapshotPayload,
+  normalizedSnapshotPayloadSchema,
 } from "@chat-exporter/shared";
 import { chromium } from "playwright";
 
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 
 type StageCallback = (
-  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">
+  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
 ) => void;
 
 type ImportResult = {
@@ -36,10 +36,10 @@ export async function importChatGptSharePage(
   url: string,
   options?: {
     onStage?: StageCallback;
-  }
+  },
 ): Promise<ImportResult> {
   const browser = await chromium.launch({
-    headless: true
+    headless: true,
   });
 
   try {
@@ -48,7 +48,11 @@ export async function importChatGptSharePage(
     await context.route("**/*", (route) => {
       const resourceType = route.request().resourceType();
 
-      if (resourceType === "image" || resourceType === "media" || resourceType === "font") {
+      if (
+        resourceType === "image" ||
+        resourceType === "media" ||
+        resourceType === "font"
+      ) {
         return route.abort();
       }
 
@@ -57,33 +61,33 @@ export async function importChatGptSharePage(
 
     const page = await context.newPage();
     await page.addInitScript({
-      content: "globalThis.__name = (value) => value;"
+      content: "globalThis.__name = (value) => value;",
     });
 
     options?.onStage?.("fetch");
     await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 30_000
+      timeout: 30_000,
     });
     await page.waitForFunction(
       (selector) => document.querySelectorAll(selector).length > 0,
       CHATGPT_SHARE_SELECTOR,
       {
-        timeout: 20_000
-      }
+        timeout: 20_000,
+      },
     );
     await page.waitForTimeout(800);
 
     options?.onStage?.("extract");
     const extracted = await page.evaluate(() => {
-      const __name = <T,>(value: T) => value;
+      const __name = <T>(value: T) => value;
       const wrapperTags = new Set([
         "ARTICLE",
         "SECTION",
         "DIV",
         "SPAN",
         "FIGURE",
-        "MAIN"
+        "MAIN",
       ]);
       const blockTags = new Set([
         "P",
@@ -98,7 +102,7 @@ export async function importChatGptSharePage(
         "PRE",
         "BLOCKQUOTE",
         "TABLE",
-        "HR"
+        "HR",
       ]);
       const codeLanguageLabels = new Set([
         "plain text",
@@ -117,7 +121,7 @@ export async function importChatGptSharePage(
         "markdown",
         "md",
         "yaml",
-        "yml"
+        "yml",
       ]);
 
       function normalizeWhitespace(value: string) {
@@ -157,7 +161,9 @@ export async function importChatGptSharePage(
           return "\n";
         }
 
-        const childText = Array.from(element.childNodes).map(inlineText).join("");
+        const childText = Array.from(element.childNodes)
+          .map(inlineText)
+          .join("");
 
         switch (tagName) {
           case "A": {
@@ -194,13 +200,15 @@ export async function importChatGptSharePage(
       }
 
       function inlineFromElement(element: Element) {
-        return normalizeWhitespace(Array.from(element.childNodes).map(inlineText).join(""));
+        return normalizeWhitespace(
+          Array.from(element.childNodes).map(inlineText).join(""),
+        );
       }
 
       function extractListItems(listElement: Element, depth = 0): string[] {
         const items: string[] = [];
         const listItems = Array.from(listElement.children).filter(
-          (child) => child.tagName === "LI"
+          (child) => child.tagName === "LI",
         );
 
         for (const listItem of listItems) {
@@ -223,7 +231,7 @@ export async function importChatGptSharePage(
           }
 
           const nestedLists = Array.from(listItem.children).filter((child) =>
-            ["UL", "OL"].includes(child.tagName)
+            ["UL", "OL"].includes(child.tagName),
           );
 
           for (const nestedList of nestedLists) {
@@ -235,7 +243,8 @@ export async function importChatGptSharePage(
       }
 
       function detectCodeLanguage(preElement: HTMLElement) {
-        const firstLine = preElement.innerText.split("\n")[0]?.trim().toLowerCase() ?? "";
+        const firstLine =
+          preElement.innerText.split("\n")[0]?.trim().toLowerCase() ?? "";
 
         if (codeLanguageLabels.has(firstLine)) {
           return firstLine === "plain text" ? "text" : firstLine;
@@ -253,7 +262,11 @@ export async function importChatGptSharePage(
 
         while (lines.length > 1) {
           const firstLine = lines[0]?.trim().toLowerCase() ?? "";
-          if (!codeLanguageLabels.has(firstLine) && firstLine !== "kopieren" && firstLine !== "copy") {
+          if (
+            !codeLanguageLabels.has(firstLine) &&
+            firstLine !== "kopieren" &&
+            firstLine !== "copy"
+          ) {
             break;
           }
           lines.shift();
@@ -263,22 +276,28 @@ export async function importChatGptSharePage(
       }
 
       function extractTable(tableElement: HTMLTableElement) {
-        const headerRows = Array.from(tableElement.querySelectorAll("thead tr"));
+        const headerRows = Array.from(
+          tableElement.querySelectorAll("thead tr"),
+        );
         const bodyRows = Array.from(tableElement.querySelectorAll("tbody tr"));
         const fallbackRows = Array.from(tableElement.querySelectorAll("tr"));
         const firstHeaderRow = headerRows[0];
 
-        const headers =
-          firstHeaderRow
-            ? Array.from(firstHeaderRow.querySelectorAll("th,td")).map((cell) =>
-                inlineFromElement(cell)
-              )
-            : [];
+        const headers = firstHeaderRow
+          ? Array.from(firstHeaderRow.querySelectorAll("th,td")).map((cell) =>
+              inlineFromElement(cell),
+            )
+          : [];
 
-        const rowSource = bodyRows.length > 0 ? bodyRows : fallbackRows.slice(headers.length > 0 ? 1 : 0);
+        const rowSource =
+          bodyRows.length > 0
+            ? bodyRows
+            : fallbackRows.slice(headers.length > 0 ? 1 : 0);
         const rows = rowSource
           .map((row) =>
-            Array.from(row.querySelectorAll("th,td")).map((cell) => inlineFromElement(cell))
+            Array.from(row.querySelectorAll("th,td")).map((cell) =>
+              inlineFromElement(cell),
+            ),
           )
           .filter((row) => row.some(Boolean));
 
@@ -289,11 +308,13 @@ export async function importChatGptSharePage(
         return {
           type: "table" as const,
           headers,
-          rows
+          rows,
         };
       }
 
-      function elementToBlocks(element: Element): Array<Record<string, unknown>> {
+      function elementToBlocks(
+        element: Element,
+      ): Array<Record<string, unknown>> {
         const tagName = element.tagName.toUpperCase();
 
         if (tagName === "P") {
@@ -314,8 +335,8 @@ export async function importChatGptSharePage(
                 {
                   type: "list",
                   ordered: tagName === "OL",
-                  items
-                }
+                  items,
+                },
               ]
             : [];
         }
@@ -327,8 +348,8 @@ export async function importChatGptSharePage(
                 {
                   type: "code",
                   language: detectCodeLanguage(element as HTMLElement),
-                  text
-                }
+                  text,
+                },
               ]
             : [];
         }
@@ -348,18 +369,20 @@ export async function importChatGptSharePage(
         }
 
         if (wrapperTags.has(tagName)) {
-          const childBlocks = Array.from(element.childNodes).flatMap((childNode) => {
-            if (childNode.nodeType === Node.TEXT_NODE) {
-              const text = normalizeWhitespace(childNode.textContent ?? "");
-              return text ? [{ type: "paragraph" as const, text }] : [];
-            }
+          const childBlocks = Array.from(element.childNodes).flatMap(
+            (childNode) => {
+              if (childNode.nodeType === Node.TEXT_NODE) {
+                const text = normalizeWhitespace(childNode.textContent ?? "");
+                return text ? [{ type: "paragraph" as const, text }] : [];
+              }
 
-            if (childNode.nodeType !== Node.ELEMENT_NODE) {
-              return [];
-            }
+              if (childNode.nodeType !== Node.ELEMENT_NODE) {
+                return [];
+              }
 
-            return elementToBlocks(childNode as Element);
-          });
+              return elementToBlocks(childNode as Element);
+            },
+          );
 
           if (childBlocks.length > 0) {
             return childBlocks;
@@ -367,11 +390,13 @@ export async function importChatGptSharePage(
         }
 
         const hasBlockChildren = Array.from(element.children).some((child) =>
-          blockTags.has(child.tagName)
+          blockTags.has(child.tagName),
         );
 
         if (hasBlockChildren) {
-          return Array.from(element.children).flatMap((child) => elementToBlocks(child));
+          return Array.from(element.children).flatMap((child) =>
+            elementToBlocks(child),
+          );
         }
 
         const text = inlineFromElement(element);
@@ -389,29 +414,39 @@ export async function importChatGptSharePage(
 
       const messages = articles
         .map((article) => {
-          const messageElement = article.querySelector("[data-message-author-role]") as HTMLElement | null;
+          const messageElement = article.querySelector(
+            "[data-message-author-role]",
+          ) as HTMLElement | null;
           if (!messageElement) {
             return null;
           }
 
-          const role = messageElement.getAttribute("data-message-author-role") ?? "unknown";
-          const messageId = messageElement.getAttribute("data-message-id") ?? crypto.randomUUID();
+          const role =
+            messageElement.getAttribute("data-message-author-role") ??
+            "unknown";
+          const messageId =
+            messageElement.getAttribute("data-message-id") ??
+            crypto.randomUUID();
 
           if (role === "assistant") {
             const markdownRoot =
-              (messageElement.querySelector(".markdown") as HTMLElement | null) ?? messageElement;
-            const blocks = Array.from(markdownRoot.childNodes).flatMap((childNode) => {
-              if (childNode.nodeType === Node.TEXT_NODE) {
-                const text = normalizeWhitespace(childNode.textContent ?? "");
-                return text ? [{ type: "paragraph" as const, text }] : [];
-              }
+              (messageElement.querySelector(
+                ".markdown",
+              ) as HTMLElement | null) ?? messageElement;
+            const blocks = Array.from(markdownRoot.childNodes).flatMap(
+              (childNode) => {
+                if (childNode.nodeType === Node.TEXT_NODE) {
+                  const text = normalizeWhitespace(childNode.textContent ?? "");
+                  return text ? [{ type: "paragraph" as const, text }] : [];
+                }
 
-              if (childNode.nodeType !== Node.ELEMENT_NODE) {
-                return [];
-              }
+                if (childNode.nodeType !== Node.ELEMENT_NODE) {
+                  return [];
+                }
 
-              return elementToBlocks(childNode as Element);
-            });
+                return elementToBlocks(childNode as Element);
+              },
+            );
 
             const rawText = normalizeWhitespace(messageElement.innerText);
             const rawHtml = messageElement.innerHTML;
@@ -429,8 +464,8 @@ export async function importChatGptSharePage(
                       source: "assistant-fallback",
                       blockCount: 1,
                       usedFallback: true,
-                      strategy: "fallback" as const
-                    }
+                      strategy: "fallback" as const,
+                    },
                   }
                 : null;
             }
@@ -445,14 +480,15 @@ export async function importChatGptSharePage(
                 source: "assistant-markdown",
                 blockCount: blocks.length,
                 usedFallback: false,
-                strategy: "deterministic" as const
-              }
+                strategy: "deterministic" as const,
+              },
             };
           }
 
           const textSource =
-            (messageElement.querySelector(".whitespace-pre-wrap") as HTMLElement | null) ??
-            messageElement;
+            (messageElement.querySelector(
+              ".whitespace-pre-wrap",
+            ) as HTMLElement | null) ?? messageElement;
           const text = normalizeWhitespace(textSource.innerText);
           const rawHtml = textSource.innerHTML;
 
@@ -470,8 +506,8 @@ export async function importChatGptSharePage(
                       : "user-whitespace-pre-wrap",
                   blockCount: 1,
                   usedFallback: false,
-                  strategy: "deterministic" as const
-                }
+                  strategy: "deterministic" as const,
+                },
               }
             : null;
         })
@@ -479,14 +515,14 @@ export async function importChatGptSharePage(
 
       if (fallbackCount > 0) {
         warnings.push(
-          `${fallbackCount} assistant message(s) fell back to a plain paragraph because no richer block structure was detected.`
+          `${fallbackCount} assistant message(s) fell back to a plain paragraph because no richer block structure was detected.`,
         );
       }
 
       return {
         title: normalizeTitle(document.title),
         messages,
-        warnings
+        warnings,
       };
     });
 
@@ -498,7 +534,7 @@ export async function importChatGptSharePage(
       ...normalizedPayload,
       messages: structured.messages,
       warnings: [...normalizedPayload.warnings, ...structured.warnings],
-      structuring: structured.structuring
+      structuring: structured.structuring,
     });
     const rawHtml = await page.content();
     const fetchedAt = new Date().toISOString();
@@ -508,9 +544,9 @@ export async function importChatGptSharePage(
       title: finalPayload.title,
       source: {
         url,
-        platform: "chatgpt"
+        platform: "chatgpt",
       },
-      messages: finalPayload.messages
+      messages: finalPayload.messages,
     });
 
     return {
@@ -525,9 +561,9 @@ export async function importChatGptSharePage(
         fetchMetadata: {
           articleCount: normalizedPayload.messages.length,
           messageCount: conversation.messages.length,
-          rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8")
-        }
-      }
+          rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8"),
+        },
+      },
     };
   } finally {
     await browser.close();

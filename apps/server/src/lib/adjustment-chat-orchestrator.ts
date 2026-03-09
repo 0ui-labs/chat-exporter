@@ -3,7 +3,7 @@ import type {
   AdjustmentTargetFormat,
   Block,
   FormatRule,
-  ImportJob
+  ImportJob,
 } from "@chat-exporter/shared";
 
 import { readAdjustmentAiConfig } from "./adjustment-ai-config.js";
@@ -32,7 +32,9 @@ type FunctionCallItem = {
 
 type RunAdjustmentChatTurnInput = {
   activeRules: FormatRule[];
-  executeApplyAdjustmentRule: (args: ApplyAdjustmentRuleArgs) => Promise<ApplyAdjustmentRuleResult>;
+  executeApplyAdjustmentRule: (
+    args: ApplyAdjustmentRuleArgs,
+  ) => Promise<ApplyAdjustmentRuleResult>;
   job?: ImportJob;
   sessionDetail: AdjustmentSessionDetail;
 };
@@ -61,11 +63,17 @@ function blockToPlainText(block: Block) {
     case "list":
       return block.items.join("\n");
     case "table":
-      return [block.headers.join(" | "), ...block.rows.map((row) => row.join(" | "))].join("\n");
+      return [
+        block.headers.join(" | "),
+        ...block.rows.map((row) => row.join(" | ")),
+      ].join("\n");
   }
 }
 
-function summarizeSelection(sessionDetail: AdjustmentSessionDetail, job: ImportJob | undefined) {
+function summarizeSelection(
+  sessionDetail: AdjustmentSessionDetail,
+  job: ImportJob | undefined,
+) {
   const { selection, targetFormat } = sessionDetail.session;
 
   if (targetFormat === "markdown") {
@@ -75,27 +83,36 @@ function summarizeSelection(sessionDetail: AdjustmentSessionDetail, job: ImportJ
     const lineEnd = selection.lineEnd ?? lineStart;
 
     return {
-      currentExcerpt: lines.slice(lineStart - 1, lineEnd).join("\n") || selection.selectedText,
+      currentExcerpt:
+        lines.slice(lineStart - 1, lineEnd).join("\n") ||
+        selection.selectedText,
       description: `Markdown-Zeilen ${lineStart}-${lineEnd}`,
       surrounding: {
         next: lines[lineEnd] ?? null,
-        previous: lineStart > 1 ? lines[lineStart - 2] ?? null : null
-      }
+        previous: lineStart > 1 ? (lines[lineStart - 2] ?? null) : null,
+      },
     };
   }
 
-  const message = job?.conversation?.messages.find((entry) => entry.id === selection.messageId);
+  const message = job?.conversation?.messages.find(
+    (entry) => entry.id === selection.messageId,
+  );
   const currentBlock = message?.blocks[selection.blockIndex];
-  const previousBlock = selection.blockIndex > 0 ? message?.blocks[selection.blockIndex - 1] : undefined;
+  const previousBlock =
+    selection.blockIndex > 0
+      ? message?.blocks[selection.blockIndex - 1]
+      : undefined;
   const nextBlock = message?.blocks[selection.blockIndex + 1];
 
   return {
-    currentExcerpt: currentBlock ? blockToPlainText(currentBlock) : selection.selectedText,
+    currentExcerpt: currentBlock
+      ? blockToPlainText(currentBlock)
+      : selection.selectedText,
     description: `${selection.messageRole} message ${selection.messageIndex + 1}, ${selection.blockType}`,
     surrounding: {
       next: nextBlock ? blockToPlainText(nextBlock) : null,
-      previous: previousBlock ? blockToPlainText(previousBlock) : null
-    }
+      previous: previousBlock ? blockToPlainText(previousBlock) : null,
+    },
   };
 }
 
@@ -107,7 +124,7 @@ function summarizeActiveRules(activeRules: FormatRule[]) {
       compiledRule: rule.compiledRule,
       instruction: rule.instruction,
       kind: rule.kind,
-      selector: rule.selector
+      selector: rule.selector,
     }));
 }
 
@@ -122,12 +139,12 @@ function buildChatContext(input: RunAdjustmentChatTurnInput) {
       selectionContext: summarizeSelection(sessionDetail, job),
       sessionMessages: sessionDetail.messages.map((message) => ({
         content: message.content,
-        role: message.role
+        role: message.role,
       })),
-      targetFormat
+      targetFormat,
     },
     null,
-    2
+    2,
   );
 }
 
@@ -147,7 +164,7 @@ function buildSystemInstructions(targetFormat: AdjustmentTargetFormat) {
     "Gehe nicht automatisch davon aus, dass etwas falsch ist; reagiere auf den tatsächlichen Wunsch des Nutzers.",
     "Zeige niemals JSON, Regel-Interna, Vorschau-Vergleiche oder technische Schritte.",
     "Nach einem erfolgreichen Tool-Call bestätigst du nur knapp, was jetzt sichtbar geändert wurde.",
-    formatSpecificInstruction
+    formatSpecificInstruction,
   ].join("\n");
 }
 
@@ -164,15 +181,15 @@ function buildTools(targetFormat: AdjustmentTargetFormat) {
           instruction: {
             description:
               "Kurze deutsche Arbeitsanweisung für die gewünschte Formatänderung, konkret genug zum Ableiten der Regel.",
-            type: "string"
-          }
+            type: "string",
+          },
         },
         required: ["instruction"],
-        type: "object"
+        type: "object",
       },
       strict: true,
-      type: "function"
-    }
+      type: "function",
+    },
   ];
 }
 
@@ -181,12 +198,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function parseApplyAdjustmentRuleArgs(value: unknown): ApplyAdjustmentRuleArgs {
-  if (!isRecord(value) || typeof value.instruction !== "string" || !value.instruction.trim()) {
-    throw new Error("Der Tool-Call apply_adjustment_rule enthält keine gültige instruction.");
+  if (
+    !isRecord(value) ||
+    typeof value.instruction !== "string" ||
+    !value.instruction.trim()
+  ) {
+    throw new Error(
+      "Der Tool-Call apply_adjustment_rule enthält keine gültige instruction.",
+    );
   }
 
   return {
-    instruction: value.instruction.trim()
+    instruction: value.instruction.trim(),
   };
 }
 
@@ -212,8 +235,8 @@ function extractFunctionCalls(payload: ResponsesPayload): FunctionCallItem[] {
       {
         arguments: args,
         callId,
-        name
-      }
+        name,
+      },
     ];
   });
 }
@@ -229,7 +252,11 @@ function extractAssistantMessage(payload: ResponsesPayload) {
 
   return payload.output
     .flatMap((item) => {
-      if (!isRecord(item) || item.type !== "message" || item.role !== "assistant") {
+      if (
+        !isRecord(item) ||
+        item.type !== "message" ||
+        item.role !== "assistant"
+      ) {
         return [];
       }
 
@@ -243,7 +270,9 @@ function extractAssistantMessage(payload: ResponsesPayload) {
           return [];
         }
 
-        return typeof entry.text === "string" && entry.text.trim() ? [entry.text.trim()] : [];
+        return typeof entry.text === "string" && entry.text.trim()
+          ? [entry.text.trim()]
+          : [];
       });
     })
     .join("\n")
@@ -252,29 +281,29 @@ function extractAssistantMessage(payload: ResponsesPayload) {
 
 async function requestOpenAiResponse(
   body: Record<string, unknown>,
-  config: ReturnType<typeof readAdjustmentAiConfig>
+  config: ReturnType<typeof readAdjustmentAiConfig>,
 ) {
-  const response = await fetch(`${config.openai!.apiBaseUrl}/responses`, {
+  const response = await fetch(`${config.openai?.apiBaseUrl}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.openai!.apiKey}`
+      Authorization: `Bearer ${config.openai?.apiKey}`,
     },
     body: JSON.stringify({
       model: config.model,
       reasoning: {
-        effort: "minimal"
+        effort: "minimal",
       },
       store: true,
-      ...body
+      ...body,
     }),
-    signal: AbortSignal.timeout(config.timeoutMs)
+    signal: AbortSignal.timeout(config.timeoutMs),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new AdjustmentChatUnavailableError(
-      `Die Live-KI-Antwort war nicht verfügbar (${response.status}). ${errorText.slice(0, 240)}`
+      `Die Live-KI-Antwort war nicht verfügbar (${response.status}). ${errorText.slice(0, 240)}`,
     );
   }
 
@@ -285,10 +314,12 @@ async function continueWithToolOutputs(
   payload: ResponsesPayload,
   input: RunAdjustmentChatTurnInput,
   config: ReturnType<typeof readAdjustmentAiConfig>,
-  toolMessages: string[]
+  toolMessages: string[],
 ) {
   if (!payload.id) {
-    throw new Error("Die KI-Antwort enthält keine Response-ID für den Tool-Loop.");
+    throw new Error(
+      "Die KI-Antwort enthält keine Response-ID für den Tool-Loop.",
+    );
   }
 
   const functionCalls = extractFunctionCalls(payload);
@@ -303,19 +334,21 @@ async function continueWithToolOutputs(
       throw new Error(`Unbekannter Tool-Call: ${call.name}`);
     }
 
-    const args = parseApplyAdjustmentRuleArgs(JSON.parse(call.arguments) as unknown);
+    const args = parseApplyAdjustmentRuleArgs(
+      JSON.parse(call.arguments) as unknown,
+    );
     const result = await input.executeApplyAdjustmentRule(args);
 
     toolMessages.push(
       result.ok
         ? `Regel direkt angewendet: ${result.summary ?? args.instruction}`
-        : `Regel konnte nicht direkt angewendet werden: ${result.error ?? "Unbekannter Fehler."}`
+        : `Regel konnte nicht direkt angewendet werden: ${result.error ?? "Unbekannter Fehler."}`,
     );
 
     toolOutputs.push({
       call_id: call.callId,
       output: JSON.stringify(result),
-      type: "function_call_output"
+      type: "function_call_output",
     });
   }
 
@@ -324,20 +357,20 @@ async function continueWithToolOutputs(
       input: toolOutputs,
       previous_response_id: payload.id,
       tool_choice: "auto",
-      tools: buildTools(input.sessionDetail.session.targetFormat)
+      tools: buildTools(input.sessionDetail.session.targetFormat),
     },
-    config
+    config,
   );
 }
 
 export async function runAdjustmentChatTurn(
-  input: RunAdjustmentChatTurnInput
+  input: RunAdjustmentChatTurnInput,
 ): Promise<AdjustmentChatTurnResult> {
   const config = readAdjustmentAiConfig();
 
   if (!config.enabled || config.provider !== "openai" || !config.openai) {
     throw new AdjustmentChatUnavailableError(
-      "Live-KI-Anpassungen sind aktuell nicht konfiguriert. Hinterlege einen OpenAI-Zugang, bevor du diesen Chat nutzt."
+      "Live-KI-Anpassungen sind aktuell nicht konfiguriert. Hinterlege einen OpenAI-Zugang, bevor du diesen Chat nutzt.",
     );
   }
 
@@ -350,26 +383,28 @@ export async function runAdjustmentChatTurn(
         {
           content: [
             {
-              text: buildSystemInstructions(input.sessionDetail.session.targetFormat),
-              type: "input_text"
-            }
+              text: buildSystemInstructions(
+                input.sessionDetail.session.targetFormat,
+              ),
+              type: "input_text",
+            },
           ],
-          role: "system"
+          role: "system",
         },
         {
           content: [
             {
               text: buildChatContext(input),
-              type: "input_text"
-            }
+              type: "input_text",
+            },
           ],
-          role: "user"
-        }
+          role: "user",
+        },
       ],
       tool_choice: "auto",
-      tools: buildTools(input.sessionDetail.session.targetFormat)
+      tools: buildTools(input.sessionDetail.session.targetFormat),
     },
-    config
+    config,
   );
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
@@ -379,7 +414,12 @@ export async function runAdjustmentChatTurn(
       break;
     }
 
-    payload = await continueWithToolOutputs(payload, input, config, toolMessages);
+    payload = await continueWithToolOutputs(
+      payload,
+      input,
+      config,
+      toolMessages,
+    );
     const lastToolMessage = toolMessages.at(-1);
 
     if (lastToolMessage?.startsWith("Regel direkt angewendet:")) {
@@ -401,8 +441,12 @@ export async function runAdjustmentChatTurn(
 
     if (successfulToolMessage) {
       didApplyRule = true;
-      const matchedSummary = successfulToolMessage.replace("Regel direkt angewendet: ", "").trim();
-      const matchingActiveRule = input.activeRules.find((rule) => rule.instruction === matchedSummary);
+      const matchedSummary = successfulToolMessage
+        .replace("Regel direkt angewendet: ", "")
+        .trim();
+      const matchingActiveRule = input.activeRules.find(
+        (rule) => rule.instruction === matchedSummary,
+      );
       appliedRuleId = matchingActiveRule?.id;
     }
   }
@@ -412,6 +456,6 @@ export async function runAdjustmentChatTurn(
     assistantMessage,
     didApplyRule,
     didRequestClarification: !didApplyRule,
-    toolMessages
+    toolMessages,
   };
 }

@@ -10,15 +10,16 @@ export const router = createBrowserRouter([
       {
         index: true,
         lazy: async () => ({
-          Component: (await import("./routes/home-page")).HomePage
-        })
+          Component: (await import("./routes/home-page")).HomePage,
+        }),
       },
       {
         path: "imports/:importId",
         lazy: async () => ({
-          Component: (await import("./routes/import-detail-page")).ImportDetailPage
-        })
-      }
-    ]
-  }
+          Component: (await import("./routes/import-detail-page"))
+            .ImportDetailPage,
+        }),
+      },
+    ],
+  },
 ]);

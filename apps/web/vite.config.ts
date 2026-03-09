@@ -12,13 +12,13 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(webRoot, "src")
-    }
+      "@": path.resolve(webRoot, "src"),
+    },
   },
   server: {
     port: devServerPort,
     proxy: {
-      "/api": apiProxyTarget
-    }
-  }
+      "/api": apiProxyTarget,
+    },
+  },
 });

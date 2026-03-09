@@ -1,6 +1,5 @@
-import { Hono } from "hono";
-
 import { formatRuleSchema } from "@chat-exporter/shared";
+import { Hono } from "hono";
 
 import { disableFormatRule } from "../lib/adjustment-repository.js";
 
@@ -14,9 +13,11 @@ export const formatRulesRoute = new Hono().post("/:id/disable", (c) => {
     return c.json(
       {
         message:
-          error instanceof Error ? error.message : "Formatregel konnte nicht deaktiviert werden."
+          error instanceof Error
+            ? error.message
+            : "Formatregel konnte nicht deaktiviert werden.",
       },
-      400
+      400,
     );
   }
 });

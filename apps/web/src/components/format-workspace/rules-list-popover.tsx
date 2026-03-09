@@ -1,13 +1,17 @@
+import type {
+  AdjustmentSessionDetail,
+  FormatRule,
+} from "@chat-exporter/shared";
 import { useEffect, useRef, useState } from "react";
-
-import type { AdjustmentSessionDetail, FormatRule } from "@chat-exporter/shared";
-
+import {
+  getRuleKindLabel,
+  getRuleLabel,
+} from "@/components/format-workspace/labels";
+import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
+import type { ViewMode } from "@/components/format-workspace/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getRuleKindLabel, getRuleLabel } from "@/components/format-workspace/labels";
-import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import { getAdjustmentSessionDetail } from "@/lib/api";
-import type { ViewMode } from "@/components/format-workspace/types";
 
 type RulesListPopoverProps = {
   disablingRuleById: Record<string, boolean>;
@@ -24,7 +28,7 @@ export function RulesListPopover({
   view,
   onDisableRule,
   onHoverRule,
-  onLeaveRule
+  onLeaveRule,
 }: RulesListPopoverProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -55,8 +59,9 @@ export function RulesListPopover({
 
     return () => {
       document.removeEventListener("mousedown", handleMouseDown);
+      onLeaveRule();
     };
-  }, [open]);
+  }, [open, onLeaveRule]);
 
   async function handleToggleExpand(rule: FormatRule) {
     if (expandedRuleId === rule.id) {
@@ -83,7 +88,7 @@ export function RulesListPopover({
       const detail = await getAdjustmentSessionDetail(sourceSessionId);
       setExplanationCache((current) => ({
         ...current,
-        [sourceSessionId]: detail
+        [sourceSessionId]: detail,
       }));
     } catch (error) {
       setErrorById((current) => ({
@@ -91,7 +96,7 @@ export function RulesListPopover({
         [rule.id]:
           error instanceof Error
             ? error.message
-            : "Regelerklärung konnte nicht geladen werden."
+            : "Regelerklärung konnte nicht geladen werden.",
       }));
     } finally {
       setLoadingById((current) => {
@@ -105,6 +110,7 @@ export function RulesListPopover({
   return (
     <div ref={wrapperRef} className="relative">
       <Button
+        data-testid="rules-list-trigger"
         size="sm"
         variant="outline"
         onClick={() => setOpen((prev) => !prev)}
@@ -124,7 +130,7 @@ export function RulesListPopover({
               const isLoading = Boolean(loadingById[rule.id]);
               const error = errorById[rule.id] ?? null;
               const detail = rule.sourceSessionId
-                ? explanationCache[rule.sourceSessionId] ?? null
+                ? (explanationCache[rule.sourceSessionId] ?? null)
                 : null;
 
               return (
@@ -137,6 +143,7 @@ export function RulesListPopover({
                   <div className="flex items-center gap-2 px-4 py-3">
                     <button
                       className="flex-1 text-left text-sm font-medium text-foreground truncate"
+                      data-testid="rules-list-expand-toggle"
                       type="button"
                       onClick={() => {
                         void handleToggleExpand(rule);
@@ -161,7 +168,10 @@ export function RulesListPopover({
                         </div>
                       ) : detail ? (
                         <>
-                          <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-2">
+                          <div
+                            className="rounded-2xl border border-border/80 bg-background/80 px-3 py-2"
+                            data-testid="rules-list-explanation"
+                          >
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                               Begründung
                             </p>
@@ -173,25 +183,25 @@ export function RulesListPopover({
 
                           <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
                             {describeSelectorScope({
-                              blockType:
-                                detail.session.selection.blockType,
+                              blockType: detail.session.selection.blockType,
                               exactLabel:
                                 "Diese Regel gilt nur für die ursprüngliche Auswahl.",
                               selector:
                                 detail.session.previewArtifact?.draftRule
                                   .selector ?? rule.selector,
-                              view
+                              view,
                             })}
                           </div>
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Diese Regel wurde aus einer früheren
-                          Anpassungssession für diesen Import erzeugt.
+                          Diese Regel wurde aus einer früheren Anpassungssession
+                          für diesen Import erzeugt.
                         </p>
                       )}
 
                       <Button
+                        data-testid="rules-list-undo"
                         size="sm"
                         variant="outline"
                         disabled={Boolean(disablingRuleById[rule.id])}

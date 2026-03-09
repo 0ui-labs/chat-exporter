@@ -1,4 +1,7 @@
-import { getBlockTypeLabel, getViewLabel } from "@/components/format-workspace/labels";
+import {
+  getBlockTypeLabel,
+  getViewLabel,
+} from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
 
 type DescribeSelectorScopeParams = {
@@ -11,12 +14,21 @@ type DescribeSelectorScopeParams = {
 export function describeSelectorScope(params: DescribeSelectorScopeParams) {
   const { blockType, exactLabel, selector, view } = params;
   const parsedSelector =
-    selector && typeof selector === "object" ? (selector as Record<string, unknown>) : null;
-  const strategy = typeof parsedSelector?.strategy === "string" ? parsedSelector.strategy : "exact";
+    selector && typeof selector === "object"
+      ? (selector as Record<string, unknown>)
+      : null;
+  const strategy =
+    typeof parsedSelector?.strategy === "string"
+      ? parsedSelector.strategy
+      : "exact";
   const selectorBlockType =
-    typeof parsedSelector?.blockType === "string" ? parsedSelector.blockType : blockType;
+    typeof parsedSelector?.blockType === "string"
+      ? parsedSelector.blockType
+      : blockType;
   const viewLabel = getViewLabel(view);
-  const blockLabel = selectorBlockType ? getBlockTypeLabel(selectorBlockType) : null;
+  const blockLabel = selectorBlockType
+    ? getBlockTypeLabel(selectorBlockType)
+    : null;
 
   switch (strategy) {
     case "block_type":

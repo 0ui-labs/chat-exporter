@@ -1,5 +1,3 @@
-import { Hono } from "hono";
-
 import {
   adjustmentMetricsSchema,
   adjustmentSessionDetailSchema,
@@ -7,24 +5,24 @@ import {
   createAdjustmentSessionRequestSchema,
   formatRuleSchema,
   importRequestSchema,
-  importSnapshotSchema
+  importSnapshotSchema,
 } from "@chat-exporter/shared";
+import { Hono } from "hono";
 
 import {
   createAdjustmentSession,
-  getAdjustmentSessionDetail,
   getAdjustmentMetrics,
+  getAdjustmentSessionDetail,
   listAdjustmentSessions,
-  findReusableAdjustmentSession,
-  listFormatRules
+  listFormatRules,
 } from "../lib/adjustment-repository.js";
+import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
   createImportJob,
   getImportJob,
   listImportJobs,
-  runImportJob
+  runImportJob,
 } from "../lib/import-store.js";
-import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 
 const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
@@ -43,9 +41,9 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message: "Ungültige Import-Anfrage.",
-          issues: parsed.error.flatten()
+          issues: parsed.error.flatten(),
         },
-        400
+        400,
       );
     }
 
@@ -53,9 +51,9 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message:
-            "Dieser erste Stand akzeptiert nur öffentliche ChatGPT-Share-Links."
+            "Dieser erste Stand akzeptiert nur öffentliche ChatGPT-Share-Links.",
         },
-        400
+        400,
       );
     }
 
@@ -70,9 +68,9 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import nicht gefunden."
+          message: "Import nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -85,9 +83,9 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import nicht gefunden."
+          message: "Import nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -100,9 +98,9 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message: "Nicht unterstütztes Anpassungsformat.",
-          issues: parsedFormat.error.flatten()
+          issues: parsedFormat.error.flatten(),
         },
-        400
+        400,
       );
     }
 
@@ -115,9 +113,9 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import nicht gefunden."
+          message: "Import nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -128,50 +126,32 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message: "Ungültige Anfrage für eine Anpassungssession.",
-          issues: parsed.error.flatten()
+          issues: parsed.error.flatten(),
         },
-        400
+        400,
       );
     }
 
-    const reusableSession = findReusableAdjustmentSession({
+    const { session, reused } = createAdjustmentSession({
       importId,
       selection: parsed.data.selection,
-      targetFormat: parsed.data.targetFormat
-    });
-
-    if (reusableSession) {
-      const detail = getAdjustmentSessionDetail(reusableSession.id);
-
-      if (!detail) {
-        return c.json(
-          {
-            message: "Anpassungssession konnte nicht geladen werden."
-          },
-          500
-        );
-      }
-
-      return c.json(adjustmentSessionDetailSchema.parse(detail));
-    }
-
-    const session = createAdjustmentSession({
-      importId,
-      selection: parsed.data.selection,
-      targetFormat: parsed.data.targetFormat
+      targetFormat: parsed.data.targetFormat,
     });
     const detail = getAdjustmentSessionDetail(session.id);
 
     if (!detail) {
       return c.json(
         {
-          message: "Anpassungssession konnte nicht geladen werden."
+          message: "Anpassungssession konnte nicht geladen werden.",
         },
-        500
+        500,
       );
     }
 
-    return c.json(adjustmentSessionDetailSchema.parse(detail), 201);
+    return c.json(
+      adjustmentSessionDetailSchema.parse(detail),
+      reused ? 200 : 201,
+    );
   })
   .get("/:id/format-rules", (c) => {
     const importId = c.req.param("id");
@@ -180,9 +160,9 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import nicht gefunden."
+          message: "Import nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -195,13 +175,17 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message: "Nicht unterstütztes Ziel für Formatregeln.",
-          issues: parsedFormat.error.flatten()
+          issues: parsedFormat.error.flatten(),
         },
-        400
+        400,
       );
     }
 
-    return c.json(listFormatRules(importId, parsedFormat?.data).map((rule) => formatRuleSchema.parse(rule)));
+    return c.json(
+      listFormatRules(importId, parsedFormat?.data).map((rule) =>
+        formatRuleSchema.parse(rule),
+      ),
+    );
   })
   .get("/:id/adjustment-metrics", (c) => {
     const importId = c.req.param("id");
@@ -210,9 +194,9 @@ export const importsRoute = new Hono()
     if (!job) {
       return c.json(
         {
-          message: "Import nicht gefunden."
+          message: "Import nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -223,13 +207,17 @@ export const importsRoute = new Hono()
       return c.json(
         {
           message: "Nicht unterstütztes Ziel für Anpassungsmetriken.",
-          issues: parsedFormat.error.flatten()
+          issues: parsedFormat.error.flatten(),
         },
-        400
+        400,
       );
     }
 
-    return c.json(adjustmentMetricsSchema.parse(getAdjustmentMetrics(importId, parsedFormat.data)));
+    return c.json(
+      adjustmentMetricsSchema.parse(
+        getAdjustmentMetrics(importId, parsedFormat.data),
+      ),
+    );
   })
   .get("/:id/snapshot", (c) => {
     const snapshot = getPersistedImportSnapshot(c.req.param("id"));
@@ -237,9 +225,9 @@ export const importsRoute = new Hono()
     if (!snapshot) {
       return c.json(
         {
-          message: "Import-Snapshot nicht gefunden."
+          message: "Import-Snapshot nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -256,8 +244,8 @@ export const importsRoute = new Hono()
         rawHtmlPreview,
         rawHtmlTruncated: snapshot.rawHtml.length > rawHtmlPreview.length,
         normalizedPayload: snapshot.normalizedPayload,
-        fetchMetadata: snapshot.fetchMetadata
-      })
+        fetchMetadata: snapshot.fetchMetadata,
+      }),
     );
   })
   .get("/:id/snapshot/raw-html", (c) => {
@@ -266,9 +254,9 @@ export const importsRoute = new Hono()
     if (!snapshot) {
       return c.json(
         {
-          message: "Import-Snapshot nicht gefunden."
+          message: "Import-Snapshot nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -281,9 +269,9 @@ export const importsRoute = new Hono()
     if (!job || !job.artifacts) {
       return c.json(
         {
-          message: "Export-Artefakt nicht gefunden."
+          message: "Export-Artefakt nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -302,9 +290,9 @@ export const importsRoute = new Hono()
       default:
         return c.json(
           {
-            message: "Nicht unterstütztes Exportformat."
+            message: "Nicht unterstütztes Exportformat.",
           },
-          400
+          400,
         );
     }
   });

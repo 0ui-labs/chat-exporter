@@ -1,12 +1,15 @@
-import type { ViewMode } from "@/components/format-workspace/types";
 import { getViewLabel } from "@/components/format-workspace/labels";
+import type { ViewMode } from "@/components/format-workspace/types";
 
 type AdjustmentModeGuideProps = {
   onDismiss: () => void;
   view: ViewMode;
 };
 
-export function AdjustmentModeGuide({ onDismiss, view }: AdjustmentModeGuideProps) {
+export function AdjustmentModeGuide({
+  onDismiss,
+  view,
+}: AdjustmentModeGuideProps) {
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-6 z-20 flex justify-center">
       <div
@@ -17,11 +20,13 @@ export function AdjustmentModeGuide({ onDismiss, view }: AdjustmentModeGuideProp
           {getViewLabel(view)} anpassen
         </p>
         <p className="mt-2 text-sm text-foreground">
-          Markiere die Stelle, die anders aussehen soll. Beschreibe dann kurz deinen Wunsch, und
-          die Änderung erscheint direkt hier.
+          Markiere die Stelle, die anders aussehen soll. Beschreibe dann kurz
+          deinen Wunsch, und die Änderung erscheint direkt hier.
         </p>
         <div className="mt-3 flex items-center justify-between gap-3 text-sm text-muted-foreground">
-          <span>Du musst kein Regel-JSON lesen oder eine Vorschau vergleichen.</span>
+          <span>
+            Du musst kein Regel-JSON lesen oder eine Vorschau vergleichen.
+          </span>
           <button
             className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-3 py-2 font-medium text-foreground transition hover:bg-foreground/5"
             type="button"

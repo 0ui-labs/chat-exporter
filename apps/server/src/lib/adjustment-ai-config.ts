@@ -41,7 +41,11 @@ function readProviderSelection() {
     process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER?.trim().toLowerCase() ??
     process.env.STRUCTURING_PROVIDER?.trim().toLowerCase();
 
-  if (rawValue === "openai" || rawValue === "cerebras" || rawValue === "deterministic") {
+  if (
+    rawValue === "openai" ||
+    rawValue === "cerebras" ||
+    rawValue === "deterministic"
+  ) {
     return rawValue;
   }
 
@@ -78,14 +82,15 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
     process.env.CEREBRAS_STRUCTURING_MODEL?.trim() ||
     DEFAULT_CEREBRAS_MODEL;
   const openAiApiBaseUrl =
-    process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") || DEFAULT_API_BASE_URL;
+    process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+    DEFAULT_API_BASE_URL;
   const cerebrasApiBaseUrl =
     process.env.CEREBRAS_API_BASE_URL?.trim().replace(/\/+$/, "") ||
     DEFAULT_CEREBRAS_API_BASE_URL;
   const timeoutMs = readPositiveInteger(
     process.env.ADJUSTMENT_RULE_COMPILATION_TIMEOUT_MS ??
       process.env.STRUCTURING_TIMEOUT_MS,
-    DEFAULT_TIMEOUT_MS
+    DEFAULT_TIMEOUT_MS,
   );
 
   if (explicitlyDisabled) {
@@ -94,7 +99,7 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
       enabled: false,
       model: openAiModel,
       provider: "deterministic",
-      timeoutMs
+      timeoutMs,
     };
   }
 
@@ -115,11 +120,11 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
       openai: apiKey
         ? {
             apiBaseUrl: openAiApiBaseUrl,
-            apiKey
+            apiKey,
           }
         : undefined,
       provider: "openai",
-      timeoutMs
+      timeoutMs,
     };
   }
 
@@ -132,27 +137,30 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
             maxCompletionTokens: readPositiveInteger(
               process.env.ADJUSTMENT_RULE_COMPILATION_MAX_COMPLETION_TOKENS ??
                 process.env.CEREBRAS_STRUCTURING_MAX_COMPLETION_TOKENS,
-              DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS
+              DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS,
             ),
             reasoningEffort: readReasoningEffort(
               process.env.ADJUSTMENT_RULE_COMPILATION_REASONING_EFFORT ??
-                process.env.CEREBRAS_STRUCTURING_REASONING_EFFORT
-            )
+                process.env.CEREBRAS_STRUCTURING_REASONING_EFFORT,
+            ),
           }
         : undefined,
-      disabledReason: cerebrasApiKey ? undefined : "CEREBRAS_API_KEY is not configured.",
+      disabledReason: cerebrasApiKey
+        ? undefined
+        : "CEREBRAS_API_KEY is not configured.",
       enabled: Boolean(cerebrasApiKey),
       model: cerebrasModel,
       provider: "cerebras",
-      timeoutMs
+      timeoutMs,
     };
   }
 
   return {
-    disabledReason: "No adjustment rule compilation provider key is configured.",
+    disabledReason:
+      "No adjustment rule compilation provider key is configured.",
     enabled: false,
     model: openAiModel,
     provider: "deterministic",
-    timeoutMs
+    timeoutMs,
   };
 }

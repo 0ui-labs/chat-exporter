@@ -1,4 +1,10 @@
-import type { Block, Conversation, FormatRule, RuleEffect } from "@chat-exporter/shared";
+import type {
+  Block,
+  Conversation,
+  FormatRule,
+  RuleEffect,
+} from "@chat-exporter/shared";
+import { ruleEffectSchema, ruleSelectorSchema } from "@chat-exporter/shared";
 
 import { cn } from "@/lib/utils";
 
@@ -12,7 +18,10 @@ export function blockToPlainText(block: Block) {
     case "list":
       return block.items.join(" ");
     case "table":
-      return [block.headers.join(" "), ...block.rows.map((row) => row.join(" "))].join(" ");
+      return [
+        block.headers.join(" "),
+        ...block.rows.map((row) => row.join(" ")),
+      ].join(" ");
   }
 }
 
@@ -40,7 +49,9 @@ function renderTextWithMarkdownStrong(text: string) {
   }
 
   return parts.map((part, index) => {
-    const strongMatch = part.match(/^\*\*([^*\n][^*\n]*)\*\*$/) ?? part.match(/^__([^_\n][^_\n]*)__$/);
+    const strongMatch =
+      part.match(/^\*\*([^*\n][^*\n]*)\*\*$/) ??
+      part.match(/^__([^_\n][^_\n]*)__$/);
 
     if (!strongMatch) {
       return part;
@@ -51,8 +62,12 @@ function renderTextWithMarkdownStrong(text: string) {
 }
 
 function renderReaderInlineText(text: string, effects: RuleEffect[]) {
-  const hasMarkdownStrongEffect = effects.some((effect) => effect.type === "render_markdown_strong");
-  const hasBoldPrefixEffect = effects.some((effect) => effect.type === "bold_prefix_before_colon");
+  const hasMarkdownStrongEffect = effects.some(
+    (effect) => effect.type === "render_markdown_strong",
+  );
+  const hasBoldPrefixEffect = effects.some(
+    (effect) => effect.type === "bold_prefix_before_colon",
+  );
 
   if (hasMarkdownStrongEffect) {
     return renderTextWithMarkdownStrong(text);
@@ -70,41 +85,62 @@ function matchesReaderRule(
   messageId: string,
   blockIndex: number,
   blockType: Block["type"],
-  blockText: string
+  blockText: string,
 ) {
-  const selector = rule.selector;
+  const parsed = ruleSelectorSchema.safeParse(rule.selector);
 
-  if (!selector) {
+  if (!parsed.success) {
     return false;
   }
+
+  const selector = parsed.data;
 
   if ("strategy" in selector && selector.strategy === "block_type") {
     return selector.blockType === blockType;
   }
 
   if ("strategy" in selector && selector.strategy === "prefix_before_colon") {
-    return "blockType" in selector && selector.blockType === blockType && /^([^:\n]{1,120}:)(\s*)(.*)$/.test(blockText);
+    return (
+      "blockType" in selector &&
+      selector.blockType === blockType &&
+      /^([^:\n]{1,120}:)(\s*)(.*)$/.test(blockText)
+    );
   }
 
-  // exact match (no strategy or strategy === "exact")
+  // exact match (strategy === "exact")
   return (
-    "messageId" in selector && selector.messageId === messageId &&
-    "blockIndex" in selector && selector.blockIndex === blockIndex &&
-    "blockType" in selector && selector.blockType === blockType
+    "messageId" in selector &&
+    selector.messageId === messageId &&
+    "blockIndex" in selector &&
+    selector.blockIndex === blockIndex &&
+    "blockType" in selector &&
+    selector.blockType === blockType
   );
 }
 
 export function getBlocksMatchingRule(
   rule: FormatRule,
-  conversation: Conversation
+  conversation: Conversation,
 ): Array<{ messageId: string; blockIndex: number }> {
   const matches: Array<{ messageId: string; blockIndex: number }> = [];
 
   for (const message of conversation.messages) {
-    for (let blockIndex = 0; blockIndex < message.blocks.length; blockIndex += 1) {
+    for (
+      let blockIndex = 0;
+      blockIndex < message.blocks.length;
+      blockIndex += 1
+    ) {
       const block = message.blocks[blockIndex]!;
 
-      if (matchesReaderRule(rule, message.id, blockIndex, block.type, blockToPlainText(block))) {
+      if (
+        matchesReaderRule(
+          rule,
+          message.id,
+          blockIndex,
+          block.type,
+          blockToPlainText(block),
+        )
+      ) {
         matches.push({ messageId: message.id, blockIndex });
       }
     }
@@ -118,13 +154,13 @@ export function resolveReaderBlockEffects(
   messageId: string,
   blockIndex: number,
   blockType: Block["type"],
-  blockText: string
+  blockText: string,
 ) {
   return rules
     .filter(
       (rule) =>
         rule.status === "active" &&
-        matchesReaderRule(rule, messageId, blockIndex, blockType, blockText)
+        matchesReaderRule(rule, messageId, blockIndex, blockType, blockText),
     )
     .map((rule) => rule.compiledRule)
     .filter((effect): effect is RuleEffect => effect !== undefined);
@@ -135,7 +171,9 @@ export function hasReaderSpacingEffect(effects: RuleEffect[]) {
 }
 
 export function hasReaderRefineEffect(effects: RuleEffect[]) {
-  return effects.some((effect) => effect.type === "refine_selected_block_presentation");
+  return effects.some(
+    (effect) => effect.type === "refine_selected_block_presentation",
+  );
 }
 
 export function getReaderBlockClassName(params: {
@@ -144,28 +182,47 @@ export function getReaderBlockClassName(params: {
   isHighlighted?: boolean;
   isSelected?: boolean;
 }) {
-  const { adjustModeEnabled = false, effects, isHighlighted = false, isSelected = false } = params;
+  const {
+    adjustModeEnabled = false,
+    effects,
+    isHighlighted = false,
+    isSelected = false,
+  } = params;
 
   return cn(
     "rounded-2xl transition",
     hasReaderSpacingEffect(effects) ? "mb-4 md:mb-6" : null,
     hasReaderRefineEffect(effects) ? "bg-primary/5" : null,
-    adjustModeEnabled ? "cursor-pointer ring-1 ring-transparent hover:bg-primary/5 hover:ring-primary/20" : null,
+    adjustModeEnabled
+      ? "cursor-pointer ring-1 ring-transparent hover:bg-primary/5 hover:ring-primary/20"
+      : null,
     isHighlighted && !isSelected ? "bg-primary/8 ring-1 ring-primary/20" : null,
-    isSelected ? "bg-primary/8 ring-2 ring-primary/40" : null
+    isSelected ? "bg-primary/8 ring-2 ring-primary/40" : null,
   );
 }
 
 export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
-  const hasHeadingEmphasis = effects.some((effect) => effect.type === "increase_heading_emphasis");
+  const hasHeadingEmphasis = effects.some(
+    (effect) => effect.type === "increase_heading_emphasis",
+  );
 
   switch (block.type) {
     case "paragraph":
-      return <p className="text-sm leading-7 text-foreground/90">{renderReaderInlineText(block.text, effects)}</p>;
-    case "heading": {
-      const Tag = `h${Math.min(block.level + 1, 6)}` as keyof JSX.IntrinsicElements;
       return (
-        <Tag className={cn("font-semibold text-foreground", hasHeadingEmphasis ? "text-lg" : null)}>
+        <p className="text-sm leading-7 text-foreground/90">
+          {renderReaderInlineText(block.text, effects)}
+        </p>
+      );
+    case "heading": {
+      const Tag =
+        `h${Math.min(block.level + 1, 6)}` as keyof JSX.IntrinsicElements;
+      return (
+        <Tag
+          className={cn(
+            "font-semibold text-foreground",
+            hasHeadingEmphasis ? "text-lg" : null,
+          )}
+        >
           {renderReaderInlineText(block.text, effects)}
         </Tag>
       );
@@ -187,7 +244,9 @@ export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
     case "code":
       return (
         <div className="rounded-2xl border border-border/80 bg-zinc-950 p-4 text-sm text-zinc-100">
-          <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">{block.language}</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.22em] text-zinc-400">
+            {block.language}
+          </p>
           <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono">
             <code>{block.text}</code>
           </pre>
@@ -208,7 +267,10 @@ export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
             </thead>
             <tbody>
               {block.rows.map((row, rowIndex) => (
-                <tr key={`${rowIndex}-${row.join("-")}`} className="border-t border-border/80">
+                <tr
+                  key={`${rowIndex}-${row.join("-")}`}
+                  className="border-t border-border/80"
+                >
                   {row.map((cell) => (
                     <td
                       key={`${rowIndex}-${cell}`}
@@ -235,17 +297,23 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
       continue;
     }
 
-    const selector = rule.selector;
-    const effect = rule.compiledRule;
+    const parsedSelector = ruleSelectorSchema.safeParse(rule.selector);
+    const parsedEffect = ruleEffectSchema.safeParse(rule.compiledRule);
 
-    if (!effect) {
+    if (!parsedSelector.success || !parsedEffect.success) {
       continue;
     }
+
+    const selector = parsedSelector.data;
+    const effect = parsedEffect.data;
 
     const strategy = "strategy" in selector ? selector.strategy : undefined;
     const effectType = effect.type;
 
-    if (strategy === "prefix_before_colon" && effectType === "bold_prefix_before_colon") {
+    if (
+      strategy === "prefix_before_colon" &&
+      effectType === "bold_prefix_before_colon"
+    ) {
       for (let index = 0; index < nextLines.length; index += 1) {
         const line = nextLines[index] ?? "";
         nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
@@ -253,7 +321,10 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
       continue;
     }
 
-    if (strategy === "markdown_table" && effectType === "normalize_markdown_table") {
+    if (
+      strategy === "markdown_table" &&
+      effectType === "normalize_markdown_table"
+    ) {
       for (let index = 0; index < nextLines.length; index += 1) {
         const line = nextLines[index] ?? "";
 
@@ -282,7 +353,8 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
 
     switch (effectType) {
       case "promote_to_heading":
-        nextLines[startIndex] = `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
+        nextLines[startIndex] =
+          `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
         break;
       case "bold_prefix_before_colon":
         for (let index = startIndex; index <= endIndex; index += 1) {
@@ -299,7 +371,9 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
             continue;
           }
 
-          nextLines[index] = /^[-*]\s/.test(trimmedLine) ? trimmedLine : `- ${trimmedLine}`;
+          nextLines[index] = /^[-*]\s/.test(trimmedLine)
+            ? trimmedLine
+            : `- ${trimmedLine}`;
         }
         break;
       case "normalize_markdown_table":

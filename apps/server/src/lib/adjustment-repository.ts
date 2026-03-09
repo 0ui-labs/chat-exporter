@@ -1,21 +1,21 @@
 import type {
   AdjustmentEventType,
-  AdjustmentMetrics,
   AdjustmentMessage,
+  AdjustmentMetrics,
   AdjustmentPreview,
+  AdjustmentSelection,
   AdjustmentSession,
   AdjustmentSessionDetail,
-  AdjustmentSelection,
   AdjustmentTargetFormat,
   FormatRule,
-  Role
+  Role,
 } from "@chat-exporter/shared";
 import {
-  adjustmentMetricsSchema,
   adjustmentMessageSchema,
+  adjustmentMetricsSchema,
   adjustmentSessionDetailSchema,
   adjustmentSessionSchema,
-  formatRuleSchema
+  formatRuleSchema,
 } from "@chat-exporter/shared";
 
 import { db, withTransaction } from "./database.js";
@@ -102,16 +102,23 @@ const insertAdjustmentSessionStatement = db.prepare(`
   )
 `);
 
-const selectAdjustmentSessionStatement = db.prepare<unknown[], AdjustmentSessionRow>(
-  `SELECT * FROM adjustment_sessions WHERE id = ?`
+const selectAdjustmentSessionStatement = db.prepare<
+  unknown[],
+  AdjustmentSessionRow
+>(`SELECT * FROM adjustment_sessions WHERE id = ?`);
+
+const listAdjustmentSessionsStatement = db.prepare<
+  unknown[],
+  AdjustmentSessionRow
+>(
+  `SELECT * FROM adjustment_sessions WHERE import_id = ? ORDER BY created_at DESC`,
 );
 
-const listAdjustmentSessionsStatement = db.prepare<unknown[], AdjustmentSessionRow>(
-  `SELECT * FROM adjustment_sessions WHERE import_id = ? ORDER BY created_at DESC`
-);
-
-const listAdjustmentSessionsByFormatStatement = db.prepare<unknown[], AdjustmentSessionRow>(
-  `SELECT * FROM adjustment_sessions WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`
+const listAdjustmentSessionsByFormatStatement = db.prepare<
+  unknown[],
+  AdjustmentSessionRow
+>(
+  `SELECT * FROM adjustment_sessions WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`,
 );
 
 const insertAdjustmentMessageStatement = db.prepare(`
@@ -130,8 +137,11 @@ const insertAdjustmentMessageStatement = db.prepare(`
   )
 `);
 
-const listAdjustmentMessagesStatement = db.prepare<unknown[], AdjustmentMessageRow>(
-  `SELECT * FROM adjustment_messages WHERE session_id = ? ORDER BY created_at ASC`
+const listAdjustmentMessagesStatement = db.prepare<
+  unknown[],
+  AdjustmentMessageRow
+>(
+  `SELECT * FROM adjustment_messages WHERE session_id = ? ORDER BY created_at ASC`,
 );
 
 const updateAdjustmentSessionTimestampStatement = db.prepare(`
@@ -149,12 +159,28 @@ const updateAdjustmentSessionPreviewStatement = db.prepare(`
   WHERE id = @id
 `);
 
-const updateAdjustmentSessionStatusStatement = db.prepare(`
+const _updateAdjustmentSessionStatusStatement = db.prepare(`
   UPDATE adjustment_sessions
   SET
     status = @status,
     updated_at = @updated_at
   WHERE id = @id
+`);
+
+const conditionalUpdateAdjustmentSessionStatusStatement = db.prepare(`
+  UPDATE adjustment_sessions
+  SET
+    status = @new_status,
+    updated_at = @updated_at
+  WHERE id = @id AND status = @expected_status
+`);
+
+const conditionalDiscardAdjustmentSessionStatement = db.prepare(`
+  UPDATE adjustment_sessions
+  SET
+    status = 'discarded',
+    updated_at = @updated_at
+  WHERE id = @id AND status IN ('open', 'preview_ready')
 `);
 
 const insertFormatRuleStatement = db.prepare(`
@@ -210,7 +236,7 @@ const insertAdjustmentEventStatement = db.prepare(`
 `);
 
 const selectFormatRuleStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE id = ?`
+  `SELECT * FROM format_rules WHERE id = ?`,
 );
 
 const updateFormatRuleStatusStatement = db.prepare(`
@@ -222,11 +248,11 @@ const updateFormatRuleStatusStatement = db.prepare(`
 `);
 
 const listFormatRulesStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE import_id = ? ORDER BY created_at DESC`
+  `SELECT * FROM format_rules WHERE import_id = ? ORDER BY created_at DESC`,
 );
 
 const listFormatRulesByFormatStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`
+  `SELECT * FROM format_rules WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`,
 );
 
 const summarizeAdjustmentMetricsStatement = db.prepare<
@@ -258,7 +284,9 @@ function parseJson<T>(value: string | null): T | undefined {
   return JSON.parse(value) as T;
 }
 
-function deserializeAdjustmentSession(row: AdjustmentSessionRow): AdjustmentSession {
+function deserializeAdjustmentSession(
+  row: AdjustmentSessionRow,
+): AdjustmentSession {
   return adjustmentSessionSchema.parse({
     id: row.id,
     importId: row.import_id,
@@ -267,17 +295,19 @@ function deserializeAdjustmentSession(row: AdjustmentSessionRow): AdjustmentSess
     selection: parseJson<AdjustmentSelection>(row.selection_json),
     previewArtifact: parseJson<unknown>(row.preview_artifact_json),
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   });
 }
 
-function deserializeAdjustmentMessage(row: AdjustmentMessageRow): AdjustmentMessage {
+function deserializeAdjustmentMessage(
+  row: AdjustmentMessageRow,
+): AdjustmentMessage {
   return adjustmentMessageSchema.parse({
     id: row.id,
     sessionId: row.session_id,
     role: row.role,
     content: row.content,
-    createdAt: row.created_at
+    createdAt: row.created_at,
   });
 }
 
@@ -294,7 +324,7 @@ function deserializeFormatRule(row: FormatRuleRow): FormatRule {
     compiledRule: parseJson<unknown>(row.compiled_rule_json),
     sourceSessionId: row.source_session_id ?? undefined,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   });
 }
 
@@ -302,7 +332,10 @@ function toCount(value: number | null) {
   return value ?? 0;
 }
 
-function selectionsMatch(left: AdjustmentSelection, right: AdjustmentSelection) {
+function selectionsMatch(
+  left: AdjustmentSelection,
+  right: AdjustmentSelection,
+) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
@@ -316,12 +349,22 @@ export function recordAdjustmentEvent(input: RecordAdjustmentEventInput) {
     rule_id: input.ruleId ?? null,
     target_format: input.targetFormat,
     event_type: input.type,
-    payload_json: input.payload === undefined ? null : JSON.stringify(input.payload),
-    created_at: timestamp
+    payload_json:
+      input.payload === undefined ? null : JSON.stringify(input.payload),
+    created_at: timestamp,
   });
 }
 
-export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
+export function createAdjustmentSession(input: CreateAdjustmentSessionInput): {
+  session: AdjustmentSession;
+  reused: boolean;
+} {
+  const existing = findReusableAdjustmentSession(input);
+
+  if (existing) {
+    return { session: existing, reused: true };
+  }
+
   const timestamp = now();
   const session: AdjustmentSession = adjustmentSessionSchema.parse({
     id: crypto.randomUUID(),
@@ -330,7 +373,7 @@ export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
     status: "open",
     selection: input.selection,
     createdAt: timestamp,
-    updatedAt: timestamp
+    updatedAt: timestamp,
   });
 
   withTransaction(() => {
@@ -342,18 +385,18 @@ export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
       selection_json: JSON.stringify(session.selection),
       preview_artifact_json: null,
       created_at: session.createdAt,
-      updated_at: session.updatedAt
+      updated_at: session.updatedAt,
     });
 
     recordAdjustmentEvent({
       importId: session.importId,
       sessionId: session.id,
       targetFormat: session.targetFormat,
-      type: "session_created"
+      type: "session_created",
     });
   });
 
-  return session;
+  return { session, reused: false };
 }
 
 export function getAdjustmentSession(sessionId: string) {
@@ -361,7 +404,10 @@ export function getAdjustmentSession(sessionId: string) {
   return row ? deserializeAdjustmentSession(row) : undefined;
 }
 
-export function listAdjustmentSessions(importId: string, targetFormat?: AdjustmentTargetFormat) {
+export function listAdjustmentSessions(
+  importId: string,
+  targetFormat?: AdjustmentTargetFormat,
+) {
   const rows = targetFormat
     ? listAdjustmentSessionsByFormatStatement.all(importId, targetFormat)
     : listAdjustmentSessionsStatement.all(importId);
@@ -369,15 +415,21 @@ export function listAdjustmentSessions(importId: string, targetFormat?: Adjustme
   return rows.map(deserializeAdjustmentSession);
 }
 
-export function findReusableAdjustmentSession(input: CreateAdjustmentSessionInput) {
+export function findReusableAdjustmentSession(
+  input: CreateAdjustmentSessionInput,
+) {
   return listAdjustmentSessions(input.importId, input.targetFormat).find(
     (session) =>
       (session.status === "open" || session.status === "preview_ready") &&
-      selectionsMatch(session.selection, input.selection)
+      selectionsMatch(session.selection, input.selection),
   );
 }
 
-export function appendAdjustmentMessage(sessionId: string, role: Role, content: string) {
+export function appendAdjustmentMessage(
+  sessionId: string,
+  role: Role,
+  content: string,
+) {
   const timestamp = now();
 
   insertAdjustmentMessageStatement.run({
@@ -385,26 +437,29 @@ export function appendAdjustmentMessage(sessionId: string, role: Role, content: 
     session_id: sessionId,
     role,
     content,
-    created_at: timestamp
+    created_at: timestamp,
   });
 
   updateAdjustmentSessionTimestampStatement.run({
     id: sessionId,
-    updated_at: timestamp
+    updated_at: timestamp,
   });
 
   const row = listAdjustmentMessagesStatement.all(sessionId).at(-1);
   return row ? deserializeAdjustmentMessage(row) : undefined;
 }
 
-export function saveAdjustmentPreview(sessionId: string, preview: AdjustmentPreview) {
+export function saveAdjustmentPreview(
+  sessionId: string,
+  preview: AdjustmentPreview,
+) {
   const timestamp = now();
 
   updateAdjustmentSessionPreviewStatement.run({
     id: sessionId,
     status: "preview_ready",
     preview_artifact_json: JSON.stringify(preview),
-    updated_at: timestamp
+    updated_at: timestamp,
   });
 }
 
@@ -416,7 +471,9 @@ export function applyAdjustmentPreview(sessionId: string) {
   }
 
   if (!session.previewArtifact) {
-    throw new Error("Erzeuge zuerst eine Vorschau, bevor du eine Regel anwendest.");
+    throw new Error(
+      "Erzeuge zuerst eine Vorschau, bevor du eine Regel anwendest.",
+    );
   }
 
   if (session.status === "applied") {
@@ -436,10 +493,23 @@ export function applyAdjustmentPreview(sessionId: string) {
     compiledRule: session.previewArtifact.draftRule.effect,
     sourceSessionId: session.id,
     createdAt: timestamp,
-    updatedAt: timestamp
+    updatedAt: timestamp,
   });
 
   withTransaction(() => {
+    const result = conditionalUpdateAdjustmentSessionStatusStatement.run({
+      id: sessionId,
+      expected_status: "preview_ready",
+      new_status: "applied",
+      updated_at: timestamp,
+    });
+
+    if (result.changes === 0) {
+      throw new Error(
+        "Status-Transition fehlgeschlagen: Session ist nicht mehr im erwarteten Zustand 'preview_ready'.",
+      );
+    }
+
     insertFormatRuleStatement.run({
       id: rule.id,
       import_id: rule.importId,
@@ -452,13 +522,7 @@ export function applyAdjustmentPreview(sessionId: string) {
       compiled_rule_json: JSON.stringify(rule.compiledRule),
       source_session_id: rule.sourceSessionId ?? null,
       created_at: rule.createdAt,
-      updated_at: rule.updatedAt
-    });
-
-    updateAdjustmentSessionStatusStatement.run({
-      id: sessionId,
-      status: "applied",
-      updated_at: timestamp
+      updated_at: rule.updatedAt,
     });
 
     recordAdjustmentEvent({
@@ -466,7 +530,7 @@ export function applyAdjustmentPreview(sessionId: string) {
       ruleId: rule.id,
       sessionId: session.id,
       targetFormat: session.targetFormat,
-      type: "rule_applied"
+      type: "rule_applied",
     });
   });
 
@@ -478,7 +542,7 @@ export function applyAdjustmentPreview(sessionId: string) {
 
   return {
     rule,
-    session: nextSession
+    session: nextSession,
   };
 }
 
@@ -490,7 +554,9 @@ export function discardAdjustmentSession(sessionId: string) {
   }
 
   if (session.status === "applied") {
-    throw new Error("Bereits angewendete Anpassungssessions können nicht verworfen werden.");
+    throw new Error(
+      "Bereits angewendete Anpassungssessions können nicht verworfen werden.",
+    );
   }
 
   if (session.status === "discarded") {
@@ -500,17 +566,22 @@ export function discardAdjustmentSession(sessionId: string) {
   const timestamp = now();
 
   withTransaction(() => {
-    updateAdjustmentSessionStatusStatement.run({
+    const result = conditionalDiscardAdjustmentSessionStatement.run({
       id: sessionId,
-      status: "discarded",
-      updated_at: timestamp
+      updated_at: timestamp,
     });
+
+    if (result.changes === 0) {
+      throw new Error(
+        "Status-Transition fehlgeschlagen: Session ist nicht mehr in einem verwerfbaren Zustand.",
+      );
+    }
 
     recordAdjustmentEvent({
       importId: session.importId,
       sessionId: session.id,
       targetFormat: session.targetFormat,
-      type: "session_discarded"
+      type: "session_discarded",
     });
   });
 
@@ -534,7 +605,7 @@ export function reopenAdjustmentSession(sessionId: string) {
     id: sessionId,
     status: "open",
     preview_artifact_json: null,
-    updated_at: now()
+    updated_at: now(),
   });
 
   const updated = getAdjustmentSession(sessionId);
@@ -547,7 +618,9 @@ export function reopenAdjustmentSession(sessionId: string) {
 }
 
 export function listAdjustmentMessages(sessionId: string) {
-  return listAdjustmentMessagesStatement.all(sessionId).map(deserializeAdjustmentMessage);
+  return listAdjustmentMessagesStatement
+    .all(sessionId)
+    .map(deserializeAdjustmentMessage);
 }
 
 export function getFormatRule(ruleId: string) {
@@ -555,7 +628,9 @@ export function getFormatRule(ruleId: string) {
   return row ? deserializeFormatRule(row) : undefined;
 }
 
-export function getAdjustmentSessionDetail(sessionId: string): AdjustmentSessionDetail | undefined {
+export function getAdjustmentSessionDetail(
+  sessionId: string,
+): AdjustmentSessionDetail | undefined {
   const session = getAdjustmentSession(sessionId);
 
   if (!session) {
@@ -564,11 +639,14 @@ export function getAdjustmentSessionDetail(sessionId: string): AdjustmentSession
 
   return adjustmentSessionDetailSchema.parse({
     messages: listAdjustmentMessages(sessionId),
-    session
+    session,
   });
 }
 
-export function listFormatRules(importId: string, targetFormat?: AdjustmentTargetFormat) {
+export function listFormatRules(
+  importId: string,
+  targetFormat?: AdjustmentTargetFormat,
+) {
   const rows = targetFormat
     ? listFormatRulesByFormatStatement.all(importId, targetFormat)
     : listFormatRulesStatement.all(importId);
@@ -578,7 +656,7 @@ export function listFormatRules(importId: string, targetFormat?: AdjustmentTarge
 
 export function getAdjustmentMetrics(
   importId: string,
-  targetFormat: AdjustmentTargetFormat
+  targetFormat: AdjustmentTargetFormat,
 ): AdjustmentMetrics {
   const row = summarizeAdjustmentMetricsStatement.get(importId, targetFormat);
 
@@ -590,15 +668,18 @@ export function getAdjustmentMetrics(
       rulesApplied: toCount(row?.rules_applied ?? 0),
       rulesDisabled: toCount(row?.rules_disabled ?? 0),
       sessionsCreated: toCount(row?.sessions_created ?? 0),
-      sessionsDiscarded: toCount(row?.sessions_discarded ?? 0)
+      sessionsDiscarded: toCount(row?.sessions_discarded ?? 0),
     },
     importId,
     targetFormat,
-    updatedAt: row?.updated_at ?? null
+    updatedAt: row?.updated_at ?? null,
   });
 }
 
-export function updateFormatRuleStatus(ruleId: string, status: FormatRule["status"]) {
+export function updateFormatRuleStatus(
+  ruleId: string,
+  status: FormatRule["status"],
+) {
   const existingRule = getFormatRule(ruleId);
 
   if (!existingRule) {
@@ -610,7 +691,7 @@ export function updateFormatRuleStatus(ruleId: string, status: FormatRule["statu
   updateFormatRuleStatusStatement.run({
     id: ruleId,
     status,
-    updated_at: timestamp
+    updated_at: timestamp,
   });
 
   const nextRule = getFormatRule(ruleId);
@@ -641,7 +722,7 @@ export function disableFormatRule(ruleId: string) {
       ruleId: rule.id,
       sessionId: rule.sourceSessionId,
       targetFormat: rule.targetFormat,
-      type: "rule_disabled"
+      type: "rule_disabled",
     });
 
     return rule;

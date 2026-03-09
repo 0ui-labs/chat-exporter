@@ -7,7 +7,7 @@ export const sourcePlatformSchema = z.enum([
   "grok",
   "deepseek",
   "notebooklm",
-  "unknown"
+  "unknown",
 ]);
 
 export const roleSchema = z.enum([
@@ -15,41 +15,41 @@ export const roleSchema = z.enum([
   "user",
   "assistant",
   "tool",
-  "unknown"
+  "unknown",
 ]);
 
 export const paragraphBlockSchema = z.object({
   type: z.literal("paragraph"),
-  text: z.string()
+  text: z.string(),
 });
 
 export const headingBlockSchema = z.object({
   type: z.literal("heading"),
   level: z.number().int().min(1).max(6),
-  text: z.string()
+  text: z.string(),
 });
 
 export const listBlockSchema = z.object({
   type: z.literal("list"),
   ordered: z.boolean(),
-  items: z.array(z.string())
+  items: z.array(z.string()),
 });
 
 export const codeBlockSchema = z.object({
   type: z.literal("code"),
   language: z.string().default("text"),
-  text: z.string()
+  text: z.string(),
 });
 
 export const quoteBlockSchema = z.object({
   type: z.literal("quote"),
-  text: z.string()
+  text: z.string(),
 });
 
 export const tableBlockSchema = z.object({
   type: z.literal("table"),
   headers: z.array(z.string()),
-  rows: z.array(z.array(z.string()))
+  rows: z.array(z.array(z.string())),
 });
 
 export const blockSchema = z.discriminatedUnion("type", [
@@ -58,13 +58,13 @@ export const blockSchema = z.discriminatedUnion("type", [
   listBlockSchema,
   codeBlockSchema,
   quoteBlockSchema,
-  tableBlockSchema
+  tableBlockSchema,
 ]);
 
 export const messageSchema = z.object({
   id: z.string(),
   role: roleSchema,
-  blocks: z.array(blockSchema)
+  blocks: z.array(blockSchema),
 });
 
 export const conversationSchema = z.object({
@@ -72,9 +72,9 @@ export const conversationSchema = z.object({
   title: z.string(),
   source: z.object({
     url: z.string().url(),
-    platform: sourcePlatformSchema
+    platform: sourcePlatformSchema,
   }),
-  messages: z.array(messageSchema)
+  messages: z.array(messageSchema),
 });
 
 export type SourcePlatform = z.infer<typeof sourcePlatformSchema>;

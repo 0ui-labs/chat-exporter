@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AdjustmentSelection, AdjustmentSessionDetail, Role } from "@chat-exporter/shared";
+import type {
+  AdjustmentSelection,
+  AdjustmentSessionDetail,
+  Role,
+} from "@chat-exporter/shared";
 
 import {
   AdjustmentChatUnavailableError,
-  runAdjustmentChatTurn
+  runAdjustmentChatTurn,
 } from "./adjustment-chat-orchestrator.js";
 
 const configEnvKeys = [
@@ -13,10 +17,12 @@ const configEnvKeys = [
   "ADJUSTMENT_RULE_COMPILATION_PROVIDER",
   "ADJUSTMENT_RULE_COMPILATION_MODEL",
   "OPENAI_API_BASE_URL",
-  "OPENAI_API_KEY"
+  "OPENAI_API_KEY",
 ] as const;
 
-function createSelection(overrides: Partial<AdjustmentSelection> = {}): AdjustmentSelection {
+function createSelection(
+  overrides: Partial<AdjustmentSelection> = {},
+): AdjustmentSelection {
   return {
     blockIndex: 0,
     blockType: "paragraph",
@@ -25,13 +31,13 @@ function createSelection(overrides: Partial<AdjustmentSelection> = {}): Adjustme
     messageRole: "assistant",
     selectedText: "**Wichtig:** Zuständigkeiten müssen sichtbar bleiben.",
     textQuote: "**Wichtig:** Zuständigkeiten müssen sichtbar bleiben.",
-    ...overrides
+    ...overrides,
   };
 }
 
 function createSessionDetail(
   userMessage: string,
-  overrides: Partial<AdjustmentSelection> = {}
+  overrides: Partial<AdjustmentSelection> = {},
 ): AdjustmentSessionDetail {
   return {
     messages: [
@@ -40,8 +46,8 @@ function createSessionDetail(
         createdAt: "2026-03-08T12:01:00.000Z",
         id: "user-1",
         role: "user" satisfies Role,
-        sessionId: "session-1"
-      }
+        sessionId: "session-1",
+      },
     ],
     session: {
       createdAt: "2026-03-08T12:00:00.000Z",
@@ -50,12 +56,14 @@ function createSessionDetail(
       selection: createSelection(overrides),
       status: "open",
       targetFormat: "reader",
-      updatedAt: "2026-03-08T12:01:00.000Z"
-    }
+      updatedAt: "2026-03-08T12:01:00.000Z",
+    },
   };
 }
 
-function restoreEnv(snapshot: Partial<Record<(typeof configEnvKeys)[number], string | undefined>>) {
+function restoreEnv(
+  snapshot: Partial<Record<(typeof configEnvKeys)[number], string | undefined>>,
+) {
   for (const key of configEnvKeys) {
     const value = snapshot[key];
 
@@ -70,7 +78,7 @@ function restoreEnv(snapshot: Partial<Record<(typeof configEnvKeys)[number], str
 
 test("chat turn fails clearly when live OpenAI chat is not configured", async () => {
   const envSnapshot = Object.fromEntries(
-    configEnvKeys.map((key) => [key, process.env[key]])
+    configEnvKeys.map((key) => [key, process.env[key]]),
   ) as Partial<Record<(typeof configEnvKeys)[number], string | undefined>>;
 
   delete process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED;
@@ -83,13 +91,15 @@ test("chat turn fails clearly when live OpenAI chat is not configured", async ()
         activeRules: [],
         executeApplyAdjustmentRule: async () => ({
           ok: true,
-          summary: "unused"
+          summary: "unused",
         }),
-        sessionDetail: createSessionDetail("Bitte stelle den markierten Text klarer dar.")
+        sessionDetail: createSessionDetail(
+          "Bitte stelle den markierten Text klarer dar.",
+        ),
       }),
       (error: unknown) =>
         error instanceof AdjustmentChatUnavailableError &&
-        /nicht konfiguriert/i.test(error.message)
+        /nicht konfiguriert/i.test(error.message),
     );
   } finally {
     restoreEnv(envSnapshot);
@@ -98,7 +108,7 @@ test("chat turn fails clearly when live OpenAI chat is not configured", async ()
 
 test("chat turn can apply a rule through a tool call and return a short German confirmation", async () => {
   const envSnapshot = Object.fromEntries(
-    configEnvKeys.map((key) => [key, process.env[key]])
+    configEnvKeys.map((key) => [key, process.env[key]]),
   ) as Partial<Record<(typeof configEnvKeys)[number], string | undefined>>;
   const originalFetch = globalThis.fetch;
   const seenBodies: unknown[] = [];
@@ -118,7 +128,10 @@ test("chat turn can apply a rule through a tool call and return a short German c
     if (seenBodies.length === 1) {
       assert.equal(body.tools?.[0]?.name, "apply_adjustment_rule");
       assert.equal(body.store, true);
-      assert.match(body.input?.[1]?.content?.[0]?.text, /bold formatierung sichtbar/i);
+      assert.match(
+        body.input?.[1]?.content?.[0]?.text,
+        /bold formatierung sichtbar/i,
+      );
 
       return new Response(
         JSON.stringify({
@@ -127,21 +140,21 @@ test("chat turn can apply a rule through a tool call and return a short German c
             {
               arguments: JSON.stringify({
                 instruction:
-                  "Rendere vorhandene Markdown-Fettdruck-Markierungen in der Auswahl direkt sichtbar."
+                  "Rendere vorhandene Markdown-Fettdruck-Markierungen in der Auswahl direkt sichtbar.",
               }),
               call_id: "call_1",
               name: "apply_adjustment_rule",
               status: "completed",
-              type: "function_call"
-            }
-          ]
+              type: "function_call",
+            },
+          ],
         }),
         {
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
-          status: 200
-        }
+          status: 200,
+        },
       );
     }
 
@@ -153,14 +166,15 @@ test("chat turn can apply a rule through a tool call and return a short German c
     return new Response(
       JSON.stringify({
         id: "resp_2",
-        output_text: "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht."
+        output_text:
+          "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht.",
       }),
       {
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        status: 200
-      }
+        status: 200,
+      },
     );
   };
 
@@ -173,15 +187,21 @@ test("chat turn can apply a rule through a tool call and return a short German c
         return {
           ok: true,
           ruleId: "rule-1",
-          summary: "Rendere vorhandene Markdown-Fettdruck-Markierungen in der Auswahl direkt sichtbar."
+          summary:
+            "Rendere vorhandene Markdown-Fettdruck-Markierungen in der Auswahl direkt sichtbar.",
         };
       },
-      sessionDetail: createSessionDetail("Bitte mach die bold formatierung sichtbar.")
+      sessionDetail: createSessionDetail(
+        "Bitte mach die bold formatierung sichtbar.",
+      ),
     });
 
     assert.equal(result.didApplyRule, true);
     assert.equal(result.didRequestClarification, false);
-    assert.equal(result.assistantMessage, "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht.");
+    assert.equal(
+      result.assistantMessage,
+      "Ich habe den markierten Fettdruck jetzt direkt im Reader sichtbar gemacht.",
+    );
     assert.match(result.toolMessages[0] ?? "", /Regel direkt angewendet/i);
   } finally {
     globalThis.fetch = originalFetch;
@@ -191,7 +211,7 @@ test("chat turn can apply a rule through a tool call and return a short German c
 
 test("chat turn can ask one short clarification when the request is still vague", async () => {
   const envSnapshot = Object.fromEntries(
-    configEnvKeys.map((key) => [key, process.env[key]])
+    configEnvKeys.map((key) => [key, process.env[key]]),
   ) as Partial<Record<(typeof configEnvKeys)[number], string | undefined>>;
   const originalFetch = globalThis.fetch;
   let callCount = 0;
@@ -208,14 +228,15 @@ test("chat turn can ask one short clarification when the request is still vague"
     return new Response(
       JSON.stringify({
         id: "resp_3",
-        output_text: "Soll das nur an dieser Stelle gelten oder auch für ähnliche Stellen?"
+        output_text:
+          "Soll das nur an dieser Stelle gelten oder auch für ähnliche Stellen?",
       }),
       {
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        status: 200
-      }
+        status: 200,
+      },
     );
   };
 
@@ -225,7 +246,7 @@ test("chat turn can ask one short clarification when the request is still vague"
       executeApplyAdjustmentRule: async () => {
         throw new Error("tool should not be called");
       },
-      sessionDetail: createSessionDetail("Mach das bitte besser.")
+      sessionDetail: createSessionDetail("Mach das bitte besser."),
     });
 
     assert.equal(callCount, 1);

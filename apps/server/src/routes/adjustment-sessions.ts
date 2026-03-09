@@ -1,26 +1,25 @@
+import {
+  adjustmentSessionDetailSchema,
+  appendAdjustmentMessageRequestSchema,
+  applyAdjustmentSessionResponseSchema,
+} from "@chat-exporter/shared";
 import { Hono } from "hono";
 
 import {
-  applyAdjustmentSessionResponseSchema,
-  adjustmentSessionDetailSchema,
-  appendAdjustmentMessageRequestSchema
-} from "@chat-exporter/shared";
-
-import {
   AdjustmentChatUnavailableError,
+  type ApplyAdjustmentRuleResult,
   runAdjustmentChatTurn,
-  type ApplyAdjustmentRuleResult
 } from "../lib/adjustment-chat-orchestrator.js";
 import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
 import {
-  applyAdjustmentPreview,
   appendAdjustmentMessage,
+  applyAdjustmentPreview,
   discardAdjustmentSession,
   getAdjustmentSessionDetail,
   listFormatRules,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
-  saveAdjustmentPreview
+  saveAdjustmentPreview,
 } from "../lib/adjustment-repository.js";
 import { getImportJob } from "../lib/import-store.js";
 
@@ -31,9 +30,9 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Anpassungssession nicht gefunden."
+          message: "Anpassungssession nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -46,9 +45,9 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Anpassungssession nicht gefunden."
+          message: "Anpassungssession nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
@@ -59,31 +58,44 @@ export const adjustmentSessionsRoute = new Hono()
       return c.json(
         {
           message: "Ungültige Anpassungsnachricht.",
-          issues: parsed.error.flatten()
+          issues: parsed.error.flatten(),
         },
-        400
+        400,
       );
     }
 
     appendAdjustmentMessage(sessionId, "user", parsed.data.content);
-    const latestDetail = getAdjustmentSessionDetail(sessionId);
+    let latestDetail = getAdjustmentSessionDetail(sessionId);
 
     if (!latestDetail) {
       return c.json(
         {
-          message: "Anpassungssession konnte nicht neu geladen werden."
+          message: "Anpassungssession konnte nicht neu geladen werden.",
         },
-        500
+        500,
       );
     }
 
     if (latestDetail.session.status === "applied") {
       reopenAdjustmentSession(sessionId);
+      const refreshedDetail = getAdjustmentSessionDetail(sessionId);
+
+      if (!refreshedDetail) {
+        return c.json(
+          {
+            message: "Anpassungssession konnte nicht neu geladen werden.",
+          },
+          500,
+        );
+      }
+
+      latestDetail = refreshedDetail;
     }
 
-    const activeRules = listFormatRules(detail.session.importId, detail.session.targetFormat).filter(
-      (rule) => rule.status === "active"
-    );
+    const activeRules = listFormatRules(
+      detail.session.importId,
+      detail.session.targetFormat,
+    ).filter((rule) => rule.status === "active");
 
     try {
       const job = getImportJob(detail.session.importId);
@@ -99,16 +111,16 @@ export const adjustmentSessionsRoute = new Hono()
                 createdAt: new Date().toISOString(),
                 id: `${sessionId}:tool-instruction`,
                 role: "user" as const,
-                sessionId
-              }
-            ]
+                sessionId,
+              },
+            ],
           };
 
           try {
             const preview = await buildAdjustmentPreview({
               activeRules,
               job,
-              sessionDetail: syntheticDetail
+              sessionDetail: syntheticDetail,
             });
 
             saveAdjustmentPreview(sessionId, preview);
@@ -116,7 +128,7 @@ export const adjustmentSessionsRoute = new Hono()
               importId: latestDetail.session.importId,
               sessionId,
               targetFormat: latestDetail.session.targetFormat,
-              type: "preview_generated"
+              type: "preview_generated",
             });
 
             const applied = applyAdjustmentPreview(sessionId);
@@ -125,7 +137,7 @@ export const adjustmentSessionsRoute = new Hono()
               ok: true,
               rationale: preview.rationale,
               ruleId: applied.rule.id,
-              summary: preview.summary
+              summary: preview.summary,
             } satisfies ApplyAdjustmentRuleResult;
           } catch (error) {
             const message =
@@ -136,35 +148,39 @@ export const adjustmentSessionsRoute = new Hono()
             recordAdjustmentEvent({
               importId: latestDetail.session.importId,
               payload: {
-                message
+                message,
               },
               sessionId,
               targetFormat: latestDetail.session.targetFormat,
-              type: "preview_failed"
+              type: "preview_failed",
             });
 
             return {
               error: message,
-              ok: false
+              ok: false,
             } satisfies ApplyAdjustmentRuleResult;
           }
         },
         job,
-        sessionDetail: latestDetail
+        sessionDetail: latestDetail,
       });
 
       for (const toolMessage of chatTurn.toolMessages) {
         appendAdjustmentMessage(sessionId, "tool", toolMessage);
       }
 
-      appendAdjustmentMessage(sessionId, "assistant", chatTurn.assistantMessage);
+      appendAdjustmentMessage(
+        sessionId,
+        "assistant",
+        chatTurn.assistantMessage,
+      );
 
       if (chatTurn.didRequestClarification) {
         recordAdjustmentEvent({
           importId: latestDetail.session.importId,
           sessionId,
           targetFormat: latestDetail.session.targetFormat,
-          type: "clarification_requested"
+          type: "clarification_requested",
         });
       }
     } catch (error) {
@@ -175,9 +191,9 @@ export const adjustmentSessionsRoute = new Hono()
               ? error.message
               : error instanceof Error
                 ? error.message
-                : "Die Live-KI-Nachricht konnte nicht verarbeitet werden."
+                : "Die Live-KI-Nachricht konnte nicht verarbeitet werden.",
         },
-        error instanceof AdjustmentChatUnavailableError ? 503 : 400
+        error instanceof AdjustmentChatUnavailableError ? 503 : 400,
       );
     }
 
@@ -186,9 +202,9 @@ export const adjustmentSessionsRoute = new Hono()
     if (!nextDetail) {
       return c.json(
         {
-          message: "Anpassungssession konnte nicht neu geladen werden."
+          message: "Anpassungssession konnte nicht neu geladen werden.",
         },
-        500
+        500,
       );
     }
 
@@ -201,37 +217,38 @@ export const adjustmentSessionsRoute = new Hono()
     if (!detail) {
       return c.json(
         {
-          message: "Anpassungssession nicht gefunden."
+          message: "Anpassungssession nicht gefunden.",
         },
-        404
+        404,
       );
     }
 
     try {
       const job = getImportJob(detail.session.importId);
-      const activeRules = listFormatRules(detail.session.importId, detail.session.targetFormat).filter(
-        (rule) => rule.status === "active"
-      );
+      const activeRules = listFormatRules(
+        detail.session.importId,
+        detail.session.targetFormat,
+      ).filter((rule) => rule.status === "active");
       const preview = await buildAdjustmentPreview({
         activeRules,
         job,
-        sessionDetail: detail
+        sessionDetail: detail,
       });
       saveAdjustmentPreview(sessionId, preview);
       recordAdjustmentEvent({
         importId: detail.session.importId,
         sessionId,
         targetFormat: detail.session.targetFormat,
-        type: "preview_generated"
+        type: "preview_generated",
       });
       const nextDetail = getAdjustmentSessionDetail(sessionId);
 
       if (!nextDetail) {
         return c.json(
           {
-            message: "Anpassungssession konnte nicht neu geladen werden."
+            message: "Anpassungssession konnte nicht neu geladen werden.",
           },
-          500
+          500,
         );
       }
 
@@ -243,20 +260,20 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Anpassungsvorschau konnte nicht erzeugt werden."
+              : "Anpassungsvorschau konnte nicht erzeugt werden.",
         },
         sessionId,
         targetFormat: detail.session.targetFormat,
-        type: "preview_failed"
+        type: "preview_failed",
       });
       return c.json(
         {
           message:
             error instanceof Error
               ? error.message
-              : "Anpassungsvorschau konnte nicht erzeugt werden."
+              : "Anpassungsvorschau konnte nicht erzeugt werden.",
         },
-        400
+        400,
       );
     }
   })
@@ -272,9 +289,9 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Anpassungsregel konnte nicht angewendet werden."
+              : "Anpassungsregel konnte nicht angewendet werden.",
         },
-        400
+        400,
       );
     }
   })
@@ -290,9 +307,9 @@ export const adjustmentSessionsRoute = new Hono()
           message:
             error instanceof Error
               ? error.message
-              : "Anpassungssession konnte nicht verworfen werden."
+              : "Anpassungssession konnte nicht verworfen werden.",
         },
-        400
+        400,
       );
     }
   });

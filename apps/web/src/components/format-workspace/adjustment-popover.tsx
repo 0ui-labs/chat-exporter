@@ -1,17 +1,16 @@
-import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { X } from "lucide-react";
-
 import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
-
+import { X } from "lucide-react";
+import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
+import { getViewLabel } from "@/components/format-workspace/labels";
 import type {
   FloatingAdjustmentAnchor,
-  ViewMode
+  ViewMode,
 } from "@/components/format-workspace/types";
-import { getViewLabel } from "@/components/format-workspace/labels";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor;
   containerDimensions: { width: number; height: number };
+  containerScrollTop: number;
   draftMessage: string;
   error: string | null;
   isLoading: boolean;
@@ -25,7 +24,9 @@ type AdjustmentPopoverProps = {
   view: ViewMode;
 };
 
-function getLastAssistantMessage(sessionDetail: AdjustmentSessionDetail | null) {
+function getLastAssistantMessage(
+  sessionDetail: AdjustmentSessionDetail | null,
+) {
   return (
     sessionDetail?.messages
       .slice()
@@ -50,25 +51,37 @@ function clamp(value: number, min: number, max: number) {
 function getPopoverPosition(
   anchor: FloatingAdjustmentAnchor,
   dimensions: PopoverDimensions,
-  containerDimensions: { width: number; height: number }
+  containerDimensions: { width: number; height: number },
+  containerScrollTop: number,
 ) {
   const margin = 16;
   const gap = 12;
-  const width = dimensions.width || Math.min(352, containerDimensions.width - margin * 2);
+  const maxWidth = Math.min(352, containerDimensions.width - margin * 2);
+  const width = dimensions.width || maxWidth;
   const height = dimensions.height;
-  const left = clamp(anchor.left, margin, containerDimensions.width - width - margin);
+  const left = clamp(
+    anchor.left,
+    margin,
+    containerDimensions.width - width - margin,
+  );
   const preferredTop = anchor.top - height - gap;
-  const top = clamp(preferredTop, margin, containerDimensions.height - height - margin);
+  const top = clamp(
+    preferredTop,
+    containerScrollTop + margin,
+    containerScrollTop + containerDimensions.height - height - margin,
+  );
 
   return {
     left,
-    top
+    maxWidth,
+    top,
   };
 }
 
 export function AdjustmentPopover({
   anchor,
   containerDimensions,
+  containerScrollTop,
   draftMessage,
   error,
   isLoading,
@@ -79,12 +92,12 @@ export function AdjustmentPopover({
   onSubmitMessage,
   sessionDetail,
   showReply,
-  view
+  view,
 }: AdjustmentPopoverProps) {
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const [dimensions, setDimensions] = useState<PopoverDimensions>({
     height: 0,
-    width: 352
+    width: 352,
   });
   const lastAssistantMessage = getLastAssistantMessage(sessionDetail);
   const isApplied = sessionDetail?.session.status === "applied";
@@ -99,7 +112,7 @@ export function AdjustmentPopover({
     const updateDimensions = () => {
       const nextDimensions = {
         height: node.offsetHeight,
-        width: node.offsetWidth
+        width: node.offsetWidth,
       };
 
       setDimensions((current) => {
@@ -121,7 +134,9 @@ export function AdjustmentPopover({
     }
 
     const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDimensions);
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateDimensions);
 
     resizeObserver?.observe(node);
 
@@ -130,16 +145,23 @@ export function AdjustmentPopover({
     };
   }, []);
 
-  const position = getPopoverPosition(anchor, dimensions, containerDimensions);
+  const position = getPopoverPosition(
+    anchor,
+    dimensions,
+    containerDimensions,
+    containerScrollTop,
+  );
 
   return (
     <div
       ref={popoverRef}
       data-testid={`adjustment-popover-${view}`}
-      className="absolute z-50 w-[min(22rem,calc(100vw-2rem))]"
+      className="absolute z-50"
       style={{
         left: position.left,
-        top: position.top
+        maxWidth: position.maxWidth,
+        top: position.top,
+        width: "22rem",
       }}
     >
       <div className="rounded-[1.4rem] border border-border bg-background shadow-[0_24px_80px_-32px_rgba(15,23,42,0.5)]">
@@ -191,7 +213,11 @@ export function AdjustmentPopover({
                 data-testid="adjustment-draft-message"
                 className="min-h-24 w-full rounded-2xl border border-border/80 bg-background px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                 disabled={isLoading}
-                placeholder={isApplied ? "Noch etwas anpassen?" : "Beschreibe kurz, wie diese Stelle aussehen soll."}
+                placeholder={
+                  isApplied
+                    ? "Noch etwas anpassen?"
+                    : "Beschreibe kurz, wie diese Stelle aussehen soll."
+                }
                 value={draftMessage}
                 onChange={(event) => onDraftMessageChange(event.target.value)}
               />
@@ -199,12 +225,13 @@ export function AdjustmentPopover({
 
             {isApplied ? (
               <p className="text-sm text-muted-foreground">
-                Die Änderung ist schon sichtbar. Du kannst weiter anpassen oder eine neue Stelle
-                markieren.
+                Die Änderung ist schon sichtbar. Du kannst weiter anpassen oder
+                eine neue Stelle markieren.
               </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Die KI antwortet kurz und setzt klare Änderungen sofort direkt in dieser Ansicht um.
+                Die KI antwortet kurz und setzt klare Änderungen sofort direkt
+                in dieser Ansicht um.
               </p>
             )}
 
@@ -228,7 +255,9 @@ export function AdjustmentPopover({
               <button
                 data-testid="adjustment-send"
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isLoading || isSubmitting || draftMessage.trim().length === 0}
+                disabled={
+                  isLoading || isSubmitting || draftMessage.trim().length === 0
+                }
                 type="submit"
               >
                 {isSubmitting ? "Wird gesendet..." : "Senden"}

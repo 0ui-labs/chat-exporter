@@ -23,7 +23,7 @@ function parseEnvFile(content: string) {
     let value = line.slice(separatorIndex + 1).trim();
 
     if (
-      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
     ) {
       value = value.slice(1, -1);
@@ -54,7 +54,7 @@ export function loadLocalEnv() {
     path.join(projectRoot, ".env"),
     path.join(projectRoot, ".env.local"),
     path.join(serverRoot, ".env"),
-    path.join(serverRoot, ".env.local")
+    path.join(serverRoot, ".env.local"),
   ];
 
   for (const candidatePath of candidatePaths) {

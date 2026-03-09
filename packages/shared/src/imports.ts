@@ -8,7 +8,7 @@ export const importStatusSchema = z.enum([
   "queued",
   "running",
   "completed",
-  "failed"
+  "failed",
 ]);
 
 export const importStageSchema = z.enum([
@@ -18,18 +18,18 @@ export const importStageSchema = z.enum([
   "normalize",
   "structure",
   "render",
-  "done"
+  "done",
 ]);
 
 export const importRequestSchema = z.object({
   url: z.string().url(),
-  mode: importModeSchema.default("archive")
+  mode: importModeSchema.default("archive"),
 });
 
 export const importArtifactsSchema = z.object({
   markdown: z.string(),
   handover: z.string(),
-  json: z.string()
+  json: z.string(),
 });
 
 export const importJobSchema = z.object({
@@ -46,11 +46,11 @@ export const importJobSchema = z.object({
   summary: z
     .object({
       messageCount: z.number().int().nonnegative(),
-      transcriptWords: z.number().int().nonnegative()
+      transcriptWords: z.number().int().nonnegative(),
     })
     .optional(),
   conversation: conversationSchema.optional(),
-  artifacts: importArtifactsSchema.optional()
+  artifacts: importArtifactsSchema.optional(),
 });
 
 export type ImportMode = z.infer<typeof importModeSchema>;
