@@ -12,9 +12,9 @@ The durable product is a **conversation portability layer**:
 
 ## Phase 1 Scope
 
-First source:
+First sources:
 
-- public ChatGPT share links only
+- public share pages from ChatGPT, Claude, Gemini, Grok, DeepSeek and similar providers
 
 First outputs:
 
@@ -25,7 +25,7 @@ First outputs:
 
 Explicitly out of scope for the first slice:
 
-- all providers at once
+- perfect per-provider fidelity on day one
 - perfect original styling recreation
 - billing
 - BYOK

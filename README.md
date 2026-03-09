@@ -12,13 +12,14 @@ Performance-first scaffold for a personal or paid AI conversation portability to
 
 This repository is scaffolded for the first product slice:
 
-- ChatGPT public share link import form
+- multi-provider public share page import form
 - async import job model
 - shared `Conversation IR`
 - reader, markdown, handover and JSON result views
 - persisted debug snapshot view with raw-vs-normalized compare, normalized payload and raw HTML preview
 
-The current importer already uses `Playwright` against public ChatGPT share links, extracts a deterministic conversation structure and persists jobs plus raw snapshots in SQLite.
+The current importer uses `Playwright` against public share pages, keeps the ChatGPT-specific path for high-fidelity extraction and falls back to a generic provider-aware DOM heuristic for other platforms such as Claude, Gemini, Grok and DeepSeek.
+Imported jobs plus raw snapshots are persisted in SQLite.
 An optional AI repair pass can now re-structure low-confidence assistant messages behind a schema-validated interface using OpenAI or Cerebras.
 
 ## Run
@@ -57,7 +58,7 @@ pnpm typecheck
 
 ## Next Implementation Steps
 
-1. Improve deterministic extraction for edge cases like nested lists, tables and provider-specific code blocks.
-2. Add richer AI repair/debug telemetry such as raw model responses and selective retry controls.
-3. Add additional ingestion modes such as pasted HTML or direct share-sheet payloads.
-4. Add search, filtering and timeline views across the persisted import archive.
+1. Harden provider-specific extraction paths for Claude, Gemini, Grok and DeepSeek so fewer pages rely on the generic fallback.
+2. Improve deterministic extraction for edge cases like nested lists, tables and provider-specific code blocks.
+3. Add richer AI repair/debug telemetry such as raw model responses and selective retry controls.
+4. Add additional ingestion modes such as pasted HTML or direct share-sheet payloads.
