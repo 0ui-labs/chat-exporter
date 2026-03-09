@@ -8,7 +8,7 @@ import type { ViewMode } from "@/components/format-workspace/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createImport, getImport, listImports } from "@/lib/api";
+import { rpc } from "@/lib/rpc";
 import { cn } from "@/lib/utils";
 
 const importStages = {
@@ -122,7 +122,7 @@ export function HomePage() {
 
     async function refreshRecentJobs() {
       try {
-        const jobs = await listImports();
+        const jobs = await rpc.imports.list();
 
         if (cancelled) {
           return;
@@ -168,7 +168,7 @@ export function HomePage() {
 
     async function refreshJob() {
       try {
-        const nextJob = await getImport(importId);
+        const nextJob = await rpc.imports.get({ id: importId });
 
         if (cancelled) {
           return;
@@ -250,7 +250,7 @@ export function HomePage() {
     setError(null);
 
     try {
-      const nextJob = await createImport({ url, mode: "archive" });
+      const nextJob = await rpc.imports.create({ url, mode: "archive" });
 
       setHasEditedUrl(false);
       setJob(nextJob);

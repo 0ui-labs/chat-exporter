@@ -32,13 +32,7 @@ import type {
 } from "@/components/format-workspace/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  appendAdjustmentMessage,
-  createAdjustmentSession,
-  disableFormatRule,
-  discardAdjustmentSession,
-  getFormatRules,
-} from "@/lib/api";
+import { rpc } from "@/lib/rpc";
 
 type ActiveStage = {
   detail: string;
@@ -288,7 +282,10 @@ export function FormatWorkspace({
     }
 
     try {
-      const rules = await getFormatRules(job.id, targetView);
+      const rules = await rpc.rules.list({
+        importId: job.id,
+        format: targetView,
+      });
       setRulesByView((current) => ({
         ...current,
         [targetView]: rules,
@@ -348,7 +345,8 @@ export function FormatWorkspace({
 
     let cancelled = false;
 
-    void getFormatRules(job.id, view)
+    void rpc.rules
+      .list({ importId: job.id, format: view })
       .then((rules) => {
         if (cancelled) {
           return;
@@ -406,10 +404,12 @@ export function FormatWorkspace({
         [view]: null,
       }));
 
-      void createAdjustmentSession(job.id, {
-        selection: activeSelection,
-        targetFormat: view,
-      })
+      void rpc.adjustments
+        .createSession({
+          importId: job.id,
+          selection: activeSelection,
+          targetFormat: view,
+        })
         .then((detail) => {
           if (cancelled) {
             return;
@@ -556,12 +556,10 @@ export function FormatWorkspace({
     }));
 
     try {
-      const nextDetail = await appendAdjustmentMessage(
-        activeSessionDetail.session.id,
-        {
-          content,
-        },
-      );
+      const nextDetail = await rpc.adjustments.appendMessage({
+        sessionId: activeSessionDetail.session.id,
+        content,
+      });
 
       setSessionDetailByView((current) => ({
         ...current,
@@ -611,7 +609,9 @@ export function FormatWorkspace({
     }));
 
     try {
-      await discardAdjustmentSession(activeSessionDetail.session.id);
+      await rpc.adjustments.discard({
+        sessionId: activeSessionDetail.session.id,
+      });
       clearCurrentAdjustmentState(view);
     } catch (error) {
       if (activeSessionDetail.session.status === "applied") {
@@ -646,7 +646,10 @@ export function FormatWorkspace({
 
     if (!matchingRule) {
       try {
-        const freshRules = await getFormatRules(job.id, view);
+        const freshRules = await rpc.rules.list({
+          importId: job.id,
+          format: view,
+        });
         setRulesByView((current) => ({
           ...current,
           [view]: freshRules,
@@ -687,7 +690,7 @@ export function FormatWorkspace({
     }));
 
     try {
-      const nextRule = await disableFormatRule(ruleId);
+      const nextRule = await rpc.rules.disable({ id: ruleId });
 
       setRulesByView((current) => ({
         ...current,

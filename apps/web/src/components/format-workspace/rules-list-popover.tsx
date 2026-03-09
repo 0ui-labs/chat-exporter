@@ -11,7 +11,7 @@ import { describeSelectorScope } from "@/components/format-workspace/rule-scope"
 import type { ViewMode } from "@/components/format-workspace/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAdjustmentSessionDetail } from "@/lib/api";
+import { rpc } from "@/lib/rpc";
 
 type RulesListPopoverProps = {
   disablingRuleById: Record<string, boolean>;
@@ -85,7 +85,7 @@ export function RulesListPopover({
     });
 
     try {
-      const detail = await getAdjustmentSessionDetail(sourceSessionId);
+      const detail = await rpc.adjustments.getSession({ id: sourceSessionId });
       setExplanationCache((current) => ({
         ...current,
         [sourceSessionId]: detail,
