@@ -97,6 +97,9 @@ importers:
         specifier: ^2.5.5
         version: 2.6.1
     devDependencies:
+      '@orpc/contract':
+        specifier: ^1.13.6
+        version: 1.13.6
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.15
