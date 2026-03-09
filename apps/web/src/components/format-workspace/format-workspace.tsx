@@ -3,6 +3,7 @@ import type {
   FormatRule,
   ImportJob,
 } from "@chat-exporter/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
 import {
   type FormEvent,
@@ -32,6 +33,7 @@ import type {
 } from "@/components/format-workspace/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { orpc } from "@/lib/orpc";
 import { rpc } from "@/lib/rpc";
 
 type ActiveStage = {
@@ -102,10 +104,13 @@ export function FormatWorkspace({
   view,
   onViewChange,
 }: FormatWorkspaceProps) {
+  const queryClient = useQueryClient();
   const sectionRef = useRef<HTMLElement | null>(null);
   const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // --- UI-only state (stays as useState) ---
   const [draftMessageByView, setDraftMessageByView] = useState<
     Record<ViewMode, string>
   >({
@@ -130,74 +135,6 @@ export function FormatWorkspace({
     handover: false,
     json: false,
   });
-  const [sessionDetailByView, setSessionDetailByView] = useState<
-    Record<ViewMode, AdjustmentSessionDetail | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [sessionErrorByView, setSessionErrorByView] = useState<
-    Record<ViewMode, string | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [sessionLoadingByView, setSessionLoadingByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [sessionSelectionKeyByView, setSessionSelectionKeyByView] = useState<
-    Record<ViewMode, string | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [submittingMessageByView, setSubmittingMessageByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [discardingByView, setDiscardingByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [replyVisibleByView, setReplyVisibleByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
-  const [disablingRuleById, setDisablingRuleById] = useState<
-    Record<string, boolean>
-  >({});
-  const [rulesByView, setRulesByView] = useState<
-    Record<ViewMode, FormatRule[]>
-  >({
-    reader: [],
-    markdown: [],
-    handover: [],
-    json: [],
-  });
   const [selectionByView, setSelectionByView] = useState<
     Record<ViewMode, AdjustmentSelection | null>
   >({
@@ -221,6 +158,104 @@ export function FormatWorkspace({
     width: 0,
     height: 0,
   });
+  const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
+  const [replyVisibleByView, setReplyVisibleByView] = useState<
+    Record<ViewMode, boolean>
+  >({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false,
+  });
+  const [sessionSelectionKeyByView, setSessionSelectionKeyByView] = useState<
+    Record<ViewMode, string | null>
+  >({
+    reader: null,
+    markdown: null,
+    handover: null,
+    json: null,
+  });
+
+  // --- Session detail (populated from mutation results) ---
+  const [activeSessionDetail, setActiveSessionDetail] =
+    useState<AdjustmentSessionDetail | null>(null);
+
+  // --- Session error (shared across create/append/discard) ---
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  // --- TanStack Query: rules ---
+  const isAdjustableView = adjustableViews.has(view);
+
+  const rulesQuery = useQuery({
+    ...orpc.rules.list.queryOptions({
+      input: { importId: job.id, format: view },
+    }),
+    enabled: isAdjustableView,
+  });
+  const activeRules: FormatRule[] = rulesQuery.data ?? [];
+
+  // --- TanStack Query: create session mutation ---
+  const createSession = useMutation(
+    orpc.adjustments.createSession.mutationOptions(),
+  );
+
+  // --- TanStack Query: append message mutation ---
+  const appendMessage = useMutation(
+    orpc.adjustments.appendMessage.mutationOptions({
+      onSuccess: (nextDetail) => {
+        setActiveSessionDetail(nextDetail);
+        setDraftMessageByView((current) => ({
+          ...current,
+          [view]: "",
+        }));
+        setReplyVisibleByView((current) => ({
+          ...current,
+          [view]: true,
+        }));
+
+        if (nextDetail.session.status === "applied") {
+          queryClient.invalidateQueries({
+            queryKey: orpc.rules.list.key(),
+          });
+        }
+      },
+      onError: (error) => {
+        setSessionError(
+          error instanceof Error
+            ? error.message
+            : "Anpassungsnachricht konnte nicht gespeichert werden.",
+        );
+      },
+    }),
+  );
+
+  // --- TanStack Query: discard session mutation ---
+  const discardSession = useMutation(
+    orpc.adjustments.discard.mutationOptions({
+      onSuccess: () => {
+        clearCurrentAdjustmentState(view);
+      },
+      onError: (error) => {
+        if (
+          activeSessionDetail &&
+          activeSessionDetail.session.status === "applied"
+        ) {
+          clearCurrentAdjustmentState(view);
+        } else {
+          setSessionError(
+            error instanceof Error
+              ? error.message
+              : "Anpassungssession konnte nicht verworfen werden.",
+          );
+        }
+      },
+    }),
+  );
+
+  // Track which rule IDs are currently being disabled
+  const [disablingRuleById, setDisablingRuleById] = useState<
+    Record<string, boolean>
+  >({});
 
   useLayoutEffect(() => {
     const node = sectionRef.current;
@@ -257,46 +292,21 @@ export function FormatWorkspace({
   }, []);
 
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
-  const isAdjustableView = adjustableViews.has(view);
   const isAdjustModeEnabled = adjustModeByView[view];
   const activeDraftMessage = draftMessageByView[view];
-  const activeSessionDetail = sessionDetailByView[view];
-  const activeSessionError = sessionErrorByView[view];
-  const activeSessionLoading = sessionLoadingByView[view];
   const activeSelection = selectionByView[view];
   const activeAnchor = anchorByView[view];
   const activeSelectionKey = sessionSelectionKeyByView[view];
-  const activeRules = rulesByView[view];
   const displayedMarkdown =
     view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
-  const isDiscarding = discardingByView[view];
-  const isSubmittingMessage = submittingMessageByView[view];
+  const isDiscarding = discardSession.isPending;
+  const isSubmittingMessage = appendMessage.isPending;
+  const activeSessionLoading = createSession.isPending;
+  const activeSessionError = sessionError;
   const showGuide =
     isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
   const showPopover =
     isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
-
-  async function refreshFormatRules(targetView: ViewMode) {
-    if (!adjustableViews.has(targetView)) {
-      return;
-    }
-
-    try {
-      const rules = await rpc.rules.list({
-        importId: job.id,
-        format: targetView,
-      });
-      setRulesByView((current) => ({
-        ...current,
-        [targetView]: rules,
-      }));
-    } catch {
-      setRulesByView((current) => ({
-        ...current,
-        [targetView]: [],
-      }));
-    }
-  }
 
   function clearCurrentAdjustmentState(targetView: ViewMode) {
     setDraftMessageByView((current) => ({
@@ -311,18 +321,12 @@ export function FormatWorkspace({
       ...current,
       [targetView]: null,
     }));
-    setSessionDetailByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
+    setActiveSessionDetail(null);
     setSessionSelectionKeyByView((current) => ({
       ...current,
       [targetView]: null,
     }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
+    setSessionError(null);
     setReplyVisibleByView((current) => ({
       ...current,
       [targetView]: false,
@@ -338,41 +342,7 @@ export function FormatWorkspace({
     }
   }, [isAdjustModeEnabled, isAdjustableView, view]);
 
-  useEffect(() => {
-    if (!isAdjustableView) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void rpc.rules
-      .list({ importId: job.id, format: view })
-      .then((rules) => {
-        if (cancelled) {
-          return;
-        }
-
-        setRulesByView((current) => ({
-          ...current,
-          [view]: rules,
-        }));
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-
-        setRulesByView((current) => ({
-          ...current,
-          [view]: [],
-        }));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAdjustableView, job.id, view]);
-
+  // Debounced session creation on selection change
   useEffect(() => {
     if (!isAdjustModeEnabled || !isAdjustableView || !activeSelection) {
       return;
@@ -392,65 +362,35 @@ export function FormatWorkspace({
       clearTimeout(selectionDebounceRef.current);
     }
 
-    let cancelled = false;
-
     selectionDebounceRef.current = setTimeout(() => {
-      setSessionLoadingByView((current) => ({
-        ...current,
-        [view]: true,
-      }));
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]: null,
-      }));
+      setSessionError(null);
 
-      void rpc.adjustments
-        .createSession({
+      createSession.mutate(
+        {
           importId: job.id,
           selection: activeSelection,
           targetFormat: view,
-        })
-        .then((detail) => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionDetailByView((current) => ({
-            ...current,
-            [view]: detail,
-          }));
-          setSessionSelectionKeyByView((current) => ({
-            ...current,
-            [view]: nextSelectionKey,
-          }));
-        })
-        .catch((error) => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionErrorByView((current) => ({
-            ...current,
-            [view]:
+        },
+        {
+          onSuccess: (detail) => {
+            setActiveSessionDetail(detail);
+            setSessionSelectionKeyByView((current) => ({
+              ...current,
+              [view]: nextSelectionKey,
+            }));
+          },
+          onError: (error) => {
+            setSessionError(
               error instanceof Error
                 ? error.message
                 : "Anpassungssession konnte nicht erstellt werden.",
-          }));
-        })
-        .finally(() => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionLoadingByView((current) => ({
-            ...current,
-            [view]: false,
-          }));
-        });
+            );
+          },
+        },
+      );
     }, 250);
 
     return () => {
-      cancelled = true;
       if (selectionDebounceRef.current !== null) {
         clearTimeout(selectionDebounceRef.current);
       }
@@ -459,6 +399,7 @@ export function FormatWorkspace({
     activeSelection,
     activeSelectionKey,
     activeSessionDetail,
+    createSession.mutate,
     isAdjustModeEnabled,
     isAdjustableView,
     job.id,
@@ -516,10 +457,7 @@ export function FormatWorkspace({
       ...current,
       [view]: true,
     }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
+    setSessionError(null);
     setReplyVisibleByView((current) => ({
       ...current,
       [view]: false,
@@ -533,7 +471,7 @@ export function FormatWorkspace({
     }));
   }
 
-  async function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
+  function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!activeSessionDetail) {
@@ -546,91 +484,25 @@ export function FormatWorkspace({
       return;
     }
 
-    setSubmittingMessageByView((current) => ({
-      ...current,
-      [view]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
+    setSessionError(null);
 
-    try {
-      const nextDetail = await rpc.adjustments.appendMessage({
-        sessionId: activeSessionDetail.session.id,
-        content,
-      });
-
-      setSessionDetailByView((current) => ({
-        ...current,
-        [view]: nextDetail,
-      }));
-      setDraftMessageByView((current) => ({
-        ...current,
-        [view]: "",
-      }));
-      setReplyVisibleByView((current) => ({
-        ...current,
-        [view]: true,
-      }));
-
-      if (nextDetail.session.status === "applied") {
-        await refreshFormatRules(view);
-      }
-    } catch (error) {
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error
-            ? error.message
-            : "Anpassungsnachricht konnte nicht gespeichert werden.",
-      }));
-    } finally {
-      setSubmittingMessageByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
+    appendMessage.mutate({
+      sessionId: activeSessionDetail.session.id,
+      content,
+    });
   }
 
-  async function handleDiscardSession() {
+  function handleDiscardSession() {
     if (!activeSessionDetail) {
       clearCurrentAdjustmentState(view);
       return;
     }
 
-    setDiscardingByView((current) => ({
-      ...current,
-      [view]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
+    setSessionError(null);
 
-    try {
-      await rpc.adjustments.discard({
-        sessionId: activeSessionDetail.session.id,
-      });
-      clearCurrentAdjustmentState(view);
-    } catch (error) {
-      if (activeSessionDetail.session.status === "applied") {
-        clearCurrentAdjustmentState(view);
-      } else {
-        setSessionErrorByView((current) => ({
-          ...current,
-          [view]:
-            error instanceof Error
-              ? error.message
-              : "Anpassungssession konnte nicht verworfen werden.",
-        }));
-      }
-    } finally {
-      setDiscardingByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
+    discardSession.mutate({
+      sessionId: activeSessionDetail.session.id,
+    });
   }
 
   async function handleRejectLastChange() {
@@ -650,10 +522,10 @@ export function FormatWorkspace({
           importId: job.id,
           format: view,
         });
-        setRulesByView((current) => ({
-          ...current,
-          [view]: freshRules,
-        }));
+        // Invalidate the query cache so it picks up the fresh data
+        queryClient.invalidateQueries({
+          queryKey: orpc.rules.list.key(),
+        });
         matchingRule = freshRules.find(
           (rule) =>
             rule.sourceSessionId === activeSessionDetail.session.id &&
@@ -684,30 +556,23 @@ export function FormatWorkspace({
       ...current,
       [ruleId]: true,
     }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
+    setSessionError(null);
 
     try {
-      const nextRule = await rpc.rules.disable({ id: ruleId });
+      await rpc.rules.disable({ id: ruleId });
 
-      setRulesByView((current) => ({
-        ...current,
-        [view]: current[view].map((rule) =>
-          rule.id === nextRule.id ? nextRule : rule,
-        ),
-      }));
+      queryClient.invalidateQueries({
+        queryKey: orpc.rules.list.key(),
+      });
+
       setHoveredRuleId((current) => (current === ruleId ? null : current));
       return true;
     } catch (error) {
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error
-            ? error.message
-            : "Formatregel konnte nicht deaktiviert werden.",
-      }));
+      setSessionError(
+        error instanceof Error
+          ? error.message
+          : "Formatregel konnte nicht deaktiviert werden.",
+      );
       return false;
     } finally {
       setDisablingRuleById((current) => {
@@ -869,7 +734,7 @@ export function FormatWorkspace({
               showReply={replyVisibleByView[view]}
               view={view}
               onClose={() => {
-                void handleDiscardSession();
+                handleDiscardSession();
               }}
               onDraftMessageChange={handleDraftMessageChange}
               onRejectLastChange={() => {
