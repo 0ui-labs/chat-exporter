@@ -16,6 +16,7 @@
   "dependencies": {
     "@chat-exporter/shared": "workspace:*",
     "@hono/node-server": "^1.13.7",
+    "@orpc/server": "^1.13.6",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.6.13",
