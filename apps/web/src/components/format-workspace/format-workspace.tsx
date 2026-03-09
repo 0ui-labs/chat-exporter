@@ -104,6 +104,7 @@ export function FormatWorkspace({
   onViewChange
 }: FormatWorkspaceProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
+  const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [draftMessageByView, setDraftMessageByView] = useState<Record<ViewMode, string>>({
     reader: "",
     markdown: "",
@@ -350,61 +351,70 @@ export function FormatWorkspace({
       return;
     }
 
+    if (selectionDebounceRef.current !== null) {
+      clearTimeout(selectionDebounceRef.current);
+    }
+
     let cancelled = false;
 
-    setSessionLoadingByView((current) => ({
-      ...current,
-      [view]: true
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null
-    }));
+    selectionDebounceRef.current = setTimeout(() => {
+      setSessionLoadingByView((current) => ({
+        ...current,
+        [view]: true
+      }));
+      setSessionErrorByView((current) => ({
+        ...current,
+        [view]: null
+      }));
 
-    void createAdjustmentSession(job.id, {
-      selection: activeSelection,
-      targetFormat: view
-    })
-      .then((detail) => {
-        if (cancelled) {
-          return;
-        }
-
-        setSessionDetailByView((current) => ({
-          ...current,
-          [view]: detail
-        }));
-        setSessionSelectionKeyByView((current) => ({
-          ...current,
-          [view]: nextSelectionKey
-        }));
+      void createAdjustmentSession(job.id, {
+        selection: activeSelection,
+        targetFormat: view
       })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
+        .then((detail) => {
+          if (cancelled) {
+            return;
+          }
 
-        setSessionErrorByView((current) => ({
-          ...current,
-          [view]:
-            error instanceof Error
-              ? error.message
-              : "Anpassungssession konnte nicht erstellt werden."
-        }));
-      })
-      .finally(() => {
-        if (cancelled) {
-          return;
-        }
+          setSessionDetailByView((current) => ({
+            ...current,
+            [view]: detail
+          }));
+          setSessionSelectionKeyByView((current) => ({
+            ...current,
+            [view]: nextSelectionKey
+          }));
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
 
-        setSessionLoadingByView((current) => ({
-          ...current,
-          [view]: false
-        }));
-      });
+          setSessionErrorByView((current) => ({
+            ...current,
+            [view]:
+              error instanceof Error
+                ? error.message
+                : "Anpassungssession konnte nicht erstellt werden."
+          }));
+        })
+        .finally(() => {
+          if (cancelled) {
+            return;
+          }
+
+          setSessionLoadingByView((current) => ({
+            ...current,
+            [view]: false
+          }));
+        });
+    }, 250);
 
     return () => {
       cancelled = true;
+      if (selectionDebounceRef.current !== null) {
+        clearTimeout(selectionDebounceRef.current);
+      }
     };
   }, [
     activeSelection,
@@ -637,6 +647,7 @@ export function FormatWorkspace({
         ...current,
         [view]: current[view].map((rule) => (rule.id === nextRule.id ? nextRule : rule))
       }));
+      setHoveredRuleId((current) => (current === ruleId ? null : current));
       return true;
     } catch (error) {
       setSessionErrorByView((current) => ({
