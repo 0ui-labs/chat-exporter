@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 
 import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
@@ -11,7 +11,6 @@ import { getViewLabel } from "@/components/format-workspace/labels";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor;
-  containerRect: DOMRect | null;
   draftMessage: string;
   error: string | null;
   isLoading: boolean;
@@ -33,41 +32,36 @@ function getLastAssistantMessage(sessionDetail: AdjustmentSessionDetail | null) 
   );
 }
 
-function getPopoverPosition(anchor: FloatingAdjustmentAnchor) {
-  if (typeof window === "undefined") {
-    return {
-      left: anchor.left,
-      top: anchor.bottom + 12
-    };
+type PopoverDimensions = {
+  height: number;
+  width: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  if (max <= min) {
+    return min;
   }
 
-  const margin = 16;
-  const popoverWidth = Math.min(352, window.innerWidth - margin * 2);
-  const left = Math.min(Math.max(anchor.left, margin), window.innerWidth - popoverWidth - margin);
-  const top = Math.min(anchor.bottom + 12, window.innerHeight - 300);
-
-  return {
-    left,
-    top
-  };
+  return Math.min(Math.max(value, min), max);
 }
 
-function getAnchoredPopoverPosition(
+function getPopoverPosition(
   anchor: FloatingAdjustmentAnchor,
-  containerRect: DOMRect | null
+  dimensions: PopoverDimensions
 ) {
-  if (!containerRect) {
-    return getPopoverPosition(anchor);
-  }
-
   const margin = 16;
-  const containerWidth = Math.max(containerRect.width, 320);
-  const popoverWidth = Math.min(352, containerWidth - margin * 2);
-  const left = Math.min(
-    Math.max(anchor.left - containerRect.left, margin),
-    containerWidth - popoverWidth - margin
-  );
-  const top = Math.max(anchor.bottom - containerRect.top + 12, margin);
+  const gap = 12;
+  const viewportWidth =
+    typeof window === "undefined" ? dimensions.width + margin * 2 : window.innerWidth;
+  const viewportHeight =
+    typeof window === "undefined"
+      ? anchor.bottom + dimensions.height + margin
+      : window.innerHeight;
+  const width = dimensions.width || Math.min(352, viewportWidth - margin * 2);
+  const height = dimensions.height;
+  const left = clamp(anchor.left, margin, viewportWidth - width - margin);
+  const preferredTop = anchor.top - height - gap;
+  const top = clamp(preferredTop, margin, viewportHeight - height - margin);
 
   return {
     left,
@@ -77,7 +71,6 @@ function getAnchoredPopoverPosition(
 
 export function AdjustmentPopover({
   anchor,
-  containerRect,
   draftMessage,
   error,
   isLoading,
@@ -89,20 +82,70 @@ export function AdjustmentPopover({
   showReply,
   view
 }: AdjustmentPopoverProps) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [dimensions, setDimensions] = useState<PopoverDimensions>({
+    height: 0,
+    width: 352
+  });
   const lastAssistantMessage = getLastAssistantMessage(sessionDetail);
   const isApplied = sessionDetail?.session.status === "applied";
-  const position = getAnchoredPopoverPosition(anchor, containerRect);
+
+  useLayoutEffect(() => {
+    const node = popoverRef.current;
+
+    if (!node) {
+      return;
+    }
+
+    const updateDimensions = () => {
+      const nextDimensions = {
+        height: node.offsetHeight,
+        width: node.offsetWidth
+      };
+
+      setDimensions((current) => {
+        if (
+          current.height === nextDimensions.height &&
+          current.width === nextDimensions.width
+        ) {
+          return current;
+        }
+
+        return nextDimensions;
+      });
+    };
+
+    updateDimensions();
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateDimensions);
+
+    resizeObserver?.observe(node);
+    window.addEventListener("resize", updateDimensions);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updateDimensions);
+    };
+  }, []);
+
+  const position = getPopoverPosition(anchor, dimensions);
 
   return (
     <div
+      ref={popoverRef}
       data-testid={`adjustment-popover-${view}`}
-      className="absolute z-30 w-[min(22rem,calc(100vw-2rem))]"
+      className="fixed z-50 w-[min(22rem,calc(100vw-2rem))]"
       style={{
         left: position.left,
         top: position.top
       }}
     >
-      <div className="rounded-[1.4rem] border border-border/80 bg-background/98 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.5)] backdrop-blur">
+      <div className="rounded-[1.4rem] border border-border bg-background shadow-[0_24px_80px_-32px_rgba(15,23,42,0.5)]">
         <div className="flex items-start justify-between gap-3 border-b border-border/80 px-4 py-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">

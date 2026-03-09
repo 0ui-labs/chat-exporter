@@ -247,7 +247,6 @@ export function FormatWorkspace({
   const isSubmittingMessage = submittingMessageByView[view];
   const showGuide = isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
   const showPopover = isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
-  const workspaceRect = sectionRef.current?.getBoundingClientRect() ?? null;
 
   async function refreshFormatRules(targetView: ViewMode) {
     if (!adjustableViews.has(targetView)) {
@@ -888,7 +887,6 @@ export function FormatWorkspace({
           {showPopover && activeSelection && activeAnchor ? (
             <AdjustmentPopover
               anchor={activeAnchor}
-              containerRect={workspaceRect}
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isLoading={activeSessionLoading || isDiscarding}
