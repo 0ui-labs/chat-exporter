@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 import type { Conversation, FormatRule } from "@chat-exporter/shared";
 
 import { getRoleLabel } from "@/components/format-workspace/labels";
@@ -42,6 +44,8 @@ export function ReaderView({
   onSelectBlock,
   selectedBlock
 }: ReaderViewProps) {
+  const lastSelectionInteractionAt = useRef(0);
+
   if (!conversation?.messages.length) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
@@ -76,6 +80,22 @@ export function ReaderView({
               );
               const isSelected =
                 selectedBlock?.messageId === message.id && selectedBlock.blockIndex === blockIndex;
+              const emitSelection = (anchor: FloatingAdjustmentAnchor, selectedText: string) => {
+                lastSelectionInteractionAt.current = Date.now();
+
+                onSelectBlock(
+                  {
+                    blockIndex,
+                    blockType: block.type,
+                    messageId: message.id,
+                    messageIndex: index,
+                    messageRole: message.role,
+                    selectedText,
+                    textQuote: truncateSelectionText(selectedText)
+                  },
+                  anchor
+                );
+              };
 
               return (
                 <div
@@ -87,7 +107,7 @@ export function ReaderView({
                     isSelected
                   })}
                   data-selected={isSelected ? "true" : "false"}
-                  onMouseUp={(event) => {
+                  onPointerUp={(event) => {
                     if (!adjustModeEnabled) {
                       return;
                     }
@@ -109,24 +129,28 @@ export function ReaderView({
                         ? range.getBoundingClientRect()
                         : container.getBoundingClientRect();
 
-                    onSelectBlock(
-                      {
-                        blockIndex,
-                        blockType: block.type,
-                        messageId: message.id,
-                        messageIndex: index,
-                        messageRole: message.role,
-                        selectedText: hasLocalTextSelection ? selectedText : blockText,
-                        textQuote: truncateSelectionText(
-                          hasLocalTextSelection ? selectedText : blockText
-                        )
-                      },
-                      toFloatingAnchor(anchorRect)
+                    emitSelection(
+                      toFloatingAnchor(anchorRect),
+                      hasLocalTextSelection ? selectedText : blockText
                     );
 
                     if (selection && hasLocalTextSelection) {
                       selection.removeAllRanges();
                     }
+                  }}
+                  onClick={(event) => {
+                    if (!adjustModeEnabled) {
+                      return;
+                    }
+
+                    if (Date.now() - lastSelectionInteractionAt.current < 250) {
+                      return;
+                    }
+
+                    emitSelection(
+                      toFloatingAnchor(event.currentTarget.getBoundingClientRect()),
+                      blockText
+                    );
                   }}
                 >
                   {renderReaderBlock(block, blockEffects)}
