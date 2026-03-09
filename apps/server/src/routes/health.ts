@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { databasePath } from "../lib/database.js";
+import { databasePath } from "../db/client.js";
 
 export const healthRoute = new Hono().get("/", (c) =>
   c.json({

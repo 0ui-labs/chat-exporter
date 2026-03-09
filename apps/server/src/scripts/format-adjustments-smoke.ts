@@ -186,8 +186,8 @@ async function resetSeededDatabase() {
 
   process.env.CHAT_EXPORTER_DB_PATH = dbPath;
 
-  const [{ db }, { insertImport, saveImportSnapshot }] = await Promise.all([
-    import("../lib/database.js"),
+  const [{ rawDb }, { insertImport, saveImportSnapshot }] = await Promise.all([
+    import("../db/client.js"),
     import("../lib/import-repository.js"),
   ]);
   const conversation = createFixtureConversation();
@@ -209,7 +209,7 @@ async function resetSeededDatabase() {
     rawHtml: "<html><body>Format adjustments smoke fixture</body></html>",
     sourceUrl: job.sourceUrl,
   });
-  db.close();
+  rawDb.close();
 }
 
 function appendTail(tail: string[], chunk: string) {
