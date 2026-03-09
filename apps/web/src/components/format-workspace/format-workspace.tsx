@@ -569,6 +569,27 @@ export function FormatWorkspace({
     }
   }
 
+  async function handleRejectLastChange() {
+    if (!activeSessionDetail) {
+      return;
+    }
+
+    const matchingRule = activeRules.find(
+      (rule) =>
+        rule.sourceSessionId === activeSessionDetail.session.id &&
+        rule.status === "active"
+    );
+
+    if (matchingRule) {
+      await handleDisableRule(matchingRule.id);
+    }
+
+    setReplyVisibleByView((current) => ({
+      ...current,
+      [view]: false
+    }));
+  }
+
   async function handleDisableRule(ruleId: string) {
     setDisablingRuleById((current) => ({
       ...current,
@@ -897,6 +918,9 @@ export function FormatWorkspace({
                 void handleDiscardSession();
               }}
               onDraftMessageChange={handleDraftMessageChange}
+              onRejectLastChange={() => {
+                void handleRejectLastChange();
+              }}
               onSubmitMessage={handleSubmitMessage}
             />
           ) : null}

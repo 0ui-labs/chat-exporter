@@ -17,6 +17,7 @@ type AdjustmentPopoverProps = {
   isSubmitting: boolean;
   onClose: () => void;
   onDraftMessageChange: (value: string) => void;
+  onRejectLastChange: (() => void) | undefined;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
   sessionDetail: AdjustmentSessionDetail | null;
   showReply: boolean;
@@ -77,6 +78,7 @@ export function AdjustmentPopover({
   isSubmitting,
   onClose,
   onDraftMessageChange,
+  onRejectLastChange,
   onSubmitMessage,
   sessionDetail,
   showReply,
@@ -219,6 +221,15 @@ export function AdjustmentPopover({
               >
                 Abbrechen
               </button>
+              {showReply && !isLoading && onRejectLastChange != null ? (
+                <button
+                  className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+                  type="button"
+                  onClick={onRejectLastChange}
+                >
+                  Verwerfen
+                </button>
+              ) : null}
               <button
                 data-testid="adjustment-send"
                 className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
