@@ -265,7 +265,7 @@ async function requestOpenAiResponse(
       reasoning: {
         effort: "minimal"
       },
-      store: false,
+      store: true,
       ...body
     }),
     signal: AbortSignal.timeout(config.timeoutMs)

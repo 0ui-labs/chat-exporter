@@ -117,6 +117,7 @@ test("chat turn can apply a rule through a tool call and return a short German c
 
     if (seenBodies.length === 1) {
       assert.equal(body.tools?.[0]?.name, "apply_adjustment_rule");
+      assert.equal(body.store, true);
       assert.match(body.input?.[1]?.content?.[0]?.text, /bold formatierung sichtbar/i);
 
       return new Response(
@@ -145,6 +146,7 @@ test("chat turn can apply a rule through a tool call and return a short German c
     }
 
     assert.equal(body.previous_response_id, "resp_1");
+    assert.equal(body.store, true);
     assert.equal(body.input?.[0]?.type, "function_call_output");
     assert.match(body.input?.[0]?.output, /Markdown-Fettdruck-Markierungen/i);
 
