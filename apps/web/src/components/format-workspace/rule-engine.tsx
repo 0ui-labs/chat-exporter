@@ -1,4 +1,4 @@
-import type { Block, Conversation, FormatRule } from "@chat-exporter/shared";
+import type { Block, Conversation, FormatRule, RuleEffect } from "@chat-exporter/shared";
 
 import { cn } from "@/lib/utils";
 
@@ -50,7 +50,7 @@ function renderTextWithMarkdownStrong(text: string) {
   });
 }
 
-function renderReaderInlineText(text: string, effects: Record<string, unknown>[]) {
+function renderReaderInlineText(text: string, effects: RuleEffect[]) {
   const hasMarkdownStrongEffect = effects.some((effect) => effect.type === "render_markdown_strong");
   const hasBoldPrefixEffect = effects.some((effect) => effect.type === "bold_prefix_before_colon");
 
@@ -72,36 +72,25 @@ function matchesReaderRule(
   blockType: Block["type"],
   blockText: string
 ) {
-  const selector =
-    rule.selector && typeof rule.selector === "object"
-      ? (rule.selector as Record<string, unknown>)
-      : null;
+  const selector = rule.selector;
 
   if (!selector) {
     return false;
   }
 
-  const selectorMessageId =
-    typeof selector.messageId === "string" ? selector.messageId : undefined;
-  const selectorBlockIndex =
-    typeof selector.blockIndex === "number" ? selector.blockIndex : undefined;
-  const selectorBlockType =
-    typeof selector.blockType === "string" ? selector.blockType : undefined;
-  const selectorStrategy =
-    typeof selector.strategy === "string" ? selector.strategy : undefined;
-
-  if (selectorStrategy === "block_type") {
-    return selectorBlockType === blockType;
+  if ("strategy" in selector && selector.strategy === "block_type") {
+    return selector.blockType === blockType;
   }
 
-  if (selectorStrategy === "prefix_before_colon") {
-    return selectorBlockType === blockType && /^([^:\n]{1,120}:)(\s*)(.*)$/.test(blockText);
+  if ("strategy" in selector && selector.strategy === "prefix_before_colon") {
+    return "blockType" in selector && selector.blockType === blockType && /^([^:\n]{1,120}:)(\s*)(.*)$/.test(blockText);
   }
 
+  // exact match (no strategy or strategy === "exact")
   return (
-    selectorMessageId === messageId &&
-    selectorBlockIndex === blockIndex &&
-    selectorBlockType === blockType
+    "messageId" in selector && selector.messageId === messageId &&
+    "blockIndex" in selector && selector.blockIndex === blockIndex &&
+    "blockType" in selector && selector.blockType === blockType
   );
 }
 
@@ -137,24 +126,21 @@ export function resolveReaderBlockEffects(
         rule.status === "active" &&
         matchesReaderRule(rule, messageId, blockIndex, blockType, blockText)
     )
-    .map((rule) =>
-      rule.compiledRule && typeof rule.compiledRule === "object"
-        ? (rule.compiledRule as Record<string, unknown>)
-        : {}
-    );
+    .map((rule) => rule.compiledRule)
+    .filter((effect): effect is RuleEffect => effect !== undefined);
 }
 
-export function hasReaderSpacingEffect(effects: Record<string, unknown>[]) {
+export function hasReaderSpacingEffect(effects: RuleEffect[]) {
   return effects.some((effect) => effect.type === "adjust_block_spacing");
 }
 
-export function hasReaderRefineEffect(effects: Record<string, unknown>[]) {
+export function hasReaderRefineEffect(effects: RuleEffect[]) {
   return effects.some((effect) => effect.type === "refine_selected_block_presentation");
 }
 
 export function getReaderBlockClassName(params: {
   adjustModeEnabled?: boolean;
-  effects: Record<string, unknown>[];
+  effects: RuleEffect[];
   isHighlighted?: boolean;
   isSelected?: boolean;
 }) {
@@ -170,7 +156,7 @@ export function getReaderBlockClassName(params: {
   );
 }
 
-export function renderReaderBlock(block: Block, effects: Record<string, unknown>[]) {
+export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
   const hasHeadingEmphasis = effects.some((effect) => effect.type === "increase_heading_emphasis");
 
   switch (block.type) {
@@ -249,21 +235,15 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
       continue;
     }
 
-    const selector =
-      rule.selector && typeof rule.selector === "object"
-        ? (rule.selector as Record<string, unknown>)
-        : null;
-    const effect =
-      rule.compiledRule && typeof rule.compiledRule === "object"
-        ? (rule.compiledRule as Record<string, unknown>)
-        : null;
-    const strategy = typeof selector?.strategy === "string" ? selector.strategy : "exact";
+    const selector = rule.selector;
+    const effect = rule.compiledRule;
 
-    if (!selector || !effect) {
+    if (!effect) {
       continue;
     }
 
-    const effectType = typeof effect.type === "string" ? effect.type : "";
+    const strategy = "strategy" in selector ? selector.strategy : undefined;
+    const effectType = effect.type;
 
     if (strategy === "prefix_before_colon" && effectType === "bold_prefix_before_colon") {
       for (let index = 0; index < nextLines.length; index += 1) {
@@ -290,8 +270,8 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
       continue;
     }
 
-    const lineStart = typeof selector.lineStart === "number" ? selector.lineStart : null;
-    const lineEnd = typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
+    const lineStart = "lineStart" in selector ? selector.lineStart : null;
+    const lineEnd = "lineEnd" in selector ? selector.lineEnd : lineStart;
 
     if (!lineStart || !lineEnd) {
       continue;
