@@ -18,7 +18,7 @@ import {
   formatRuleSchema
 } from "@chat-exporter/shared";
 
-import { db } from "./database.js";
+import { db, withTransaction } from "./database.js";
 
 type AdjustmentSessionRow = {
   id: string;
@@ -333,22 +333,24 @@ export function createAdjustmentSession(input: CreateAdjustmentSessionInput) {
     updatedAt: timestamp
   });
 
-  insertAdjustmentSessionStatement.run({
-    id: session.id,
-    import_id: session.importId,
-    target_format: session.targetFormat,
-    status: session.status,
-    selection_json: JSON.stringify(session.selection),
-    preview_artifact_json: null,
-    created_at: session.createdAt,
-    updated_at: session.updatedAt
-  });
+  withTransaction(() => {
+    insertAdjustmentSessionStatement.run({
+      id: session.id,
+      import_id: session.importId,
+      target_format: session.targetFormat,
+      status: session.status,
+      selection_json: JSON.stringify(session.selection),
+      preview_artifact_json: null,
+      created_at: session.createdAt,
+      updated_at: session.updatedAt
+    });
 
-  recordAdjustmentEvent({
-    importId: session.importId,
-    sessionId: session.id,
-    targetFormat: session.targetFormat,
-    type: "session_created"
+    recordAdjustmentEvent({
+      importId: session.importId,
+      sessionId: session.id,
+      targetFormat: session.targetFormat,
+      type: "session_created"
+    });
   });
 
   return session;
@@ -437,25 +439,35 @@ export function applyAdjustmentPreview(sessionId: string) {
     updatedAt: timestamp
   });
 
-  insertFormatRuleStatement.run({
-    id: rule.id,
-    import_id: rule.importId,
-    target_format: rule.targetFormat,
-    kind: rule.kind,
-    scope: rule.scope,
-    status: rule.status,
-    selector_json: JSON.stringify(rule.selector),
-    instruction: rule.instruction,
-    compiled_rule_json: JSON.stringify(rule.compiledRule),
-    source_session_id: rule.sourceSessionId ?? null,
-    created_at: rule.createdAt,
-    updated_at: rule.updatedAt
-  });
+  withTransaction(() => {
+    insertFormatRuleStatement.run({
+      id: rule.id,
+      import_id: rule.importId,
+      target_format: rule.targetFormat,
+      kind: rule.kind,
+      scope: rule.scope,
+      status: rule.status,
+      selector_json: JSON.stringify(rule.selector),
+      instruction: rule.instruction,
+      compiled_rule_json: JSON.stringify(rule.compiledRule),
+      source_session_id: rule.sourceSessionId ?? null,
+      created_at: rule.createdAt,
+      updated_at: rule.updatedAt
+    });
 
-  updateAdjustmentSessionStatusStatement.run({
-    id: sessionId,
-    status: "applied",
-    updated_at: timestamp
+    updateAdjustmentSessionStatusStatement.run({
+      id: sessionId,
+      status: "applied",
+      updated_at: timestamp
+    });
+
+    recordAdjustmentEvent({
+      importId: session.importId,
+      ruleId: rule.id,
+      sessionId: session.id,
+      targetFormat: session.targetFormat,
+      type: "rule_applied"
+    });
   });
 
   const nextSession = getAdjustmentSession(sessionId);
@@ -463,14 +475,6 @@ export function applyAdjustmentPreview(sessionId: string) {
   if (!nextSession) {
     throw new Error("Anpassungssession konnte nicht neu geladen werden.");
   }
-
-  recordAdjustmentEvent({
-    importId: session.importId,
-    ruleId: rule.id,
-    sessionId: session.id,
-    targetFormat: session.targetFormat,
-    type: "rule_applied"
-  });
 
   return {
     rule,
@@ -495,10 +499,19 @@ export function discardAdjustmentSession(sessionId: string) {
 
   const timestamp = now();
 
-  updateAdjustmentSessionStatusStatement.run({
-    id: sessionId,
-    status: "discarded",
-    updated_at: timestamp
+  withTransaction(() => {
+    updateAdjustmentSessionStatusStatement.run({
+      id: sessionId,
+      status: "discarded",
+      updated_at: timestamp
+    });
+
+    recordAdjustmentEvent({
+      importId: session.importId,
+      sessionId: session.id,
+      targetFormat: session.targetFormat,
+      type: "session_discarded"
+    });
   });
 
   const nextDetail = getAdjustmentSessionDetail(sessionId);
@@ -506,13 +519,6 @@ export function discardAdjustmentSession(sessionId: string) {
   if (!nextDetail) {
     throw new Error("Anpassungssession konnte nicht neu geladen werden.");
   }
-
-  recordAdjustmentEvent({
-    importId: session.importId,
-    sessionId: session.id,
-    targetFormat: session.targetFormat,
-    type: "session_discarded"
-  });
 
   return nextDetail;
 }
@@ -524,9 +530,10 @@ export function reopenAdjustmentSession(sessionId: string) {
     throw new Error("Anpassungssession nicht gefunden.");
   }
 
-  updateAdjustmentSessionStatusStatement.run({
+  updateAdjustmentSessionPreviewStatement.run({
     id: sessionId,
     status: "open",
+    preview_artifact_json: null,
     updated_at: now()
   });
 
@@ -626,14 +633,18 @@ export function disableFormatRule(ruleId: string) {
     throw new Error("Nur aktive Regeln können deaktiviert werden.");
   }
 
-  const nextRule = updateFormatRuleStatus(ruleId, "disabled");
+  const nextRule = withTransaction(() => {
+    const rule = updateFormatRuleStatus(ruleId, "disabled");
 
-  recordAdjustmentEvent({
-    importId: nextRule.importId,
-    ruleId: nextRule.id,
-    sessionId: nextRule.sourceSessionId,
-    targetFormat: nextRule.targetFormat,
-    type: "rule_disabled"
+    recordAdjustmentEvent({
+      importId: rule.importId,
+      ruleId: rule.id,
+      sessionId: rule.sourceSessionId,
+      targetFormat: rule.targetFormat,
+      type: "rule_disabled"
+    });
+
+    return rule;
   });
 
   return nextRule;

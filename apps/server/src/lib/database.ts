@@ -25,6 +25,10 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 db.pragma("busy_timeout = 5000");
 
+export function withTransaction<T>(fn: () => T): T {
+  return db.transaction(fn)();
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS imports (
     id TEXT PRIMARY KEY,
