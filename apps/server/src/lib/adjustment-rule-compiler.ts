@@ -555,137 +555,15 @@ function buildPreviewSchema(targetFormat: AdjustmentTargetFormat) {
   } as const;
 }
 
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function hasExactReaderSelector(selector: Record<string, unknown>) {
-  return (
-    typeof selector.messageId === "string" &&
-    typeof selector.blockIndex === "number" &&
-    typeof selector.blockType === "string"
-  );
-}
-
-function hasExactMarkdownSelector(selector: Record<string, unknown>) {
-  return (
-    typeof selector.messageId === "string" &&
-    typeof selector.blockIndex === "number" &&
-    selector.blockType === "markdown-lines" &&
-    typeof selector.lineStart === "number" &&
-    typeof selector.lineEnd === "number"
-  );
-}
-
 function validateCompiledPreview(
   payload: unknown,
   sessionDetail: AdjustmentSessionDetail
 ): AdjustmentPreview {
-  const preview = adjustmentPreviewSchema.parse({
-    ...(isObjectRecord(payload) ? payload : {}),
+  return adjustmentPreviewSchema.parse({
+    ...(payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {}),
     sessionId: sessionDetail.session.id,
     targetFormat: sessionDetail.session.targetFormat
   });
-  const selector = isObjectRecord(preview.draftRule.selector) ? preview.draftRule.selector : null;
-  const effect = isObjectRecord(preview.draftRule.effect) ? preview.draftRule.effect : null;
-
-  if (!selector || !effect) {
-    throw new Error("Compiled preview did not contain a supported selector and effect.");
-  }
-
-  const effectType = typeof effect.type === "string" ? effect.type : "";
-  const selectorStrategy = typeof selector.strategy === "string" ? selector.strategy : "exact";
-
-  if (preview.targetFormat === "reader") {
-    if (effectType === "adjust_block_spacing") {
-      if (
-        preview.draftRule.kind !== "render" ||
-        (selectorStrategy !== "block_type" && !hasExactReaderSelector(selector))
-      ) {
-        throw new Error("Compiled Reader spacing preview was invalid.");
-      }
-      return preview;
-    }
-
-    if (effectType === "increase_heading_emphasis") {
-      if (
-        preview.draftRule.kind !== "render" ||
-        (selectorStrategy !== "block_type" && !hasExactReaderSelector(selector))
-      ) {
-        throw new Error("Compiled Reader emphasis preview was invalid.");
-      }
-      return preview;
-    }
-
-    if (effectType === "refine_selected_block_presentation") {
-      if (preview.draftRule.kind !== "render" || !hasExactReaderSelector(selector)) {
-        throw new Error("Compiled Reader presentation preview was invalid.");
-      }
-      return preview;
-    }
-
-    if (effectType === "bold_prefix_before_colon") {
-      if (
-        preview.draftRule.kind !== "inline_semantics" ||
-        (selectorStrategy !== "prefix_before_colon" && !hasExactReaderSelector(selector))
-      ) {
-        throw new Error("Compiled Reader inline preview was invalid.");
-      }
-      return preview;
-    }
-
-    if (effectType === "render_markdown_strong") {
-      if (preview.draftRule.kind !== "inline_semantics" || !hasExactReaderSelector(selector)) {
-        throw new Error("Compiled Reader markdown emphasis preview was invalid.");
-      }
-      return preview;
-    }
-
-    throw new Error(`Unsupported Reader effect type: ${effectType}`);
-  }
-
-  if (effectType === "promote_to_heading") {
-    if (preview.draftRule.kind !== "structure" || !hasExactMarkdownSelector(selector)) {
-      throw new Error("Compiled Markdown heading preview was invalid.");
-    }
-    return preview;
-  }
-
-  if (effectType === "bold_prefix_before_colon") {
-    if (
-      preview.draftRule.kind !== "inline_semantics" ||
-      (selectorStrategy !== "prefix_before_colon" && !hasExactMarkdownSelector(selector))
-    ) {
-      throw new Error("Compiled Markdown inline preview was invalid.");
-    }
-    return preview;
-  }
-
-  if (effectType === "normalize_list_structure") {
-    if (preview.draftRule.kind !== "structure" || !hasExactMarkdownSelector(selector)) {
-      throw new Error("Compiled Markdown list preview was invalid.");
-    }
-    return preview;
-  }
-
-  if (effectType === "normalize_markdown_table") {
-    if (
-      preview.draftRule.kind !== "export_profile" ||
-      (selectorStrategy !== "markdown_table" && !hasExactMarkdownSelector(selector))
-    ) {
-      throw new Error("Compiled Markdown table preview was invalid.");
-    }
-    return preview;
-  }
-
-  if (effectType === "reshape_markdown_block") {
-    if (preview.draftRule.kind !== "structure" || !hasExactMarkdownSelector(selector)) {
-      throw new Error("Compiled Markdown reshape preview was invalid.");
-    }
-    return preview;
-  }
-
-  throw new Error(`Unsupported Markdown effect type: ${effectType}`);
 }
 
 function getOutputText(payload: unknown) {
