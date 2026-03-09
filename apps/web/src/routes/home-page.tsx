@@ -278,7 +278,7 @@ export function HomePage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <Card className="overflow-hidden border-border/90 bg-card/92 shadow-panel">
+      <Card className="border-border/90 bg-card/92 shadow-panel">
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-6">
             <form className="space-y-3" onSubmit={handleSubmit}>
