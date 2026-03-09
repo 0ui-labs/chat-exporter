@@ -1,6 +1,5 @@
 import type { ImportArtifacts, ImportJob, ImportRequest } from "@chat-exporter/shared";
 
-import { importChatGptSharePage } from "./chatgpt-share-import.js";
 import {
   conversationToMarkdown,
   conversationToHandover,
@@ -13,6 +12,8 @@ import {
   replaceImport,
   saveImportSnapshot
 } from "./import-repository.js";
+import { importSharePage } from "./share-import.js";
+import { classifySourcePlatform } from "./source-platform.js";
 
 function now() {
   return new Date().toISOString();
@@ -62,7 +63,7 @@ export function createImportJob(input: ImportRequest) {
   const job: ImportJob = {
     id: crypto.randomUUID(),
     sourceUrl: input.url,
-    sourcePlatform: "chatgpt",
+    sourcePlatform: classifySourcePlatform(input.url),
     mode: input.mode,
     status: "queued",
     currentStage: "validate",
@@ -88,7 +89,8 @@ export async function runImportJob(id: string) {
   });
 
   try {
-    const imported = await importChatGptSharePage(job.sourceUrl, {
+    const imported = await importSharePage(job.sourceUrl, {
+      sourcePlatform: job.sourcePlatform,
       onStage: (stage) => {
         patchJob(id, {
           currentStage: stage
