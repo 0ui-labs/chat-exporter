@@ -273,7 +273,9 @@ test("preview compilation uses AI output when a provider is configured", async (
   const activeRules: FormatRule[] = [
     {
       compiledRule: {
-        type: "adjust_block_spacing"
+        amount: "md",
+        direction: "after" as const,
+        type: "adjust_block_spacing" as const
       },
       createdAt: "2026-03-08T12:00:00.000Z",
       id: "rule-1",
