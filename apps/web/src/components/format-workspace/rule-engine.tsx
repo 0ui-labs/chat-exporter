@@ -1,4 +1,4 @@
-import type { Block, FormatRule } from "@chat-exporter/shared";
+import type { Block, Conversation, FormatRule } from "@chat-exporter/shared";
 
 import { cn } from "@/lib/utils";
 
@@ -105,6 +105,25 @@ function matchesReaderRule(
   );
 }
 
+export function getBlocksMatchingRule(
+  rule: FormatRule,
+  conversation: Conversation
+): Array<{ messageId: string; blockIndex: number }> {
+  const matches: Array<{ messageId: string; blockIndex: number }> = [];
+
+  for (const message of conversation.messages) {
+    for (let blockIndex = 0; blockIndex < message.blocks.length; blockIndex += 1) {
+      const block = message.blocks[blockIndex]!;
+
+      if (matchesReaderRule(rule, message.id, blockIndex, block.type, blockToPlainText(block))) {
+        matches.push({ messageId: message.id, blockIndex });
+      }
+    }
+  }
+
+  return matches;
+}
+
 export function resolveReaderBlockEffects(
   rules: FormatRule[],
   messageId: string,
@@ -136,15 +155,17 @@ export function hasReaderRefineEffect(effects: Record<string, unknown>[]) {
 export function getReaderBlockClassName(params: {
   adjustModeEnabled?: boolean;
   effects: Record<string, unknown>[];
+  isHighlighted?: boolean;
   isSelected?: boolean;
 }) {
-  const { adjustModeEnabled = false, effects, isSelected = false } = params;
+  const { adjustModeEnabled = false, effects, isHighlighted = false, isSelected = false } = params;
 
   return cn(
     "rounded-2xl transition",
     hasReaderSpacingEffect(effects) ? "mb-4 md:mb-6" : null,
     hasReaderRefineEffect(effects) ? "bg-primary/5" : null,
     adjustModeEnabled ? "cursor-pointer ring-1 ring-transparent hover:bg-primary/5 hover:ring-primary/20" : null,
+    isHighlighted && !isSelected ? "bg-primary/8 ring-1 ring-primary/20" : null,
     isSelected ? "bg-primary/8 ring-2 ring-primary/40" : null
   );
 }

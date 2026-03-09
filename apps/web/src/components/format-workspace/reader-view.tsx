@@ -1,17 +1,18 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 
 import type { Conversation, FormatRule } from "@chat-exporter/shared";
 
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import {
   blockToPlainText,
+  getBlocksMatchingRule,
   getReaderBlockClassName,
   renderReaderBlock,
   resolveReaderBlockEffects
 } from "@/components/format-workspace/rule-engine";
 import type {
   AdjustmentSelection,
-  FloatingAdjustmentAnchor
+  ViewportAnchor
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,8 @@ type ReaderViewProps = {
   activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
-  onSelectBlock: (selection: AdjustmentSelection, anchor: FloatingAdjustmentAnchor) => void;
+  highlightedRuleId: string | null;
+  onSelectBlock: (selection: AdjustmentSelection, anchor: ViewportAnchor) => void;
   selectedBlock: AdjustmentSelection | null;
 };
 
@@ -27,7 +29,7 @@ function truncateSelectionText(value: string) {
   return value.length > 180 ? `${value.slice(0, 177).trimEnd()}...` : value;
 }
 
-function toFloatingAnchor(rect: DOMRect): FloatingAdjustmentAnchor {
+function toViewportAnchor(rect: DOMRect): ViewportAnchor {
   return {
     bottom: rect.bottom,
     height: rect.height,
@@ -41,10 +43,26 @@ export function ReaderView({
   activeRules,
   adjustModeEnabled,
   conversation,
+  highlightedRuleId,
   onSelectBlock,
   selectedBlock
 }: ReaderViewProps) {
   const lastSelectionInteractionAt = useRef(0);
+
+  const highlightedBlocks = useMemo(() => {
+    if (!highlightedRuleId || !conversation) {
+      return new Set<string>();
+    }
+
+    const rule = activeRules.find((r) => r.id === highlightedRuleId);
+
+    if (!rule) {
+      return new Set<string>();
+    }
+
+    const matches = getBlocksMatchingRule(rule, conversation);
+    return new Set(matches.map((m) => `${m.messageId}:${m.blockIndex}`));
+  }, [highlightedRuleId, activeRules, conversation]);
 
   if (!conversation?.messages.length) {
     return (
@@ -80,7 +98,8 @@ export function ReaderView({
               );
               const isSelected =
                 selectedBlock?.messageId === message.id && selectedBlock.blockIndex === blockIndex;
-              const emitSelection = (anchor: FloatingAdjustmentAnchor, selectedText: string) => {
+              const isHighlighted = highlightedBlocks.has(`${message.id}:${blockIndex}`);
+              const emitSelection = (anchor: ViewportAnchor, selectedText: string) => {
                 lastSelectionInteractionAt.current = Date.now();
 
                 onSelectBlock(
@@ -104,6 +123,7 @@ export function ReaderView({
                   className={getReaderBlockClassName({
                     adjustModeEnabled,
                     effects: blockEffects,
+                    isHighlighted,
                     isSelected
                   })}
                   data-selected={isSelected ? "true" : "false"}
@@ -130,7 +150,7 @@ export function ReaderView({
                         : container.getBoundingClientRect();
 
                     emitSelection(
-                      toFloatingAnchor(anchorRect),
+                      toViewportAnchor(anchorRect),
                       hasLocalTextSelection ? selectedText : blockText
                     );
 
@@ -148,7 +168,7 @@ export function ReaderView({
                     }
 
                     emitSelection(
-                      toFloatingAnchor(event.currentTarget.getBoundingClientRect()),
+                      toViewportAnchor(event.currentTarget.getBoundingClientRect()),
                       blockText
                     );
                   }}

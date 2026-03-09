@@ -22,7 +22,8 @@ import { RulesListPopover } from "@/components/format-workspace/rules-list-popov
 import type {
   AdjustmentSelection,
   FloatingAdjustmentAnchor,
-  ViewMode
+  ViewMode,
+  ViewportAnchor
 } from "@/components/format-workspace/types";
 import {
   appendAdjustmentMessage,
@@ -167,6 +168,7 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
   const [disablingRuleById, setDisablingRuleById] = useState<Record<string, boolean>>({});
   const [rulesByView, setRulesByView] = useState<Record<ViewMode, FormatRule[]>>({
     reader: [],
@@ -437,7 +439,7 @@ export function FormatWorkspace({
 
   function handleSelectionChange(
     selection: AdjustmentSelection,
-    anchor: FloatingAdjustmentAnchor
+    anchor: ViewportAnchor
   ) {
     const container = sectionRef.current;
     let containerAnchor = anchor;
@@ -726,8 +728,8 @@ export function FormatWorkspace({
                   rules={activeRules}
                   view={view}
                   onDisableRule={(ruleId) => { void handleDisableRule(ruleId); }}
-                  onHoverRule={() => {}}
-                  onLeaveRule={() => {}}
+                  onHoverRule={(ruleId) => setHoveredRuleId(ruleId)}
+                  onLeaveRule={() => setHoveredRuleId(null)}
                 />
                 <Button
                   data-testid={`toggle-adjust-mode-${view}`}
@@ -754,13 +756,16 @@ export function FormatWorkspace({
               activeRules={activeRules}
               conversation={job.conversation}
               adjustModeEnabled={isAdjustModeEnabled}
+              highlightedRuleId={hoveredRuleId}
               selectedBlock={view === "reader" ? activeSelection : null}
               onSelectBlock={handleSelectionChange}
             />
           ) : view === "markdown" ? (
             <MarkdownView
+              activeRules={activeRules}
               content={displayedMarkdown}
               adjustModeEnabled={isAdjustModeEnabled}
+              highlightedRuleId={hoveredRuleId}
               selectedRange={activeSelection}
               onSelectLines={handleSelectionChange}
             />
@@ -784,6 +789,7 @@ export function FormatWorkspace({
             <AdjustmentPopover
               anchor={activeAnchor}
               containerDimensions={containerDimensions}
+              containerScrollTop={sectionRef.current?.scrollTop ?? 0}
               draftMessage={activeDraftMessage}
               error={activeSessionError}
               isLoading={activeSessionLoading || isDiscarding}

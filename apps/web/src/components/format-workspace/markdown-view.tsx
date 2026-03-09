@@ -1,13 +1,19 @@
+import { useMemo } from "react";
+
+import type { FormatRule } from "@chat-exporter/shared";
+
 import type {
   AdjustmentSelection,
-  FloatingAdjustmentAnchor
+  ViewportAnchor
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
 type MarkdownViewProps = {
+  activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   content: string;
-  onSelectLines: (selection: AdjustmentSelection, anchor: FloatingAdjustmentAnchor) => void;
+  highlightedRuleId: string | null;
+  onSelectLines: (selection: AdjustmentSelection, anchor: ViewportAnchor) => void;
   selectedRange: AdjustmentSelection | null;
 };
 
@@ -15,7 +21,7 @@ function formatLineNumber(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function toFloatingAnchor(rect: DOMRect): FloatingAdjustmentAnchor {
+function toViewportAnchor(rect: DOMRect): ViewportAnchor {
   return {
     bottom: rect.bottom,
     height: rect.height,
@@ -26,12 +32,50 @@ function toFloatingAnchor(rect: DOMRect): FloatingAdjustmentAnchor {
 }
 
 export function MarkdownView({
+  activeRules,
   adjustModeEnabled,
   content,
+  highlightedRuleId,
   onSelectLines,
   selectedRange
 }: MarkdownViewProps) {
   const lines = content.split("\n");
+
+  const highlightedLineRange = useMemo(() => {
+    if (!highlightedRuleId) {
+      return null;
+    }
+
+    const rule = activeRules.find((r) => r.id === highlightedRuleId && r.status === "active");
+
+    if (!rule) {
+      return null;
+    }
+
+    const selector =
+      rule.selector && typeof rule.selector === "object"
+        ? (rule.selector as Record<string, unknown>)
+        : null;
+
+    if (!selector) {
+      return null;
+    }
+
+    const strategy = typeof selector.strategy === "string" ? selector.strategy : null;
+
+    if (strategy === "prefix_before_colon" || strategy === "block_type" || strategy === "markdown_table") {
+      return { start: 1, end: lines.length };
+    }
+
+    const lineStart = typeof selector.lineStart === "number" ? selector.lineStart : null;
+    const lineEnd = typeof selector.lineEnd === "number" ? selector.lineEnd : lineStart;
+
+    if (!lineStart || !lineEnd) {
+      return null;
+    }
+
+    return { start: lineStart, end: lineEnd };
+  }, [highlightedRuleId, activeRules, lines.length]);
 
   return (
     <div className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-3 text-sm text-zinc-100">
@@ -43,6 +87,10 @@ export function MarkdownView({
             selectedRange?.lineEnd !== undefined &&
             lineNumber >= selectedRange.lineStart &&
             lineNumber <= selectedRange.lineEnd;
+          const isHighlighted =
+            highlightedLineRange !== null &&
+            lineNumber >= highlightedLineRange.start &&
+            lineNumber <= highlightedLineRange.end;
 
           return (
             <button
@@ -53,6 +101,7 @@ export function MarkdownView({
                 adjustModeEnabled
                   ? "cursor-pointer hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   : "cursor-text",
+                isHighlighted && !isSelected ? "bg-primary/10 ring-1 ring-primary/20" : null,
                 isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null
               )}
               type="button"
@@ -90,7 +139,7 @@ export function MarkdownView({
                         ? `${selectedLines.slice(0, 177).trimEnd()}...`
                         : selectedLines
                   },
-                  toFloatingAnchor(event.currentTarget.getBoundingClientRect())
+                  toViewportAnchor(event.currentTarget.getBoundingClientRect())
                 );
               }}
             >
