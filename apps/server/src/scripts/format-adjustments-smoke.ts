@@ -583,12 +583,11 @@ async function runSmokeFlow() {
     });
     await page.getByTestId("toggle-adjust-mode-reader").click();
     await page.getByTestId("reader-block-assistant-1-0").click();
-    await page.getByTestId("adjustment-last-reply").waitFor();
 
-    const resumedReaderSessionText = await page.getByTestId("adjustment-last-reply").innerText();
-
-    if (!resumedReaderSessionText.includes("ähnliche Überschriften")) {
-      throw new Error("Reader adjustment smoke test did not resume the saved draft session.");
+    if ((await page.getByTestId("adjustment-last-reply").count()) > 0) {
+      throw new Error(
+        "Reader adjustment smoke test showed an old AI reply before the user sent a new message."
+      );
     }
 
     const inspectionDb = new Database(dbPath, {
@@ -618,6 +617,7 @@ async function runSmokeFlow() {
       "Ja, bitte mehr Abstand unter ähnlichen Überschriften."
     );
     await page.getByTestId("adjustment-send").click();
+    await page.getByTestId("adjustment-last-reply").waitFor();
     await page.getByTestId("active-format-rule").waitFor();
     await page.getByTestId("active-format-rule-why").click();
     await page.getByTestId("active-format-rule-explanation").waitFor();

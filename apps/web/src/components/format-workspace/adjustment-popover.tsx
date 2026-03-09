@@ -19,9 +19,8 @@ type AdjustmentPopoverProps = {
   onClose: () => void;
   onDraftMessageChange: (value: string) => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
-  selectionLabel: string;
-  selectionQuote: string;
   sessionDetail: AdjustmentSessionDetail | null;
+  showReply: boolean;
   view: ViewMode;
 };
 
@@ -86,9 +85,8 @@ export function AdjustmentPopover({
   onClose,
   onDraftMessageChange,
   onSubmitMessage,
-  selectionLabel,
-  selectionQuote,
   sessionDetail,
+  showReply,
   view
 }: AdjustmentPopoverProps) {
   const lastAssistantMessage = getLastAssistantMessage(sessionDetail);
@@ -110,7 +108,6 @@ export function AdjustmentPopover({
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
               {getViewLabel(view)} anpassen
             </p>
-            <p className="mt-1 text-sm font-medium text-foreground">{selectionLabel}</p>
           </div>
           <button
             className="rounded-full p-1 text-muted-foreground transition hover:bg-foreground/5 hover:text-foreground"
@@ -123,13 +120,6 @@ export function AdjustmentPopover({
         </div>
 
         <div className="space-y-3 px-4 py-4">
-          <div className="rounded-2xl border border-border/80 bg-secondary/35 px-3 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Markierte Stelle
-            </p>
-            <p className="mt-2 text-sm text-foreground">{selectionQuote}</p>
-          </div>
-
           {error ? (
             <div
               data-testid="adjustment-error"
@@ -145,17 +135,12 @@ export function AdjustmentPopover({
             </div>
           ) : null}
 
-          {lastAssistantMessage ? (
+          {showReply && lastAssistantMessage ? (
             <div
               data-testid="adjustment-last-reply"
-              className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3"
+              className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-sm text-foreground"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-                Letzte KI-Antwort
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                {lastAssistantMessage}
-              </p>
+              <p className="whitespace-pre-wrap">{lastAssistantMessage}</p>
             </div>
           ) : null}
 

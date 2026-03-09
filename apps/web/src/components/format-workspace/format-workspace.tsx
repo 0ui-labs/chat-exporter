@@ -173,6 +173,12 @@ export function FormatWorkspace({
     handover: false,
     json: false
   });
+  const [replyVisibleByView, setReplyVisibleByView] = useState<Record<ViewMode, boolean>>({
+    reader: false,
+    markdown: false,
+    handover: false,
+    json: false
+  });
   const [explainedRuleIdByView, setExplainedRuleIdByView] = useState<Record<ViewMode, string | null>>({
     reader: null,
     markdown: null,
@@ -286,6 +292,10 @@ export function FormatWorkspace({
     setSessionErrorByView((current) => ({
       ...current,
       [targetView]: null
+    }));
+    setReplyVisibleByView((current) => ({
+      ...current,
+      [targetView]: false
     }));
   }
 
@@ -454,6 +464,10 @@ export function FormatWorkspace({
       ...current,
       [view]: null
     }));
+    setReplyVisibleByView((current) => ({
+      ...current,
+      [view]: false
+    }));
   }
 
   function handleDraftMessageChange(value: string) {
@@ -497,6 +511,10 @@ export function FormatWorkspace({
       setDraftMessageByView((current) => ({
         ...current,
         [view]: ""
+      }));
+      setReplyVisibleByView((current) => ({
+        ...current,
+        [view]: true
       }));
 
       if (nextDetail.session.status === "applied") {
@@ -875,9 +893,8 @@ export function FormatWorkspace({
               error={activeSessionError}
               isLoading={activeSessionLoading || isDiscarding}
               isSubmitting={isSubmittingMessage}
-              selectionLabel={describeSelectionLabel(activeSelection)}
-              selectionQuote={activeSelection.textQuote}
               sessionDetail={activeSessionDetail}
+              showReply={replyVisibleByView[view]}
               view={view}
               onClose={() => {
                 void handleDiscardSession();
