@@ -17,7 +17,13 @@ export function hasLabelStylePrefix(text: string) {
     return false;
   }
 
-  const prefix = match[1].slice(0, -1).trim();
+  const matchedPrefix = match[1];
+
+  if (!matchedPrefix) {
+    return false;
+  }
+
+  const prefix = matchedPrefix.slice(0, -1).trim();
 
   if (!prefix || /[.!?]/.test(prefix)) {
     return false;

@@ -44,6 +44,45 @@ type ManagedMockServer = {
   url: string;
 };
 
+function getBodyInputRecord(body: Record<string, unknown>, index: number) {
+  const { input } = body;
+
+  if (!Array.isArray(input)) {
+    return null;
+  }
+
+  const entry = input[index];
+
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return null;
+  }
+
+  return entry as Record<string, unknown>;
+}
+
+function getBodyInputText(body: Record<string, unknown>, index: number) {
+  const entry = getBodyInputRecord(body, index);
+  const content = entry?.content;
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  const firstContentPart = content[0];
+
+  if (!firstContentPart || typeof firstContentPart !== "object" || Array.isArray(firstContentPart)) {
+    return "";
+  }
+
+  return typeof firstContentPart.text === "string" ? firstContentPart.text : "";
+}
+
+function getBodyInputOutput(body: Record<string, unknown>, index: number) {
+  const entry = getBodyInputRecord(body, index);
+
+  return typeof entry?.output === "string" ? entry.output : "";
+}
+
 function createFixtureConversation(): Conversation {
   return {
     id: "conversation-smoke-format-adjustments",
@@ -217,11 +256,7 @@ function readRequestBody(request: http.IncomingMessage) {
 }
 
 function buildMockPreviewResponse(body: Record<string, unknown>) {
-  const prompt =
-    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[1]?.content?.[0]?.text ===
-    "string"
-      ? ((body.input as Array<Record<string, unknown>>)[1]?.content?.[0]?.text as string)
-      : "";
+  const prompt = getBodyInputText(body, 1);
 
   if (/mehr Abstand unter ähnlichen Überschriften/i.test(prompt)) {
     return {
@@ -283,11 +318,7 @@ function buildMockPreviewResponse(body: Record<string, unknown>) {
 }
 
 function buildMockChatResponse(body: Record<string, unknown>) {
-  const latestInput =
-    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[1]?.content?.[0]?.text ===
-    "string"
-      ? ((body.input as Array<Record<string, unknown>>)[1]?.content?.[0]?.text as string)
-      : "";
+  const latestInput = getBodyInputText(body, 1);
 
   if (/mehr Abstand unter ähnlichen Überschriften/i.test(latestInput)) {
     return {
@@ -348,10 +379,7 @@ function buildMockChatResponse(body: Record<string, unknown>) {
 }
 
 function buildMockFollowUpResponse(body: Record<string, unknown>) {
-  const output =
-    typeof (body.input as Array<Record<string, unknown>> | undefined)?.[0]?.output === "string"
-      ? ((body.input as Array<Record<string, unknown>>)[0]?.output as string)
-      : "";
+  const output = getBodyInputOutput(body, 0);
 
   if (/ähnliche Überschriften im Reader/i.test(output)) {
     return {
@@ -593,7 +621,7 @@ async function runSmokeFlow() {
     const inspectionDb = new Database(dbPath, {
       readonly: true
     });
-    const resumedReaderSessionCount = inspectionDb
+    const resumedReaderSessionRow = inspectionDb
       .prepare<
         [string, string],
         {
@@ -606,7 +634,8 @@ async function runSmokeFlow() {
            AND target_format = ?
            AND status IN ('open', 'preview_ready')`
       )
-      .get(fixtureImportId, "reader").count;
+      .get(fixtureImportId, "reader");
+    const resumedReaderSessionCount = resumedReaderSessionRow?.count ?? 0;
     inspectionDb.close();
 
     if (resumedReaderSessionCount !== 1) {
@@ -663,7 +692,12 @@ async function runSmokeFlow() {
     await page.getByTestId("adjustment-send").click();
     await page.waitForFunction(() => {
       const block = document.querySelector('[data-testid="reader-block-assistant-1-4"]');
-      return block?.querySelector("strong") !== null && !(block.textContent ?? "").includes("**");
+
+      if (!(block instanceof HTMLElement)) {
+        return false;
+      }
+
+      return block.querySelector("strong") !== null && !block.textContent.includes("**");
     });
 
     const renderedMarkdownStrong = await page.getByTestId("reader-block-assistant-1-4").innerText();
