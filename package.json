@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.9.2",
   "scripts": {
+    "prepare": "lefthook install",
     "dev": "pnpm --filter @chat-exporter/shared build && pnpm --parallel --filter @chat-exporter/shared --filter @chat-exporter/server --filter @chat-exporter/web dev",
     "dev:web": "pnpm --filter @chat-exporter/web dev",
     "dev:server": "pnpm --filter @chat-exporter/server dev",
@@ -14,6 +15,7 @@
     "format": "biome format --write ."
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.6"
+    "@biomejs/biome": "^2.4.6",
+    "lefthook": "^2.1.3"
   }
 }
