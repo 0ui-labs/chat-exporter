@@ -4,18 +4,20 @@
   "packageManager": "pnpm@10.9.2",
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "pnpm --filter @chat-exporter/shared build && pnpm --parallel --filter @chat-exporter/shared --filter @chat-exporter/server --filter @chat-exporter/web dev",
+    "dev": "turbo dev",
     "dev:web": "pnpm --filter @chat-exporter/web dev",
     "dev:server": "pnpm --filter @chat-exporter/server dev",
     "smoke:format-adjustments": "bash ./apps/server/scripts/run-format-adjustments-smoke.sh",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.6",
-    "lefthook": "^2.1.3"
+    "lefthook": "^2.1.3",
+    "turbo": "^2.8.14"
   }
 }

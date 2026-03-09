@@ -11,5 +11,6 @@ data/*.db-*
 .env.local
 apps/server/.env
 apps/server/.env.local
+.turbo
 docs
 .claude
