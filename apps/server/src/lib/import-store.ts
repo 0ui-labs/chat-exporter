@@ -4,6 +4,7 @@ import type {
   ImportRequest,
 } from "@chat-exporter/shared";
 import { withTransaction } from "../db/client.js";
+import { IMPORT_TIMEOUT_MS } from "./constants.js";
 import {
   conversationToHandover,
   conversationToMarkdown,
@@ -18,8 +19,6 @@ import {
 } from "./import-repository.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
-
-const IMPORT_TIMEOUT_MS = 120_000;
 
 function now() {
   return new Date().toISOString();
@@ -106,18 +105,22 @@ export async function runImportJob(id: string) {
       }, IMPORT_TIMEOUT_MS);
     });
 
-    const imported = await Promise.race([
-      importSharePage(job.sourceUrl, {
-        sourcePlatform: job.sourcePlatform,
-        onStage: (stage) => {
-          patchJob(id, {
-            currentStage: stage,
-          });
-        },
-      }),
-      timeoutPromise,
-    ]);
-    clearTimeout(timeoutHandle);
+    let imported: Awaited<ReturnType<typeof importSharePage>> | undefined;
+    try {
+      imported = await Promise.race([
+        importSharePage(job.sourceUrl, {
+          sourcePlatform: job.sourcePlatform,
+          onStage: (stage) => {
+            patchJob(id, {
+              currentStage: stage,
+            });
+          },
+        }),
+        timeoutPromise,
+      ]);
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
 
     withTransaction(() => {
       patchJob(id, {

@@ -1,8 +1,11 @@
 import type { Browser, BrowserContext } from "playwright";
 import { chromium } from "playwright";
 
-const MAX_CONCURRENT_CONTEXTS = 3;
-const IDLE_SHUTDOWN_MS = 60_000;
+import {
+  BROWSER_IDLE_SHUTDOWN_MS,
+  MAX_CONCURRENT_BROWSER_CONTEXTS,
+} from "./constants.js";
+
 const MAX_CONTEXTS_PER_BROWSER = 50;
 
 type QueueEntry = {
@@ -32,7 +35,7 @@ function scheduleIdleShutdown() {
       totalContextCount = 0;
       await instance.close();
     }
-  }, IDLE_SHUTDOWN_MS);
+  }, BROWSER_IDLE_SHUTDOWN_MS);
 }
 
 async function ensureBrowser(): Promise<Browser> {
@@ -74,7 +77,7 @@ async function createContext(): Promise<BrowserContext> {
 }
 
 export async function acquireContext(): Promise<BrowserContext> {
-  if (activeContextCount >= MAX_CONCURRENT_CONTEXTS) {
+  if (activeContextCount >= MAX_CONCURRENT_BROWSER_CONTEXTS) {
     return new Promise<BrowserContext>((resolve, reject) => {
       queue.push({ resolve, reject });
     });
