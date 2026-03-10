@@ -5,6 +5,7 @@ import type {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ViewMode } from "@/components/format-workspace/types";
+import { useRuleExplanations } from "@/components/format-workspace/use-rule-explanations";
 import { orpc } from "@/lib/orpc";
 import { demoteFormatRule, promoteFormatRule, rpc } from "@/lib/rpc";
 
@@ -32,18 +33,7 @@ export function useFormatRules(view: ViewMode, jobId: string) {
   const [disableError, setDisableError] = useState<string | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
 
-  // ── Explanation state (moved from RulesListPopover) ────────────────────
-
-  const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
-  const [explanationCache, setExplanationCache] = useState<
-    Record<string, AdjustmentSessionDetail>
-  >({});
-  const [explanationLoadingById, setExplanationLoadingById] = useState<
-    Record<string, boolean>
-  >({});
-  const [explanationErrorById, setExplanationErrorById] = useState<
-    Record<string, string>
-  >({});
+  const explanations = useRuleExplanations();
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -151,58 +141,6 @@ export function useFormatRules(view: ViewMode, jobId: string) {
     }
   }
 
-  async function handleToggleRuleExplanation(rule: FormatRule) {
-    if (expandedRuleId === rule.id) {
-      setExpandedRuleId(null);
-      return;
-    }
-
-    setExpandedRuleId(rule.id);
-
-    const sourceSessionId = rule.sourceSessionId;
-
-    if (!sourceSessionId || explanationCache[sourceSessionId]) {
-      return;
-    }
-
-    setExplanationLoadingById((current) => ({ ...current, [rule.id]: true }));
-    setExplanationErrorById((current) => {
-      const next = { ...current };
-      delete next[rule.id];
-      return next;
-    });
-
-    try {
-      const detail = await rpc.adjustments.getSession({ id: sourceSessionId });
-      setExplanationCache((current) => ({
-        ...current,
-        [sourceSessionId]: detail,
-      }));
-    } catch (error) {
-      setExplanationErrorById((current) => ({
-        ...current,
-        [rule.id]:
-          error instanceof Error
-            ? error.message
-            : "Regelerklärung konnte nicht geladen werden.",
-      }));
-    } finally {
-      setExplanationLoadingById((current) => {
-        const next = { ...current };
-        delete next[rule.id];
-        return next;
-      });
-    }
-  }
-
-  function getExplanationDetail(
-    rule: FormatRule,
-  ): AdjustmentSessionDetail | null {
-    return rule.sourceSessionId
-      ? (explanationCache[rule.sourceSessionId] ?? null)
-      : null;
-  }
-
   return {
     activeRules,
     disablingRuleById,
@@ -218,10 +156,6 @@ export function useFormatRules(view: ViewMode, jobId: string) {
     handleDemoteRule,
     handleRejectLastChange,
     // Explanation state & handlers
-    expandedRuleId,
-    explanationLoadingById,
-    explanationErrorById,
-    handleToggleRuleExplanation,
-    getExplanationDetail,
+    ...explanations,
   };
 }
