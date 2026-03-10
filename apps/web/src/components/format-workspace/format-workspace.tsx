@@ -89,6 +89,17 @@ export function FormatWorkspace({
     [view, onViewChange],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on job change
+  useEffect(() => {
+    scrollPositionByView.current = {
+      reader: 0,
+      markdown: 0,
+      handover: 0,
+      json: 0,
+    };
+    viewScrollRef.current = null;
+  }, [job.id]);
+
   useEffect(() => {
     requestAnimationFrame(() => {
       if (viewScrollRef.current) {
@@ -117,10 +128,13 @@ export function FormatWorkspace({
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
   // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
   // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.
-  const displayedMarkdown =
-    view === "markdown"
-      ? applyMarkdownRules(artifact, rules.activeRules)
-      : artifact;
+  const displayedMarkdown = useMemo(
+    () =>
+      view === "markdown"
+        ? applyMarkdownRules(artifact, rules.activeRules)
+        : artifact,
+    [artifact, rules.activeRules, view],
+  );
 
   const handleDownloadMarkdown = useMemo(() => {
     if (view !== "markdown") return undefined;
@@ -182,8 +196,8 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {view === "reader" ? (
+          {view === "reader" ? (
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ReaderView
                 activeRules={rules.activeRules}
                 conversation={job.conversation}
@@ -195,7 +209,9 @@ export function FormatWorkspace({
                 }
                 onSelectBlock={session.handleSelectionChange}
               />
-            ) : view === "markdown" ? (
+            </div>
+          ) : view === "markdown" ? (
+            <div className="flex-1 min-h-0 overflow-hidden">
               <MarkdownView
                 activeRules={rules.activeRules}
                 content={displayedMarkdown}
@@ -205,10 +221,12 @@ export function FormatWorkspace({
                 selectedRange={session.activeSelection}
                 onSelectLines={session.handleSelectionChange}
               />
-            ) : (
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0">
               <ArtifactView content={artifact} />
-            )}
-          </div>
+            </div>
+          )}
 
           {session.showGuide ? (
             <AdjustmentModeGuide
