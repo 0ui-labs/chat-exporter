@@ -11,6 +11,105 @@ import { MAX_MESSAGE_COUNT, MAX_RAW_HTML_BYTES } from "./constants.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 import { looksLikeSharedConversationUrl } from "./source-platform.js";
 
+/* ── Navigation Timeouts ──────────────────────────────────── */
+
+/** Timeout for waiting for Google consent buttons to appear. */
+export const GOOGLE_CONSENT_BUTTON_TIMEOUT_MS = 10_000;
+
+/** Navigation timeout for Google-platform pages (Gemini, NotebookLM). */
+export const GOOGLE_NAVIGATION_TIMEOUT_MS = 60_000;
+
+/** Navigation timeout for non-Google platform pages. */
+export const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
+
+/** Timeout for domcontentloaded after consent dismiss / initial load. */
+export const DOM_CONTENT_LOADED_TIMEOUT_MS = 20_000;
+
+/** Timeout for networkidle wait after DOM is ready. */
+export const NETWORK_IDLE_TIMEOUT_MS = 5_000;
+
+/** Extra delay after network-idle to let JS-rendered content settle. */
+export const PAGE_STABILIZATION_DELAY_MS = 1_200;
+
+/** Timeout for the waitForFunction that checks for meaningful content. */
+export const FUNCTION_WAIT_TIMEOUT_MS = 20_000;
+
+/* ── Consent Handling ─────────────────────────────────────── */
+
+/** Maximum polling iterations when waiting for navigation after consent dismiss. */
+export const GOOGLE_CONSENT_DISMISS_MAX_ATTEMPTS = 60;
+
+/** Polling interval (ms) between checks after clicking the consent button. */
+export const GOOGLE_CONSENT_POLLING_INTERVAL_MS = 250;
+
+/** Timeout for domcontentloaded after Google consent redirect. */
+export const GOOGLE_CONSENT_REDIRECT_TIMEOUT_MS = 15_000;
+
+/* ── Content Thresholds ───────────────────────────────────── */
+
+/** Minimum text length to consider an extraction root meaningful. */
+export const MIN_CONTENT_TEXT_LENGTH = 32;
+
+/** Minimum direct children for a container to be scored. */
+export const MIN_MEANINGFUL_CHILDREN = 2;
+
+/** Minimum text length for a child to count as meaningful. */
+export const MIN_CHILD_TEXT_LENGTH = 2;
+
+/** Text length threshold above which a child is meaningful without blocks. */
+export const MIN_TEXT_LENGTH_FOR_MEANINGFUL_CHILDREN = 40;
+
+/** Maximum children sampled for scoring a container. */
+export const MAX_SAMPLE_CHILDREN = 48;
+
+/** Per-child text length cap used in average-text-length calculation. */
+export const MAX_TEXT_LENGTH_FOR_AVERAGING = 4_000;
+
+/** Maximum container candidates to evaluate. */
+export const MAX_CONTAINER_CANDIDATES = 500;
+
+/* ── Scoring Weights ──────────────────────────────────────── */
+
+export const SCORE_CHILDREN_WEIGHT = 16;
+export const SCORE_TAG_RATIO_WEIGHT = 12;
+export const SCORE_HINTED_WEIGHT = 8;
+export const SCORE_BLOCK_WEIGHT = 4;
+export const SCORE_ACTION_WEIGHT = 2;
+export const SCORE_AVG_TEXT_DIVISOR = 35;
+export const SCORE_AVG_TEXT_MAX = 16;
+export const SCORE_DEPTH_PENALTY = 1.5;
+export const SCORE_FORM_PENALTY = 10;
+
+/** Dedup: skip candidate whose text is >= this fraction of root text. */
+export const CANDIDATE_DEDUP_THRESHOLD = 0.95;
+
+/** Minimum score a container must reach to be used. */
+export const MIN_CONTAINER_SCORE_THRESHOLD = 42;
+
+/* ── Fallback ─────────────────────────────────────────────── */
+
+/** Minimum text length for a fallback message candidate. */
+export const MIN_FALLBACK_TEXT_LENGTH = 12;
+
+/** Maximum text length for a fallback message candidate. */
+export const MAX_FALLBACK_TEXT_LENGTH = 12_000;
+
+/** Maximum fallback candidates to consider. */
+export const MAX_FALLBACK_CANDIDATES = 64;
+
+/** Maximum length of the preview text used for consent-screen detection. */
+export const MAX_PREVIEW_TEXT_LENGTH = 2_000;
+
+/* ── Hint Traversal ───────────────────────────────────────── */
+
+/** Maximum ancestor depth traversed when collecting role hints. */
+export const MAX_HINT_DEPTH = 3;
+
+/** Maximum child elements sampled for class-based role hints. */
+export const MAX_HINT_CLASSES = 24;
+
+/* ─────────────────────────────────────────────────────────── */
+
 type StageCallback = (
   stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
 ) => void;
@@ -53,7 +152,7 @@ async function maybeDismissGoogleConsentGate(page: Page) {
   await page
     .waitForSelector('button[jsname="tWT92d"], button[jsname="b3VHJd"]', {
       state: "visible",
-      timeout: 10_000,
+      timeout: GOOGLE_CONSENT_BUTTON_TIMEOUT_MS,
     })
     .catch(() => undefined);
 
@@ -72,17 +171,21 @@ async function maybeDismissGoogleConsentGate(page: Page) {
 
   await actionButton.click();
 
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < GOOGLE_CONSENT_DISMISS_MAX_ATTEMPTS;
+    attempt += 1
+  ) {
     if (!isGoogleConsentUrl(page.url())) {
       await page
         .waitForLoadState("domcontentloaded", {
-          timeout: 15_000,
+          timeout: GOOGLE_CONSENT_REDIRECT_TIMEOUT_MS,
         })
         .catch(() => undefined);
       return true;
     }
 
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(GOOGLE_CONSENT_POLLING_INTERVAL_MS);
   }
 
   return !isGoogleConsentUrl(page.url());
@@ -120,8 +223,8 @@ export async function importGenericSharePage(
     });
 
     const navigationTimeout = isGoogleSourcePlatform(options.sourcePlatform)
-      ? 60_000
-      : 30_000;
+      ? GOOGLE_NAVIGATION_TIMEOUT_MS
+      : DEFAULT_NAVIGATION_TIMEOUT_MS;
 
     options.onStage?.("fetch");
     await page.goto(url, {
@@ -130,7 +233,7 @@ export async function importGenericSharePage(
     });
     await page
       .waitForLoadState("domcontentloaded", {
-        timeout: 20_000,
+        timeout: DOM_CONTENT_LOADED_TIMEOUT_MS,
       })
       .catch(() => undefined);
 
@@ -153,17 +256,17 @@ export async function importGenericSharePage(
           return (root.textContent ?? "").trim().length > 32;
         },
         {
-          timeout: 20_000,
+          timeout: FUNCTION_WAIT_TIMEOUT_MS,
         },
       )
       .catch(() => undefined);
 
     await page
       .waitForLoadState("networkidle", {
-        timeout: 5_000,
+        timeout: NETWORK_IDLE_TIMEOUT_MS,
       })
       .catch(() => undefined);
-    await page.waitForTimeout(1_200);
+    await page.waitForTimeout(PAGE_STABILIZATION_DELAY_MS);
 
     options.onStage?.("extract");
     const extracted = await page.evaluate((platform) => {

@@ -8,6 +8,8 @@ import type {
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
+import { TEXT_PREVIEW_LIMIT, TEXT_TRUNCATION_LIMIT } from "./constants";
+
 type MarkdownViewProps = {
   activeRules: FormatRule[];
   adjustModeEnabled: boolean;
@@ -171,8 +173,8 @@ export function MarkdownView({
                     messageRole: "markdown",
                     selectedText: selectedLines,
                     textQuote:
-                      selectedLines.length > 180
-                        ? `${selectedLines.slice(0, 177).trimEnd()}...`
+                      selectedLines.length > TEXT_TRUNCATION_LIMIT
+                        ? `${selectedLines.slice(0, TEXT_PREVIEW_LIMIT).trimEnd()}...`
                         : selectedLines,
                   },
                   toViewportAnchor(event.currentTarget.getBoundingClientRect()),

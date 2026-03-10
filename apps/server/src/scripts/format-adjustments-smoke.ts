@@ -186,7 +186,7 @@ async function resetSeededDatabase() {
 
   process.env.CHAT_EXPORTER_DB_PATH = dbPath;
 
-  const [{ rawDb }, { insertImport, saveImportSnapshot }] = await Promise.all([
+  const [, { insertImport, saveImportSnapshot }] = await Promise.all([
     import("../db/client.js"),
     import("../lib/import-repository.js"),
   ]);
@@ -209,7 +209,6 @@ async function resetSeededDatabase() {
     rawHtml: "<html><body>Format adjustments smoke fixture</body></html>",
     sourceUrl: job.sourceUrl,
   });
-  rawDb.close();
 }
 
 function appendTail(tail: string[], chunk: string) {
@@ -569,8 +568,11 @@ async function buildSharedPackage() {
 }
 
 async function verifyRollbackBehavior() {
-  const [{ createAdjustmentSession, applyAdjustmentPreview }] =
-    await Promise.all([import("../lib/adjustment-repository.js")]);
+  const [{ createAdjustmentSession, applyAdjustmentPreview }, { rawDb }] =
+    await Promise.all([
+      import("../lib/adjustment-repository.js"),
+      import("../db/client.js"),
+    ]);
 
   const { session } = createAdjustmentSession({
     importId: fixtureImportId,
@@ -585,6 +587,30 @@ async function verifyRollbackBehavior() {
       textQuote: "Project plan",
     },
   });
+
+  // Inject a preview artifact directly while keeping status as 'open',
+  // so applyAdjustmentPreview reaches the transaction status-transition guard
+  // instead of failing on the missing-previewArtifact precondition.
+  const fakePreviewArtifact = JSON.stringify({
+    draftRule: {
+      effect: {
+        type: "adjust_block_spacing",
+        amount: "lg",
+        direction: "after",
+      },
+      kind: "render",
+      scope: "import_local",
+      selector: { blockType: "heading", strategy: "block_type" },
+    },
+    limitations: [],
+    rationale: "Smoke-test rollback verification artifact.",
+    summary: "Rollback-test spacing rule.",
+  });
+  rawDb
+    .prepare(
+      "UPDATE adjustment_sessions SET preview_artifact_json = ? WHERE id = ?",
+    )
+    .run(fakePreviewArtifact, session.id);
 
   const baselineDb = new Database(dbPath, { readonly: true });
   const baselineRules =
@@ -601,17 +627,30 @@ async function verifyRollbackBehavior() {
       .get(fixtureImportId)?.count ?? 0;
   baselineDb.close();
 
-  let threw = false;
+  let caughtError: unknown;
 
   try {
     applyAdjustmentPreview(session.id);
-  } catch {
-    threw = true;
+  } catch (error) {
+    caughtError = error;
   }
 
-  if (!threw) {
+  if (!caughtError) {
     throw new Error(
       "applyAdjustmentPreview hätte werfen müssen, da die Session nicht im Status 'preview_ready' ist.",
+    );
+  }
+
+  const expectedMessage = "Status-Transition fehlgeschlagen";
+
+  if (
+    !(caughtError instanceof Error) ||
+    !caughtError.message.includes(expectedMessage)
+  ) {
+    const actual =
+      caughtError instanceof Error ? caughtError.message : String(caughtError);
+    throw new Error(
+      `Rollback-Verifikation: Erwarteter Fehler enthält "${expectedMessage}", erhalten: "${actual}"`,
     );
   }
 
@@ -636,6 +675,7 @@ async function verifyRollbackBehavior() {
     );
   }
 
+  rawDb.close();
   console.log("Rollback verification passed.");
 }
 
@@ -830,7 +870,7 @@ async function runSmokeFlow() {
 
       return (
         block.querySelector("strong") !== null &&
-        !block.textContent.includes("**")
+        !block.textContent?.includes("**")
       );
     });
 

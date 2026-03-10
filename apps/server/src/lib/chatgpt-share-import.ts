@@ -9,6 +9,22 @@ import { acquireContext, releaseContext } from "./browser-pool.js";
 import { MAX_MESSAGE_COUNT, MAX_RAW_HTML_BYTES } from "./constants.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 
+/* ── ChatGPT share-import constants ─────────────────────────── */
+
+/** Timeout for the initial page.goto() navigation. */
+export const PAGE_LOAD_TIMEOUT_MS = 30_000;
+
+/** Timeout for waiting until message elements appear in the DOM. */
+export const MESSAGE_WAIT_TIMEOUT_MS = 20_000;
+
+/** Extra delay after messages appear to let the page stabilize. */
+export const PAGE_STABILIZATION_MS = 800;
+
+/** CSS selector that identifies ChatGPT share-page message elements. */
+export const CHATGPT_SHARE_SELECTOR = "article [data-message-author-role]";
+
+/* ─────────────────────────────────────────────────────────── */
+
 type StageCallback = (
   stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
 ) => void;
@@ -29,8 +45,6 @@ type ImportResult = {
     };
   };
 };
-
-const CHATGPT_SHARE_SELECTOR = "article [data-message-author-role]";
 
 export async function importChatGptSharePage(
   url: string,
@@ -63,16 +77,16 @@ export async function importChatGptSharePage(
     options?.onStage?.("fetch");
     await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 30_000,
+      timeout: PAGE_LOAD_TIMEOUT_MS,
     });
     await page.waitForFunction(
       (selector) => document.querySelectorAll(selector).length > 0,
       CHATGPT_SHARE_SELECTOR,
       {
-        timeout: 20_000,
+        timeout: MESSAGE_WAIT_TIMEOUT_MS,
       },
     );
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(PAGE_STABILIZATION_MS);
 
     options?.onStage?.("extract");
     const extracted = await page.evaluate(() => {

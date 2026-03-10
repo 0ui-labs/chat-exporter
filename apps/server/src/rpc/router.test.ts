@@ -66,7 +66,7 @@ import {
   listImportJobs,
   runImportJob,
 } from "../lib/import-store.js";
-import { router } from "./router.js";
+import { RAW_HTML_PREVIEW_LENGTH, router } from "./router.js";
 
 const client = createRouterClient(router);
 
@@ -159,6 +159,12 @@ function createSessionDetailFixture(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe("RAW_HTML_PREVIEW_LENGTH", () => {
+  test("is exported with value 16_000", () => {
+    expect(RAW_HTML_PREVIEW_LENGTH).toBe(16_000);
+  });
+});
 
 describe("health.check", () => {
   test("returns service info with database path", async () => {

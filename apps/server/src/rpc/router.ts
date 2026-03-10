@@ -32,7 +32,7 @@ import {
   runImportJob,
 } from "../lib/import-store.js";
 
-const RAW_HTML_PREVIEW_LENGTH = 16_000;
+export const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
 function isSupportedChatGptShareLink(urlString: string) {
   const url = new URL(urlString);
@@ -198,7 +198,15 @@ export const router = os.router({
 
       // Phase 1 — Transaction: reopen (if needed) + append user message + reload detail
       const latestDetail = withTransaction(() => {
-        if (detail.session.status === "applied") {
+        const freshDetail = getAdjustmentSessionDetail(input.sessionId);
+
+        if (!freshDetail) {
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
+            message: "Anpassungssession konnte nicht neu geladen werden.",
+          });
+        }
+
+        if (freshDetail.session.status === "applied") {
           reopenAdjustmentSession(input.sessionId);
         }
 

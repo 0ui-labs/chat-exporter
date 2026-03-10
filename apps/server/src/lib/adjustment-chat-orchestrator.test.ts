@@ -6,7 +6,7 @@ import type {
 import { expect, test } from "vitest";
 
 import {
-  AdjustmentChatUnavailableError,
+  MAX_TOOL_ROUNDS,
   runAdjustmentChatTurn,
 } from "./adjustment-chat-orchestrator.js";
 
@@ -73,6 +73,10 @@ function restoreEnv(
     process.env[key] = value;
   }
 }
+
+test("MAX_TOOL_ROUNDS is exported with value 3", () => {
+  expect(MAX_TOOL_ROUNDS).toBe(3);
+});
 
 test("chat turn fails clearly when live OpenAI chat is not configured", async () => {
   const envSnapshot = Object.fromEntries(

@@ -22,6 +22,12 @@ import type {
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
+import {
+  SELECTION_DEBOUNCE_MS,
+  TEXT_PREVIEW_LIMIT,
+  TEXT_TRUNCATION_LIMIT,
+} from "./constants";
+
 /** Thin wrapper so that errors thrown by renderReaderBlock are caught by ErrorBoundary. */
 function BlockRenderer({
   block,
@@ -47,7 +53,9 @@ type ReaderViewProps = {
 };
 
 function truncateSelectionText(value: string) {
-  return value.length > 180 ? `${value.slice(0, 177).trimEnd()}...` : value;
+  return value.length > TEXT_TRUNCATION_LIMIT
+    ? `${value.slice(0, TEXT_PREVIEW_LIMIT).trimEnd()}...`
+    : value;
 }
 
 function toViewportAnchor(rect: DOMRect): ViewportAnchor {
@@ -175,7 +183,10 @@ const ReaderMessage = memo(function ReaderMessage({
                   return;
                 }
 
-                if (Date.now() - lastSelectionInteractionAt.current < 250) {
+                if (
+                  Date.now() - lastSelectionInteractionAt.current <
+                  SELECTION_DEBOUNCE_MS
+                ) {
                   return;
                 }
 

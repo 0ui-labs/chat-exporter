@@ -6,7 +6,7 @@ import {
   MAX_CONCURRENT_BROWSER_CONTEXTS,
 } from "./constants.js";
 
-const MAX_CONTEXTS_PER_BROWSER = 50;
+export const MAX_CONTEXTS_PER_BROWSER = 50;
 
 type QueueEntry = {
   resolve: (ctx: BrowserContext) => void;

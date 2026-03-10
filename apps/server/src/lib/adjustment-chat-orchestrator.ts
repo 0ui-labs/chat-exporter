@@ -8,7 +8,7 @@ import type {
 
 import { readAdjustmentAiConfig } from "./adjustment-ai-config.js";
 
-const MAX_TOOL_ROUNDS = 3;
+export const MAX_TOOL_ROUNDS = 3;
 
 export class AdjustmentChatUnavailableError extends Error {}
 
