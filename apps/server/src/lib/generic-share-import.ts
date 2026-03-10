@@ -4,7 +4,9 @@ import {
   normalizedSnapshotPayloadSchema,
   type SourcePlatform,
 } from "@chat-exporter/shared";
-import { chromium, type Page } from "playwright";
+import type { Page } from "playwright";
+
+import { acquireContext, releaseContext } from "./browser-pool.js";
 
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 import { looksLikeSharedConversationUrl } from "./source-platform.js";
@@ -93,13 +95,9 @@ export async function importGenericSharePage(
     sourcePlatform: SourcePlatform;
   },
 ) {
-  const browser = await chromium.launch({
-    headless: true,
-  });
+  const context = await acquireContext();
 
   try {
-    const context = await browser.newContext();
-
     if (!isGoogleSourcePlatform(options.sourcePlatform)) {
       await context.route("**/*", (route) => {
         const resourceType = route.request().resourceType();
@@ -1246,6 +1244,6 @@ export async function importGenericSharePage(
       },
     };
   } finally {
-    await browser.close();
+    await releaseContext(context);
   }
 }
