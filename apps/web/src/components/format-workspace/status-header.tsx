@@ -1,6 +1,7 @@
 import type { ImportJob } from "@chat-exporter/shared";
 import { Clock3, LoaderCircle } from "lucide-react";
 
+import { getJobStatusLabel } from "@/components/format-workspace/labels";
 import { Badge } from "@/components/ui/badge";
 
 type ActiveStage = {
@@ -14,13 +15,6 @@ type StatusHeaderProps = {
   job: ImportJob;
 };
 
-function getStatusLabel(job: ImportJob) {
-  if (job.status === "completed") return "Bereit";
-  if (job.status === "failed") return "Fehlgeschlagen";
-  if (job.status === "queued") return "Warteschlange";
-  return "Import läuft";
-}
-
 export function StatusHeader({
   activeStage,
   elapsedTime,
@@ -29,7 +23,7 @@ export function StatusHeader({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Badge variant={job.status === "completed" ? "default" : "outline"}>
-        {getStatusLabel(job)}
+        {getJobStatusLabel(job.status)}
       </Badge>
       {job.summary ? (
         <p className="text-sm text-muted-foreground">

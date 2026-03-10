@@ -5,43 +5,13 @@ import { type FormEvent, startTransition, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
+import { getImportStageEntry } from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
-
-const importStages = {
-  validate: {
-    label: "Link wird geprüft",
-    detail: "Der Link wird geprüft und dem passenden Importer zugeordnet.",
-  },
-  fetch: {
-    label: "Seite wird geladen",
-    detail: "Die freigegebene Seite wird geöffnet und als Quelle erfasst.",
-  },
-  extract: {
-    label: "Nachrichten werden extrahiert",
-    detail: "Die Unterhaltung wird aus dem Markup des Anbieters extrahiert.",
-  },
-  normalize: {
-    label: "Transkript wird bereinigt",
-    detail: "Rohfragmente werden in lesbare Nachrichten umgewandelt.",
-  },
-  structure: {
-    label: "Struktur wird repariert",
-    detail: "Abschnitte mit zusätzlichem Bereinigungsbedarf werden korrigiert.",
-  },
-  render: {
-    label: "Ausgaben werden erzeugt",
-    detail: "Reader- und Exportformate werden vorbereitet.",
-  },
-  done: {
-    label: "Bereit",
-    detail: "Das Transkript ist bereit.",
-  },
-} as const;
 
 function getSafeExternalUrl(value: string) {
   try {
@@ -90,18 +60,14 @@ function formatElapsed(ms: number) {
 
 function getActiveStage(job: ImportJob) {
   if (job.status === "queued") {
-    return {
-      label: "Wartet auf Start",
-      detail:
-        "Der Job ist in der Warteschlange und startet, sobald ein Worker frei ist.",
-    };
+    return getImportStageEntry("queued");
   }
 
   if (job.status === "completed") {
-    return importStages.done;
+    return getImportStageEntry("done");
   }
 
-  return importStages[job.currentStage];
+  return getImportStageEntry(job.currentStage);
 }
 
 export function HomePage() {
