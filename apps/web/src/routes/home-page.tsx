@@ -2,7 +2,7 @@ import type { ImportJob } from "@chat-exporter/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { type FormEvent, startTransition, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
 import { getImportStageEntry } from "@/components/format-workspace/labels";
@@ -80,14 +80,14 @@ export function HomePage() {
   const [view, setView] = useState<ViewMode>("reader");
   const [now, setNow] = useState(() => Date.now());
 
-  const { data: recentJobs = [] } = useQuery({
-    ...orpc.imports.list.queryOptions(),
-    select: (jobs) =>
-      jobs
-        .slice()
-        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-        .slice(0, 2),
-  });
+  const { data: allJobs = [] } = useQuery(
+    orpc.imports.list.queryOptions({ input: {} }),
+  );
+
+  const recentJobs = allJobs
+    .slice()
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 2);
 
   const { data: job, error: jobError } = useQuery({
     ...orpc.imports.get.queryOptions({ input: { id: activeImportId ?? "" } }),
@@ -226,9 +226,19 @@ export function HomePage() {
 
             {showRecentJobs ? (
               <section className="space-y-3">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Letzte Importe
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Letzte Importe
+                  </p>
+                  {allJobs.length > 2 ? (
+                    <Link
+                      className="text-xs text-muted-foreground transition hover:text-foreground"
+                      to="/history"
+                    >
+                      Alle anzeigen →
+                    </Link>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {recentJobs.map((recentJob) => (
                     <button
