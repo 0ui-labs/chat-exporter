@@ -166,6 +166,47 @@ export function resolveReaderBlockEffects(
     .filter((effect): effect is RuleEffect => effect !== undefined);
 }
 
+export function buildReaderEffectsMap(
+  rules: FormatRule[],
+  conversation: Conversation,
+): Map<string, RuleEffect[]> {
+  const activeRules = rules.filter((r) => r.status === "active");
+  const effectsMap = new Map<string, RuleEffect[]>();
+
+  for (const message of conversation.messages) {
+    for (
+      let blockIndex = 0;
+      blockIndex < message.blocks.length;
+      blockIndex += 1
+    ) {
+      const block = message.blocks[blockIndex];
+
+      if (!block) {
+        continue;
+      }
+
+      const effects = activeRules
+        .filter((rule) =>
+          matchesReaderRule(
+            rule,
+            message.id,
+            blockIndex,
+            block.type,
+            blockToPlainText(block),
+          ),
+        )
+        .map((rule) => rule.compiledRule)
+        .filter((effect): effect is RuleEffect => effect !== undefined);
+
+      if (effects.length > 0) {
+        effectsMap.set(`${message.id}:${blockIndex}`, effects);
+      }
+    }
+  }
+
+  return effectsMap;
+}
+
 export function hasReaderSpacingEffect(effects: RuleEffect[]) {
   return effects.some((effect) => effect.type === "adjust_block_spacing");
 }
