@@ -1,4 +1,4 @@
-import { Settings2 } from "lucide-react";
+import { Download, Settings2 } from "lucide-react";
 
 import { getViewLabel } from "@/components/format-workspace/labels";
 import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
@@ -18,6 +18,7 @@ type CompletedToolbarProps = {
   isAdjustableView: boolean;
   rules: ReturnType<typeof useFormatRules>;
   view: ViewMode;
+  onDownloadMarkdown?: () => void;
   onToggleAdjustMode: () => void;
   onViewChange: (view: ViewMode) => void;
 };
@@ -27,6 +28,7 @@ export function CompletedToolbar({
   isAdjustableView,
   rules,
   view,
+  onDownloadMarkdown,
   onToggleAdjustMode,
   onViewChange,
 }: CompletedToolbarProps) {
@@ -47,44 +49,59 @@ export function CompletedToolbar({
         ))}
       </div>
 
-      {isAdjustableView ? (
-        <div className="flex items-center gap-2">
-          <RulesListPopover
-            disablingRuleById={rules.disablingRuleById}
-            expandedRuleId={rules.expandedRuleId}
-            explanationErrorById={rules.explanationErrorById}
-            explanationLoadingById={rules.explanationLoadingById}
-            promotingRuleById={rules.promotingRuleById}
-            rules={rules.activeRules}
-            view={view}
-            getExplanationDetail={rules.getExplanationDetail}
-            onDemoteRule={(ruleId) => {
-              void rules.handleDemoteRule(ruleId);
-            }}
-            onDisableRule={(ruleId) => {
-              void rules.handleDisableRule(ruleId);
-            }}
-            onHoverRule={(ruleId) => rules.setHoveredRuleId(ruleId)}
-            onLeaveRule={() => rules.setHoveredRuleId(null)}
-            onPromoteRule={(ruleId) => {
-              void rules.handlePromoteRule(ruleId);
-            }}
-            onToggleRuleExplanation={rules.handleToggleRuleExplanation}
-          />
+      <div className="flex items-center gap-2">
+        {onDownloadMarkdown ? (
           <Button
-            data-testid={`toggle-adjust-mode-${view}`}
+            data-testid="download-markdown"
             type="button"
             size="sm"
-            variant={adjustModeEnabled ? "default" : "outline"}
-            onClick={onToggleAdjustMode}
+            variant="outline"
+            onClick={onDownloadMarkdown}
           >
-            <Settings2 className="mr-2 h-4 w-4" />
-            {adjustModeEnabled
-              ? "Anpassungsmodus beenden"
-              : `${getViewLabel(view)} anpassen`}
+            <Download className="mr-2 h-4 w-4" />
+            Download
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+
+        {isAdjustableView ? (
+          <>
+            <RulesListPopover
+              disablingRuleById={rules.disablingRuleById}
+              expandedRuleId={rules.expandedRuleId}
+              explanationErrorById={rules.explanationErrorById}
+              explanationLoadingById={rules.explanationLoadingById}
+              promotingRuleById={rules.promotingRuleById}
+              rules={rules.activeRules}
+              view={view}
+              getExplanationDetail={rules.getExplanationDetail}
+              onDemoteRule={(ruleId) => {
+                void rules.handleDemoteRule(ruleId);
+              }}
+              onDisableRule={(ruleId) => {
+                void rules.handleDisableRule(ruleId);
+              }}
+              onHoverRule={(ruleId) => rules.setHoveredRuleId(ruleId)}
+              onLeaveRule={() => rules.setHoveredRuleId(null)}
+              onPromoteRule={(ruleId) => {
+                void rules.handlePromoteRule(ruleId);
+              }}
+              onToggleRuleExplanation={rules.handleToggleRuleExplanation}
+            />
+            <Button
+              data-testid={`toggle-adjust-mode-${view}`}
+              type="button"
+              size="sm"
+              variant={adjustModeEnabled ? "default" : "outline"}
+              onClick={onToggleAdjustMode}
+            >
+              <Settings2 className="mr-2 h-4 w-4" />
+              {adjustModeEnabled
+                ? "Anpassungsmodus beenden"
+                : `${getViewLabel(view)} anpassen`}
+            </Button>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
