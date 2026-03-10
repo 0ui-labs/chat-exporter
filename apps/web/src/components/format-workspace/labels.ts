@@ -110,6 +110,49 @@ export function getImportStageEntry(stage: ImportStage | "queued") {
 }
 
 // ---------------------------------------------------------------------------
+// Adjustment UI Labels
+// ---------------------------------------------------------------------------
+
+export const adjustmentLabels = {
+  // Button labels
+  send: "Senden",
+  sendPending: "Wird gesendet...",
+  cancel: "Abbrechen",
+  discard: "Verwerfen",
+  dismiss: "Verstanden",
+  download: "Download",
+
+  // Placeholders
+  adjustmentPlaceholder: "Beschreibe kurz, wie diese Stelle aussehen soll.",
+  followUpPlaceholder: "Noch etwas anpassen?",
+
+  // Messages
+  loadingMessage: "Ich bereite diese Stelle gerade für die Anpassung vor.",
+  appliedHint:
+    "Die Änderung ist schon sichtbar. Du kannst weiter anpassen oder eine neue Stelle markieren.",
+  defaultHint:
+    "Die KI antwortet kurz und setzt klare Änderungen sofort direkt in dieser Ansicht um.",
+  closeLabel: "Anpassung schließen",
+  inputLabel: "Anpassungsanfrage",
+
+  // Guide
+  guideInstruction:
+    "Markiere die Stelle, die anders aussehen soll. Beschreibe dann kurz deinen Wunsch, und die Änderung erscheint direkt hier.",
+  guideNote: "Du musst kein Regel-JSON lesen oder eine Vorschau vergleichen.",
+
+  // Mode toggle
+  endAdjustMode: "Anpassungsmodus beenden",
+} as const;
+
+export function getAdjustViewLabel(view: ViewMode) {
+  return `${getViewLabel(view)} anpassen`;
+}
+
+export function getEndAdjustLabel() {
+  return adjustmentLabels.endAdjustMode;
+}
+
+// ---------------------------------------------------------------------------
 // View Labels
 // ---------------------------------------------------------------------------
 

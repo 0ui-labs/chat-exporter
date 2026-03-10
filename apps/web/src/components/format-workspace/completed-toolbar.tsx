@@ -1,6 +1,11 @@
 import { Download, Settings2 } from "lucide-react";
 
-import { getViewLabel } from "@/components/format-workspace/labels";
+import {
+  adjustmentLabels,
+  getAdjustViewLabel,
+  getEndAdjustLabel,
+  getViewLabel,
+} from "@/components/format-workspace/labels";
 import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
 import type { ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
@@ -59,7 +64,7 @@ export function CompletedToolbar({
             onClick={onDownloadMarkdown}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download
+            {adjustmentLabels.download}
           </Button>
         ) : null}
 
@@ -96,8 +101,8 @@ export function CompletedToolbar({
             >
               <Settings2 className="mr-2 h-4 w-4" />
               {adjustModeEnabled
-                ? "Anpassungsmodus beenden"
-                : `${getViewLabel(view)} anpassen`}
+                ? getEndAdjustLabel()
+                : getAdjustViewLabel(view)}
             </Button>
           </>
         ) : null}

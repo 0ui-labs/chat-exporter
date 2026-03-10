@@ -1,7 +1,10 @@
 import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
 import { X } from "lucide-react";
 import { type FormEvent, useRef } from "react";
-import { getViewLabel } from "@/components/format-workspace/labels";
+import {
+  adjustmentLabels,
+  getAdjustViewLabel,
+} from "@/components/format-workspace/labels";
 import type {
   FloatingAdjustmentAnchor,
   ViewMode,
@@ -83,7 +86,7 @@ export function AdjustmentPopover({
         <div className="flex items-start justify-between gap-3 border-b border-border/80 px-4 py-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-              {getViewLabel(view)} anpassen
+              {getAdjustViewLabel(view)}
             </p>
           </div>
           <button
@@ -91,7 +94,7 @@ export function AdjustmentPopover({
             type="button"
             onClick={onClose}
           >
-            <span className="sr-only">Anpassung schließen</span>
+            <span className="sr-only">{adjustmentLabels.closeLabel}</span>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -108,7 +111,7 @@ export function AdjustmentPopover({
 
           {isLoading ? (
             <div className="rounded-2xl border border-border/80 bg-card/75 px-3 py-3 text-sm text-muted-foreground">
-              Ich bereite diese Stelle gerade für die Anpassung vor.
+              {adjustmentLabels.loadingMessage}
             </div>
           ) : null}
 
@@ -123,32 +126,26 @@ export function AdjustmentPopover({
 
           <form className="space-y-3" onSubmit={onSubmitMessage}>
             <label className="block text-sm text-foreground">
-              <span className="sr-only">Anpassungsanfrage</span>
+              <span className="sr-only">{adjustmentLabels.inputLabel}</span>
               <textarea
                 data-testid="adjustment-draft-message"
                 className="min-h-24 w-full rounded-2xl border border-border/80 bg-background px-3 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                 disabled={isLoading}
                 placeholder={
                   isApplied
-                    ? "Noch etwas anpassen?"
-                    : "Beschreibe kurz, wie diese Stelle aussehen soll."
+                    ? adjustmentLabels.followUpPlaceholder
+                    : adjustmentLabels.adjustmentPlaceholder
                 }
                 value={draftMessage}
                 onChange={(event) => onDraftMessageChange(event.target.value)}
               />
             </label>
 
-            {isApplied ? (
-              <p className="text-sm text-muted-foreground">
-                Die Änderung ist schon sichtbar. Du kannst weiter anpassen oder
-                eine neue Stelle markieren.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Die KI antwortet kurz und setzt klare Änderungen sofort direkt
-                in dieser Ansicht um.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {isApplied
+                ? adjustmentLabels.appliedHint
+                : adjustmentLabels.defaultHint}
+            </p>
 
             <div className="flex items-center justify-between gap-3">
               <button
@@ -156,7 +153,7 @@ export function AdjustmentPopover({
                 type="button"
                 onClick={onClose}
               >
-                Abbrechen
+                {adjustmentLabels.cancel}
               </button>
               {showReply && !isLoading && onRejectLastChange != null ? (
                 <button
@@ -164,7 +161,7 @@ export function AdjustmentPopover({
                   type="button"
                   onClick={onRejectLastChange}
                 >
-                  Verwerfen
+                  {adjustmentLabels.discard}
                 </button>
               ) : null}
               <button
@@ -175,7 +172,9 @@ export function AdjustmentPopover({
                 }
                 type="submit"
               >
-                {isSubmitting ? "Wird gesendet..." : "Senden"}
+                {isSubmitting
+                  ? adjustmentLabels.sendPending
+                  : adjustmentLabels.send}
               </button>
             </div>
           </form>
