@@ -1,11 +1,15 @@
 import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
 import { X } from "lucide-react";
-import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useRef } from "react";
 import { getViewLabel } from "@/components/format-workspace/labels";
 import type {
   FloatingAdjustmentAnchor,
   ViewMode,
 } from "@/components/format-workspace/types";
+import {
+  getPopoverPosition,
+  usePopoverPosition,
+} from "@/components/format-workspace/use-popover-position";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor;
@@ -35,49 +39,6 @@ function getLastAssistantMessage(
   );
 }
 
-type PopoverDimensions = {
-  height: number;
-  width: number;
-};
-
-function clamp(value: number, min: number, max: number) {
-  if (max <= min) {
-    return min;
-  }
-
-  return Math.min(Math.max(value, min), max);
-}
-
-function getPopoverPosition(
-  anchor: FloatingAdjustmentAnchor,
-  dimensions: PopoverDimensions,
-  containerDimensions: { width: number; height: number },
-  containerScrollTop: number,
-) {
-  const margin = 16;
-  const gap = 12;
-  const maxWidth = Math.min(352, containerDimensions.width - margin * 2);
-  const width = dimensions.width || maxWidth;
-  const height = dimensions.height;
-  const left = clamp(
-    anchor.left,
-    margin,
-    containerDimensions.width - width - margin,
-  );
-  const preferredTop = anchor.top - height - gap;
-  const top = clamp(
-    preferredTop,
-    containerScrollTop + margin,
-    containerScrollTop + containerDimensions.height - height - margin,
-  );
-
-  return {
-    left,
-    maxWidth,
-    top,
-  };
-}
-
 export function AdjustmentPopover({
   anchor,
   containerDimensions,
@@ -95,55 +56,9 @@ export function AdjustmentPopover({
   view,
 }: AdjustmentPopoverProps) {
   const popoverRef = useRef<HTMLDivElement | null>(null);
-  const [dimensions, setDimensions] = useState<PopoverDimensions>({
-    height: 0,
-    width: 352,
-  });
+  const dimensions = usePopoverPosition(popoverRef);
   const lastAssistantMessage = getLastAssistantMessage(sessionDetail);
   const isApplied = sessionDetail?.session.status === "applied";
-
-  useLayoutEffect(() => {
-    const node = popoverRef.current;
-
-    if (!node) {
-      return;
-    }
-
-    const updateDimensions = () => {
-      const nextDimensions = {
-        height: node.offsetHeight,
-        width: node.offsetWidth,
-      };
-
-      setDimensions((current) => {
-        if (
-          current.height === nextDimensions.height &&
-          current.width === nextDimensions.width
-        ) {
-          return current;
-        }
-
-        return nextDimensions;
-      });
-    };
-
-    updateDimensions();
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(updateDimensions);
-
-    resizeObserver?.observe(node);
-
-    return () => {
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   const position = getPopoverPosition(
     anchor,
