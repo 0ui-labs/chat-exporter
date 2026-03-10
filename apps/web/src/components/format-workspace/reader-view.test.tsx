@@ -2,6 +2,7 @@ import type { Conversation, FormatRule } from "@chat-exporter/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 
+import { renderReaderBlock } from "@/components/format-workspace/rule-engine";
 import { ReaderView } from "./reader-view";
 import type { AdjustmentSelection, ViewportAnchor } from "./types";
 
@@ -21,9 +22,9 @@ vi.mock("@/components/format-workspace/rule-engine", () => ({
   blockToPlainText: (block: { text?: string }) => block.text ?? "",
   getBlocksMatchingRule: () => [],
   getReaderBlockClassName: () => "mock-block-class",
-  renderReaderBlock: (block: { text?: string }) => (
+  renderReaderBlock: vi.fn((block: { text?: string }) => (
     <span>{block.text ?? ""}</span>
-  ),
+  )),
 }));
 
 // ---------------------------------------------------------------------------
@@ -104,6 +105,50 @@ describe("ReaderView", () => {
       expect(screen.getByText("1")).toBeInTheDocument();
       expect(screen.getByText("2")).toBeInTheDocument();
       expect(screen.getByText("3")).toBeInTheDocument();
+    });
+  });
+
+  describe("block-level error boundaries", () => {
+    test("shows fallback for a broken block while rendering other blocks normally", () => {
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      vi.mocked(renderReaderBlock).mockImplementation(
+        (block: { type: string }) => {
+          if (block.type === "broken") {
+            throw new Error("Render failed");
+          }
+          return <span data-testid="rendered-block">{block.type}</span>;
+        },
+      );
+
+      const conversation = createConversation({
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            blocks: [
+              { type: "broken", content: "will crash" } as never,
+              { type: "paragraph", text: "normal text" },
+            ],
+          },
+        ],
+      });
+
+      render(<ReaderView {...defaultProps({ conversation })} />);
+
+      // The broken block should show the German fallback message
+      expect(
+        screen.getByText(
+          /Block \u201Ebroken\u201C konnte nicht dargestellt werden/,
+        ),
+      ).toBeInTheDocument();
+
+      // The paragraph block should render normally
+      expect(screen.getByText("paragraph")).toBeInTheDocument();
+
+      consoleSpy.mockRestore();
     });
   });
 });

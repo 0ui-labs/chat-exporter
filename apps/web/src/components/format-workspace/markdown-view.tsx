@@ -1,7 +1,7 @@
 import type { FormatRule } from "@chat-exporter/shared";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
 import type {
   AdjustmentSelection,
   ViewportAnchor,
@@ -13,7 +13,6 @@ type MarkdownViewProps = {
   adjustModeEnabled: boolean;
   content: string;
   highlightedRuleId: string | null;
-  onScrollRefChange: (el: HTMLDivElement | null) => void;
   onSelectLines: (
     selection: AdjustmentSelection,
     anchor: ViewportAnchor,
@@ -23,6 +22,25 @@ type MarkdownViewProps = {
 
 function formatLineNumber(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function LineContent({
+  line,
+  lineNumber,
+}: {
+  line: string;
+  lineNumber: number;
+}) {
+  return (
+    <>
+      <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
+        {formatLineNumber(lineNumber)}
+      </span>
+      <span className="min-w-0 whitespace-pre-wrap break-words font-mono">
+        {line.length > 0 ? line : " "}
+      </span>
+    </>
+  );
 }
 
 function toViewportAnchor(rect: DOMRect): ViewportAnchor {
@@ -40,28 +58,10 @@ export function MarkdownView({
   adjustModeEnabled,
   content,
   highlightedRuleId,
-  onScrollRefChange,
   onSelectLines,
   selectedRange,
 }: MarkdownViewProps) {
   const lines = content.split("\n");
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollContainerRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      scrollRef.current = el;
-      onScrollRefChange(el);
-    },
-    [onScrollRefChange],
-  );
-
-  const virtualizer = useVirtualizer({
-    count: lines.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 40,
-    overscan: 20,
-    measureElement: (el) => el.getBoundingClientRect().height,
-  });
 
   const highlightedLineRange = useMemo(() => {
     if (!highlightedRuleId) {
@@ -109,20 +109,10 @@ export function MarkdownView({
   }, [highlightedRuleId, activeRules, lines.length]);
 
   return (
-    <div
-      ref={scrollContainerRef}
-      className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-3 text-sm text-zinc-100"
-      style={{ overflowY: "auto", height: "100%" }}
-    >
-      <div
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((virtualItem) => {
-          const line = lines[virtualItem.index] ?? "";
-          const lineNumber = virtualItem.index + 1;
+    <div className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-3 text-sm text-zinc-100">
+      <div className="space-y-1">
+        {lines.map((line, index) => {
+          const lineNumber = index + 1;
           const isSelected =
             selectedRange?.lineStart !== undefined &&
             selectedRange?.lineEnd !== undefined &&
@@ -136,8 +126,6 @@ export function MarkdownView({
           return (
             <button
               key={`${lineNumber}-${line}`}
-              ref={virtualizer.measureElement}
-              data-index={virtualItem.index}
               data-testid={`markdown-line-${lineNumber}`}
               className={cn(
                 "grid w-full grid-cols-[auto_1fr] gap-3 rounded-xl px-3 py-2 text-left transition",
@@ -149,13 +137,6 @@ export function MarkdownView({
                   : null,
                 isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null,
               )}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualItem.start}px)`,
-              }}
               type="button"
               onClick={(event) => {
                 if (!adjustModeEnabled) {
@@ -198,12 +179,20 @@ export function MarkdownView({
                 );
               }}
             >
-              <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
-                {formatLineNumber(lineNumber)}
-              </span>
-              <span className="min-w-0 whitespace-pre-wrap break-words font-mono">
-                {line.length > 0 ? line : " "}
-              </span>
+              <ErrorBoundary
+                fallback={
+                  <>
+                    <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
+                      {"\u00A0"}
+                    </span>
+                    <span className="text-xs text-red-500">
+                      Zeile konnte nicht dargestellt werden.
+                    </span>
+                  </>
+                }
+              >
+                <LineContent line={line} lineNumber={lineNumber} />
+              </ErrorBoundary>
             </button>
           );
         })}

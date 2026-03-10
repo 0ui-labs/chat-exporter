@@ -1,4 +1,5 @@
 import type {
+  Block,
   Conversation,
   FormatRule,
   Message,
@@ -6,6 +7,8 @@ import type {
 } from "@chat-exporter/shared";
 import { memo, useMemo, useRef } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
+import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import {
   blockToPlainText,
@@ -18,6 +21,17 @@ import type {
   ViewportAnchor,
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
+
+/** Thin wrapper so that errors thrown by renderReaderBlock are caught by ErrorBoundary. */
+function BlockRenderer({
+  block,
+  effects,
+}: {
+  block: Block;
+  effects: RuleEffect[];
+}) {
+  return <>{renderReaderBlock(block, effects)}</>;
+}
 
 type ReaderViewProps = {
   activeRules: FormatRule[];
@@ -171,7 +185,11 @@ const ReaderMessage = memo(function ReaderMessage({
                 );
               }}
             >
-              {renderReaderBlock(block, blockEffects)}
+              <ErrorBoundary
+                fallback={<BlockErrorFallback blockType={block.type} />}
+              >
+                <BlockRenderer block={block} effects={blockEffects} />
+              </ErrorBoundary>
             </div>
           );
         })}
