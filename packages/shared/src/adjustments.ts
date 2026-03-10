@@ -50,6 +50,9 @@ export const adjustmentEventTypeSchema = z.enum([
   "rule_disabled",
   "rule_promoted",
   "session_discarded",
+  "message_deleted",
+  "round_deleted",
+  "message_restored",
 ]);
 
 export const adjustmentSelectionSchema = z.object({
