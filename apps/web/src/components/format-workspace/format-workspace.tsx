@@ -18,9 +18,10 @@ import {
   buildReaderEffectsMap,
 } from "@/components/format-workspace/rule-engine";
 import { StatusHeader } from "@/components/format-workspace/status-header";
-import type {
-  AdjustmentSelection,
-  ViewMode,
+import {
+  type AdjustmentSelection,
+  adjustableViews,
+  type ViewMode,
 } from "@/components/format-workspace/types";
 import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
 import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
@@ -38,8 +39,6 @@ type FormatWorkspaceProps = {
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
 };
-
-const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
 const stageLabels: Record<ImportStage, string> = {
   validate: "Validierung",
@@ -142,6 +141,19 @@ export function FormatWorkspace({
   const sessionError =
     session.activeSessionError ?? rules.disableError ?? rules.promoteError;
 
+  const viewErrorFallback = (_error: Error, reset: () => void) => (
+    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-red-700">Diese Ansicht konnte nicht geladen werden.</p>
+      <button
+        className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-foreground/5"
+        type="button"
+        onClick={reset}
+      >
+        Erneut versuchen
+      </button>
+    </div>
+  );
+
   return (
     <section
       ref={mergedRef}
@@ -189,23 +201,8 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          <ErrorBoundary
-            fallback={(_error, reset) => (
-              <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-                <p className="text-red-700">
-                  Diese Ansicht konnte nicht geladen werden.
-                </p>
-                <button
-                  className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-foreground/5"
-                  type="button"
-                  onClick={reset}
-                >
-                  Erneut versuchen
-                </button>
-              </div>
-            )}
-          >
-            {view === "reader" ? (
+          {view === "reader" ? (
+            <ErrorBoundary fallback={viewErrorFallback}>
               <ReaderView
                 activeRules={rules.activeRules}
                 conversation={job.conversation}
@@ -217,7 +214,9 @@ export function FormatWorkspace({
                 }
                 onSelectBlock={session.handleSelectionChange}
               />
-            ) : view === "markdown" ? (
+            </ErrorBoundary>
+          ) : view === "markdown" ? (
+            <ErrorBoundary fallback={viewErrorFallback}>
               <MarkdownView
                 activeRules={rules.activeRules}
                 content={displayedMarkdown}
@@ -226,10 +225,12 @@ export function FormatWorkspace({
                 selectedRange={session.activeSelection}
                 onSelectLines={session.handleSelectionChange}
               />
-            ) : (
+            </ErrorBoundary>
+          ) : (
+            <ErrorBoundary fallback={viewErrorFallback}>
               <ArtifactView content={artifact} />
-            )}
-          </ErrorBoundary>
+            </ErrorBoundary>
+          )}
 
           {session.showGuide ? (
             <AdjustmentModeGuide

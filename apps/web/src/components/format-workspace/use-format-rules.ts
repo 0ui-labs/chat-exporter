@@ -4,12 +4,13 @@ import type {
 } from "@chat-exporter/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { ViewMode } from "@/components/format-workspace/types";
+import {
+  adjustableViews,
+  type ViewMode,
+} from "@/components/format-workspace/types";
 import { useRuleExplanations } from "@/components/format-workspace/use-rule-explanations";
 import { orpc } from "@/lib/orpc";
 import { demoteFormatRule, promoteFormatRule, rpc } from "@/lib/rpc";
-
-const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
 export function useFormatRules(view: ViewMode, jobId: string) {
   const queryClient = useQueryClient();

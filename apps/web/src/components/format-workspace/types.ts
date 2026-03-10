@@ -36,3 +36,5 @@ export type FloatingAdjustmentAnchor = {
   top: number;
   width: number;
 };
+
+export const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);

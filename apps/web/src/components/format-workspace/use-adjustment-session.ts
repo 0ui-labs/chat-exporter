@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useReducer, useRef } from "react";
 
-import type {
-  AdjustmentSelection,
-  ViewMode,
-  ViewportAnchor,
+import {
+  type AdjustmentSelection,
+  adjustableViews,
+  type ViewMode,
+  type ViewportAnchor,
 } from "@/components/format-workspace/types";
 import { orpc } from "@/lib/orpc";
 
@@ -12,8 +13,6 @@ import {
   createInitialState,
   sessionReducer,
 } from "./adjustment-session-reducer";
-
-const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
 export function useAdjustmentSession(view: ViewMode, jobId: string) {
   const sectionRef = useRef<HTMLElement | null>(null);

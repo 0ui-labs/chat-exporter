@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-import type { ViewMode } from "@/components/format-workspace/types";
-
-const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+import {
+  adjustableViews,
+  type ViewMode,
+} from "@/components/format-workspace/types";
 
 export function useAdjustmentPopover(view: ViewMode, hasSelection: boolean) {
   const containerRef = useRef<HTMLElement | null>(null);
