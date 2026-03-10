@@ -1,5 +1,5 @@
 import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
@@ -12,7 +12,10 @@ import {
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
-import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
+import {
+  applyMarkdownRules,
+  buildReaderEffectsMap,
+} from "@/components/format-workspace/rule-engine";
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import type {
   AdjustmentSelection,
@@ -68,45 +71,6 @@ export function FormatWorkspace({
   onViewChange,
 }: FormatWorkspaceProps) {
   const isAdjustableView = adjustableViews.has(view);
-  const viewScrollRef = useRef<HTMLDivElement | null>(null);
-  const scrollPositionByView = useRef<Record<ViewMode, number>>({
-    reader: 0,
-    markdown: 0,
-    handover: 0,
-    json: 0,
-  });
-
-  const handleScrollRefChange = useCallback((el: HTMLDivElement | null) => {
-    viewScrollRef.current = el;
-  }, []);
-
-  const handleViewChange = useCallback(
-    (nextView: ViewMode) => {
-      scrollPositionByView.current[view] =
-        viewScrollRef.current?.scrollTop ?? 0;
-      onViewChange(nextView);
-    },
-    [view, onViewChange],
-  );
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on job change
-  useEffect(() => {
-    scrollPositionByView.current = {
-      reader: 0,
-      markdown: 0,
-      handover: 0,
-      json: 0,
-    };
-    viewScrollRef.current = null;
-  }, [job.id]);
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (viewScrollRef.current) {
-        viewScrollRef.current.scrollTop = scrollPositionByView.current[view];
-      }
-    });
-  }, [view]);
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
@@ -136,6 +100,14 @@ export function FormatWorkspace({
     [artifact, rules.activeRules, view],
   );
 
+  const readerEffectsMap = useMemo(
+    () =>
+      view === "reader" && job.conversation
+        ? buildReaderEffectsMap(rules.activeRules, job.conversation)
+        : new Map(),
+    [rules.activeRules, job.conversation, view],
+  );
+
   const handleDownloadMarkdown = useMemo(() => {
     if (view !== "markdown") return undefined;
     return () => {
@@ -161,7 +133,7 @@ export function FormatWorkspace({
   return (
     <section
       ref={mergedRef}
-      className="relative flex max-h-[85vh] flex-col space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
+      className="relative space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
     >
       <StatusHeader
         activeStage={activeStage}
@@ -179,7 +151,7 @@ export function FormatWorkspace({
         job.status === "running" ? (
         <LoadingStateBlock stageDetail={activeStage?.detail} />
       ) : (
-        <div className="flex flex-1 flex-col space-y-4 min-h-0">
+        <div className="space-y-4">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
             isAdjustableView={isAdjustableView}
@@ -187,7 +159,7 @@ export function FormatWorkspace({
             view={view}
             onDownloadMarkdown={handleDownloadMarkdown}
             onToggleAdjustMode={session.toggleAdjustMode}
-            onViewChange={handleViewChange}
+            onViewChange={onViewChange}
           />
 
           {sessionError && !session.adjustModeEnabled ? (
@@ -197,35 +169,26 @@ export function FormatWorkspace({
           ) : null}
 
           {view === "reader" ? (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <ReaderView
-                activeRules={rules.activeRules}
-                conversation={job.conversation}
-                adjustModeEnabled={session.adjustModeEnabled}
-                highlightedRuleId={rules.hoveredRuleId}
-                onScrollRefChange={handleScrollRefChange}
-                selectedBlock={
-                  view === "reader" ? session.activeSelection : null
-                }
-                onSelectBlock={session.handleSelectionChange}
-              />
-            </div>
+            <ReaderView
+              activeRules={rules.activeRules}
+              conversation={job.conversation}
+              adjustModeEnabled={session.adjustModeEnabled}
+              effectsMap={readerEffectsMap}
+              highlightedRuleId={rules.hoveredRuleId}
+              selectedBlock={view === "reader" ? session.activeSelection : null}
+              onSelectBlock={session.handleSelectionChange}
+            />
           ) : view === "markdown" ? (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <MarkdownView
-                activeRules={rules.activeRules}
-                content={displayedMarkdown}
-                adjustModeEnabled={session.adjustModeEnabled}
-                highlightedRuleId={rules.hoveredRuleId}
-                onScrollRefChange={handleScrollRefChange}
-                selectedRange={session.activeSelection}
-                onSelectLines={session.handleSelectionChange}
-              />
-            </div>
+            <MarkdownView
+              activeRules={rules.activeRules}
+              content={displayedMarkdown}
+              adjustModeEnabled={session.adjustModeEnabled}
+              highlightedRuleId={rules.hoveredRuleId}
+              selectedRange={session.activeSelection}
+              onSelectLines={session.handleSelectionChange}
+            />
           ) : (
-            <div className="flex-1 min-h-0">
-              <ArtifactView content={artifact} />
-            </div>
+            <ArtifactView content={artifact} />
           )}
 
           {session.showGuide ? (
@@ -239,7 +202,7 @@ export function FormatWorkspace({
             <AdjustmentPopover
               anchor={session.activeAnchor}
               containerDimensions={popover.containerDimensions}
-              containerScrollTop={0}
+              containerScrollTop={session.sectionRef.current?.scrollTop ?? 0}
               draftMessage={session.activeDraftMessage}
               error={session.activeSessionError}
               isLoading={session.activeSessionLoading || session.isDiscarding}
