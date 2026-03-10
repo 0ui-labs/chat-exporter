@@ -504,7 +504,7 @@ describe("FormatWorkspace", () => {
 
       expect(screen.getByText("Import fehlgeschlagen")).toBeInTheDocument();
       expect(
-        screen.getByText("Fehler in Phase: Inhalte extrahieren"),
+        screen.getByText("Fehler in Phase: Nachrichten werden extrahiert"),
       ).toBeInTheDocument();
       expect(
         screen.getByText("Timeout while loading page"),
