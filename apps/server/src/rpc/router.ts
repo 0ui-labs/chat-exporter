@@ -1,7 +1,7 @@
 import { contract, importSnapshotSchema } from "@chat-exporter/shared";
 import { implement, ORPCError } from "@orpc/server";
 
-import { databasePath } from "../db/client.js";
+import { databasePath, withTransaction } from "../db/client.js";
 import {
   AdjustmentChatUnavailableError,
   type ApplyAdjustmentRuleResult,
@@ -196,33 +196,31 @@ export const router = os.router({
         });
       }
 
-      appendAdjustmentMessage(input.sessionId, "user", input.content);
-      let latestDetail = getAdjustmentSessionDetail(input.sessionId);
+      // Phase 1 — Transaction: reopen (if needed) + append user message + reload detail
+      const latestDetail = withTransaction(() => {
+        if (detail.session.status === "applied") {
+          reopenAdjustmentSession(input.sessionId);
+        }
 
-      if (!latestDetail) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Anpassungssession konnte nicht neu geladen werden.",
-        });
-      }
+        appendAdjustmentMessage(input.sessionId, "user", input.content);
 
-      if (latestDetail.session.status === "applied") {
-        reopenAdjustmentSession(input.sessionId);
-        const refreshedDetail = getAdjustmentSessionDetail(input.sessionId);
+        const reloaded = getAdjustmentSessionDetail(input.sessionId);
 
-        if (!refreshedDetail) {
+        if (!reloaded) {
           throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: "Anpassungssession konnte nicht neu geladen werden.",
           });
         }
 
-        latestDetail = refreshedDetail;
-      }
+        return reloaded;
+      });
 
       const activeRules = listFormatRules(
         detail.session.importId,
         detail.session.targetFormat,
       ).filter((rule: { status: string }) => rule.status === "active");
 
+      // Phase 2 — no wrapper: async AI call
       try {
         const job = getImportJob(detail.session.importId);
         const chatTurn = await runAdjustmentChatTurn({
@@ -289,24 +287,27 @@ export const router = os.router({
           sessionDetail: latestDetail,
         });
 
-        for (const toolMessage of chatTurn.toolMessages) {
-          appendAdjustmentMessage(input.sessionId, "tool", toolMessage);
-        }
+        // Phase 3 — Transaction: persist tool messages + assistant message + event
+        withTransaction(() => {
+          for (const toolMessage of chatTurn.toolMessages) {
+            appendAdjustmentMessage(input.sessionId, "tool", toolMessage);
+          }
 
-        appendAdjustmentMessage(
-          input.sessionId,
-          "assistant",
-          chatTurn.assistantMessage,
-        );
+          appendAdjustmentMessage(
+            input.sessionId,
+            "assistant",
+            chatTurn.assistantMessage,
+          );
 
-        if (chatTurn.didRequestClarification) {
-          recordAdjustmentEvent({
-            importId: latestDetail.session.importId,
-            sessionId: input.sessionId,
-            targetFormat: latestDetail.session.targetFormat,
-            type: "clarification_requested",
-          });
-        }
+          if (chatTurn.didRequestClarification) {
+            recordAdjustmentEvent({
+              importId: latestDetail.session.importId,
+              sessionId: input.sessionId,
+              targetFormat: latestDetail.session.targetFormat,
+              type: "clarification_requested",
+            });
+          }
+        });
       } catch (error) {
         if (error instanceof AdjustmentChatUnavailableError) {
           throw new ORPCError("SERVICE_UNAVAILABLE", {
