@@ -487,6 +487,63 @@ describe("FormatWorkspace", () => {
       spy.mockRestore();
     });
 
+    test("shows error display with stage context for failed job", () => {
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob({
+            status: "failed",
+            errorStage: "extract",
+            error: "Timeout while loading page",
+          })}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("Import fehlgeschlagen")).toBeInTheDocument();
+      expect(
+        screen.getByText("Fehler in Phase: Inhalte extrahieren"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Timeout while loading page"),
+      ).toBeInTheDocument();
+    });
+
+    test("shows error display without stage when errorStage is absent", () => {
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob({ status: "failed" })}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("Import fehlgeschlagen")).toBeInTheDocument();
+      expect(screen.queryByText(/Fehler in Phase/)).not.toBeInTheDocument();
+    });
+
+    test("shows error message for failed job with error string", () => {
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob({
+            status: "failed",
+            error: "Connection refused",
+          })}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("Import fehlgeschlagen")).toBeInTheDocument();
+      expect(screen.getByText("Connection refused")).toBeInTheDocument();
+    });
+
     test("applyMarkdownRules error falls back to raw artifact", () => {
       applyMarkdownRulesShouldThrow = true;
 

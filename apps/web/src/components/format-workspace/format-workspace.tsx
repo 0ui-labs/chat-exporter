@@ -1,4 +1,4 @@
-import type { ImportJob } from "@chat-exporter/shared";
+import type { ImportJob, ImportStage } from "@chat-exporter/shared";
 import { useCallback, useMemo } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -40,6 +40,16 @@ type FormatWorkspaceProps = {
 };
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+
+const stageLabels: Record<ImportStage, string> = {
+  validate: "Validierung",
+  fetch: "Seite laden",
+  extract: "Inhalte extrahieren",
+  normalize: "Normalisierung",
+  structure: "Strukturierung",
+  render: "Artefakte generieren",
+  done: "Abgeschlossen",
+};
 
 function _describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
@@ -149,8 +159,17 @@ export function FormatWorkspace({
         </div>
       ) : null}
 
-      {job.status === "failed" ? null : job.status === "queued" ||
-        job.status === "running" ? (
+      {job.status === "failed" ? (
+        <div className="rounded-2xl border border-red-300/40 bg-red-100/70 p-4 text-red-900">
+          <p className="font-medium">Import fehlgeschlagen</p>
+          {job.errorStage && job.errorStage !== "done" && (
+            <p className="text-sm mt-1">
+              Fehler in Phase: {stageLabels[job.errorStage]}
+            </p>
+          )}
+          {job.error && <p className="text-sm mt-1">{job.error}</p>}
+        </div>
+      ) : job.status === "queued" || job.status === "running" ? (
         <LoadingStateBlock stageDetail={activeStage?.detail} />
       ) : (
         <div className="space-y-4">
