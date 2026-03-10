@@ -1,4 +1,4 @@
-import { Download, Settings2 } from "lucide-react";
+import { Download, Eye, EyeOff, Settings2 } from "lucide-react";
 
 import {
   adjustmentLabels,
@@ -20,21 +20,27 @@ const outputViews: { value: ViewMode; label: string }[] = [
 
 type CompletedToolbarProps = {
   adjustModeEnabled: boolean;
+  deletionsCount?: number;
   isAdjustableView: boolean;
   rules: ReturnType<typeof useFormatRules>;
+  showDeleted?: boolean;
   view: ViewMode;
   onDownloadMarkdown?: () => void;
   onToggleAdjustMode: () => void;
+  onToggleShowDeleted?: () => void;
   onViewChange: (view: ViewMode) => void;
 };
 
 export function CompletedToolbar({
   adjustModeEnabled,
+  deletionsCount,
   isAdjustableView,
   rules,
+  showDeleted,
   view,
   onDownloadMarkdown,
   onToggleAdjustMode,
+  onToggleShowDeleted,
   onViewChange,
 }: CompletedToolbarProps) {
   return (
@@ -65,6 +71,24 @@ export function CompletedToolbar({
           >
             <Download className="mr-2 h-4 w-4" />
             {adjustmentLabels.download}
+          </Button>
+        ) : null}
+
+        {deletionsCount && deletionsCount > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={showDeleted ? "default" : "outline"}
+            onClick={onToggleShowDeleted}
+          >
+            {showDeleted ? (
+              <EyeOff className="mr-2 h-4 w-4" />
+            ) : (
+              <Eye className="mr-2 h-4 w-4" />
+            )}
+            {showDeleted
+              ? "Gelöschte ausblenden"
+              : `${deletionsCount} gelöscht`}
           </Button>
         ) : null}
 
