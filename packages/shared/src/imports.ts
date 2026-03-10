@@ -43,6 +43,7 @@ export const importJobSchema = z.object({
   updatedAt: z.string(),
   warnings: z.array(z.string()).default([]),
   error: z.string().optional(),
+  errorStage: importStageSchema.optional(),
   summary: z
     .object({
       messageCount: z.number().int().nonnegative(),

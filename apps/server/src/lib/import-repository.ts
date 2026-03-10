@@ -22,6 +22,7 @@ function serializeImport(job: ImportJob) {
     updatedAt: job.updatedAt,
     warningsJson: JSON.stringify(job.warnings),
     error: job.error ?? null,
+    errorStage: job.errorStage ?? null,
     summaryJson: job.summary ? JSON.stringify(job.summary) : null,
     conversationJson: job.conversation
       ? JSON.stringify(job.conversation)
@@ -50,6 +51,7 @@ function deserializeImport(row: Import) {
     updatedAt: row.updatedAt,
     warnings: parseJson<string[]>(row.warningsJson) ?? [],
     error: row.error ?? undefined,
+    errorStage: row.errorStage ?? undefined,
     summary: parseJson<ImportJob["summary"]>(row.summaryJson),
     conversation: parseJson<Conversation>(row.conversationJson),
     artifacts: parseJson<ImportArtifacts>(row.artifactsJson),

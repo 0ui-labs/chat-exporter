@@ -13,6 +13,7 @@ export const imports = sqliteTable(
     updatedAt: text("updated_at").notNull(),
     warningsJson: text("warnings_json").notNull().default("[]"),
     error: text("error"),
+    errorStage: text("error_stage"),
     summaryJson: text("summary_json"),
     conversationJson: text("conversation_json"),
     artifactsJson: text("artifacts_json"),

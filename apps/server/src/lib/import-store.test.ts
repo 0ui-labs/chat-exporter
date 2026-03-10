@@ -1,3 +1,4 @@
+import { importJobSchema } from "@chat-exporter/shared";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("./share-import.js", () => ({
@@ -64,6 +65,28 @@ function createImportResult() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("importJobSchema", () => {
+  test("accepts errorStage field", () => {
+    const result = importJobSchema.safeParse({
+      id: "test",
+      sourceUrl: "https://example.com",
+      sourcePlatform: "chatgpt",
+      mode: "archive",
+      status: "failed",
+      currentStage: "done",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      warnings: [],
+      error: "test error",
+      errorStage: "extract",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.errorStage).toBe("extract");
+    }
+  });
 });
 
 describe("runImportJob", () => {
@@ -154,6 +177,40 @@ describe("runImportJob", () => {
     const result = getImportJob(job.id);
     expect(result?.status).toBe("failed");
     expect(result?.error).toBe("Network error");
+  });
+
+  test("failure captures errorStage from current stage at time of error", async () => {
+    const job = createImportJob({
+      url: "https://chatgpt.com/share/test-errorstage",
+      mode: "archive",
+    });
+    mockImportSharePage.mockImplementation(async (_url, opts) => {
+      opts?.onStage?.("extract");
+      throw new Error("Extract failed");
+    });
+
+    await runImportJob(job.id);
+
+    const result = getImportJob(job.id);
+    expect(result?.status).toBe("failed");
+    expect(result?.error).toBe("Extract failed");
+    expect(result?.errorStage).toBe("extract");
+    expect(result?.currentStage).toBe("done");
+  });
+
+  test("failure preserves error message for non-Error throws", async () => {
+    const job = createImportJob({
+      url: "https://chatgpt.com/share/test-nonerror",
+      mode: "archive",
+    });
+    mockImportSharePage.mockRejectedValue("string error");
+
+    await runImportJob(job.id);
+
+    const result = getImportJob(job.id);
+    expect(result?.status).toBe("failed");
+    expect(result?.error).toBeDefined();
+    expect(result?.errorStage).toBe("validate");
   });
 
   test("non-existent job id returns early", async () => {

@@ -156,13 +156,15 @@ export async function runImportJob(id: string) {
       });
     });
   } catch (error) {
+    const currentJob = getPersistedImport(id);
     patchJob(id, {
       status: "failed",
+      errorStage: currentJob?.currentStage,
       currentStage: "done",
       error:
         error instanceof Error
           ? error.message
-          : "The import pipeline failed before a conversation could be extracted.",
+          : "Die Import-Pipeline ist fehlgeschlagen.",
     });
   }
 }

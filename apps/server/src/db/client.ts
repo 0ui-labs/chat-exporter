@@ -187,3 +187,16 @@ if (importIdColumn && importIdColumn.notnull === 1) {
     );
   }
 }
+
+// Migration: add error_stage column to imports table
+// Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
+// not Node.js child_process.exec(). This is safe - no shell invocation.
+const errorStageColumn = sqlite
+  .prepare(
+    `SELECT name FROM pragma_table_info('imports') WHERE name = 'error_stage'`,
+  )
+  .get() as { name: string } | undefined;
+
+if (!errorStageColumn) {
+  sqlite.exec(`ALTER TABLE imports ADD COLUMN error_stage TEXT`);
+}
