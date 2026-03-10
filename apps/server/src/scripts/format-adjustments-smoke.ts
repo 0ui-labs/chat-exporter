@@ -587,16 +587,18 @@ async function verifyRollbackBehavior() {
   });
 
   const baselineDb = new Database(dbPath, { readonly: true });
-  const baselineRules = baselineDb
-    .prepare<[string], { count: number }>(
-      "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
-    )
-    .get(fixtureImportId)!.count;
-  const baselineEvents = baselineDb
-    .prepare<[string], { count: number }>(
-      "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
-    )
-    .get(fixtureImportId)!.count;
+  const baselineRules =
+    baselineDb
+      .prepare<[string], { count: number }>(
+        "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
+      )
+      .get(fixtureImportId)?.count ?? 0;
+  const baselineEvents =
+    baselineDb
+      .prepare<[string], { count: number }>(
+        "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
+      )
+      .get(fixtureImportId)?.count ?? 0;
   baselineDb.close();
 
   let threw = false;
@@ -614,16 +616,18 @@ async function verifyRollbackBehavior() {
   }
 
   const postDb = new Database(dbPath, { readonly: true });
-  const postRules = postDb
-    .prepare<[string], { count: number }>(
-      "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
-    )
-    .get(fixtureImportId)!.count;
-  const postEvents = postDb
-    .prepare<[string], { count: number }>(
-      "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
-    )
-    .get(fixtureImportId)!.count;
+  const postRules =
+    postDb
+      .prepare<[string], { count: number }>(
+        "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
+      )
+      .get(fixtureImportId)?.count ?? 0;
+  const postEvents =
+    postDb
+      .prepare<[string], { count: number }>(
+        "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
+      )
+      .get(fixtureImportId)?.count ?? 0;
   postDb.close();
 
   if (postRules !== baselineRules || postEvents !== baselineEvents) {
