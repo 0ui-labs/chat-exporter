@@ -172,6 +172,22 @@ export function getRuleKindLabel(kind: FormatRuleKind) {
   return ruleKindLabels[kind];
 }
 
+// ---------------------------------------------------------------------------
+// Selection Formatter
+// ---------------------------------------------------------------------------
+
+export function formatMarkdownLinesLabel(start: number, end: number) {
+  return `Markdown-Zeilen ${start}-${end}`;
+}
+
+export function formatMessageBlockLabel(
+  role: string,
+  index: number,
+  blockType: string,
+) {
+  return `${getRoleLabel(role)}-Nachricht ${index} · ${getBlockTypeLabel(blockType)}`;
+}
+
 export function getRuleLabel(rule: FormatRule) {
   const summary = rule.instruction.trim();
 

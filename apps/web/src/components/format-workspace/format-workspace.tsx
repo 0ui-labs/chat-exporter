@@ -7,8 +7,8 @@ import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popo
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
 import {
-  getBlockTypeLabel,
-  getRoleLabel,
+  formatMarkdownLinesLabel,
+  formatMessageBlockLabel,
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
@@ -52,10 +52,14 @@ const stageLabels: Record<ImportStage, string> = {
 
 function _describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
-    return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
+    return formatMarkdownLinesLabel(selection.lineStart, selection.lineEnd);
   }
 
-  return `${getRoleLabel(selection.messageRole)}-Nachricht ${selection.messageIndex + 1} · ${getBlockTypeLabel(selection.blockType)}`;
+  return formatMessageBlockLabel(
+    selection.messageRole,
+    selection.messageIndex + 1,
+    selection.blockType,
+  );
 }
 
 function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob) {
