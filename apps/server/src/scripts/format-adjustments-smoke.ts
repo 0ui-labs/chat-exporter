@@ -568,9 +568,77 @@ async function buildSharedPackage() {
   });
 }
 
+async function verifyRollbackBehavior() {
+  const [{ createAdjustmentSession, applyAdjustmentPreview }] =
+    await Promise.all([import("../lib/adjustment-repository.js")]);
+
+  const { session } = createAdjustmentSession({
+    importId: fixtureImportId,
+    targetFormat: "reader",
+    selection: {
+      blockIndex: 0,
+      blockType: "heading",
+      messageId: "assistant-1",
+      messageIndex: 1,
+      messageRole: "assistant",
+      selectedText: "Project plan",
+      textQuote: "Project plan",
+    },
+  });
+
+  const baselineDb = new Database(dbPath, { readonly: true });
+  const baselineRules = baselineDb
+    .prepare<[string], { count: number }>(
+      "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
+    )
+    .get(fixtureImportId)!.count;
+  const baselineEvents = baselineDb
+    .prepare<[string], { count: number }>(
+      "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
+    )
+    .get(fixtureImportId)!.count;
+  baselineDb.close();
+
+  let threw = false;
+
+  try {
+    applyAdjustmentPreview(session.id);
+  } catch {
+    threw = true;
+  }
+
+  if (!threw) {
+    throw new Error(
+      "applyAdjustmentPreview hätte werfen müssen, da die Session nicht im Status 'preview_ready' ist.",
+    );
+  }
+
+  const postDb = new Database(dbPath, { readonly: true });
+  const postRules = postDb
+    .prepare<[string], { count: number }>(
+      "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
+    )
+    .get(fixtureImportId)!.count;
+  const postEvents = postDb
+    .prepare<[string], { count: number }>(
+      "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
+    )
+    .get(fixtureImportId)!.count;
+  postDb.close();
+
+  if (postRules !== baselineRules || postEvents !== baselineEvents) {
+    throw new Error(
+      "Rollback-Verifikation fehlgeschlagen: applyAdjustmentPreview hat Writes hinterlassen obwohl die Session nicht im Status 'preview_ready' war.",
+    );
+  }
+
+  console.log("Rollback verification passed.");
+}
+
 async function runSmokeFlow() {
   await buildSharedPackage();
   await resetSeededDatabase();
+  await verifyRollbackBehavior();
   const mockOpenAi = await startMockOpenAiServer();
 
   const children = [
