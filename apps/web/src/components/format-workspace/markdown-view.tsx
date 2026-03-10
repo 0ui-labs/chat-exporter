@@ -1,5 +1,6 @@
 import type { FormatRule } from "@chat-exporter/shared";
-import { useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useMemo, useRef } from "react";
 
 import type {
   AdjustmentSelection,
@@ -12,6 +13,7 @@ type MarkdownViewProps = {
   adjustModeEnabled: boolean;
   content: string;
   highlightedRuleId: string | null;
+  onScrollRefChange: (el: HTMLDivElement | null) => void;
   onSelectLines: (
     selection: AdjustmentSelection,
     anchor: ViewportAnchor,
@@ -38,10 +40,28 @@ export function MarkdownView({
   adjustModeEnabled,
   content,
   highlightedRuleId,
+  onScrollRefChange,
   onSelectLines,
   selectedRange,
 }: MarkdownViewProps) {
   const lines = content.split("\n");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollContainerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      scrollRef.current = el;
+      onScrollRefChange(el);
+    },
+    [onScrollRefChange],
+  );
+
+  const virtualizer = useVirtualizer({
+    count: lines.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 40,
+    overscan: 20,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
 
   const highlightedLineRange = useMemo(() => {
     if (!highlightedRuleId) {
@@ -89,10 +109,20 @@ export function MarkdownView({
   }, [highlightedRuleId, activeRules, lines.length]);
 
   return (
-    <div className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-3 text-sm text-zinc-100">
-      <div className="space-y-1">
-        {lines.map((line, index) => {
-          const lineNumber = index + 1;
+    <div
+      ref={scrollContainerRef}
+      className="rounded-[1.6rem] border border-border/80 bg-zinc-950 p-3 text-sm text-zinc-100"
+      style={{ overflowY: "auto", height: "100%" }}
+    >
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          const line = lines[virtualItem.index] ?? "";
+          const lineNumber = virtualItem.index + 1;
           const isSelected =
             selectedRange?.lineStart !== undefined &&
             selectedRange?.lineEnd !== undefined &&
@@ -106,6 +136,8 @@ export function MarkdownView({
           return (
             <button
               key={`${lineNumber}-${line}`}
+              ref={virtualizer.measureElement}
+              data-index={virtualItem.index}
               data-testid={`markdown-line-${lineNumber}`}
               className={cn(
                 "grid w-full grid-cols-[auto_1fr] gap-3 rounded-xl px-3 py-2 text-left transition",
@@ -117,6 +149,13 @@ export function MarkdownView({
                   : null,
                 isSelected ? "bg-primary/15 ring-1 ring-primary/40" : null,
               )}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
               type="button"
               onClick={(event) => {
                 if (!adjustModeEnabled) {

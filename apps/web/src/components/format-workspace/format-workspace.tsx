@@ -160,6 +160,7 @@ export function FormatWorkspace({
               conversation={job.conversation}
               adjustModeEnabled={session.adjustModeEnabled}
               highlightedRuleId={rules.hoveredRuleId}
+              onScrollRefChange={() => {}}
               selectedBlock={view === "reader" ? session.activeSelection : null}
               onSelectBlock={session.handleSelectionChange}
             />
@@ -169,6 +170,7 @@ export function FormatWorkspace({
               content={displayedMarkdown}
               adjustModeEnabled={session.adjustModeEnabled}
               highlightedRuleId={rules.hoveredRuleId}
+              onScrollRefChange={() => {}}
               selectedRange={session.activeSelection}
               onSelectLines={session.handleSelectionChange}
             />
