@@ -12,11 +12,7 @@ import { orpc } from "@/lib/orpc";
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
-export function useAdjustmentSession(
-  view: ViewMode,
-  jobId: string,
-  getViewScrollTop: () => number = () => 0,
-) {
+export function useAdjustmentSession(view: ViewMode, jobId: string) {
   // ── Refs ──────────────────────────────────────────────────────────────
 
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -267,10 +263,9 @@ export function useAdjustmentSession(
     let containerAnchor = anchor;
     if (container) {
       const containerRect = container.getBoundingClientRect();
-      const scrollTop = getViewScrollTop();
       containerAnchor = {
-        top: anchor.top - containerRect.top + scrollTop,
-        bottom: anchor.bottom - containerRect.top + scrollTop,
+        top: anchor.top - containerRect.top,
+        bottom: anchor.bottom - containerRect.top,
         left: anchor.left - containerRect.left,
         width: anchor.width,
         height: anchor.height,

@@ -6,12 +6,13 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { type Mock, vi } from "vitest";
 
 import { rpc } from "@/lib/rpc";
 
 import { FormatWorkspace } from "./format-workspace";
+import type { ViewMode } from "./types";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -31,6 +32,16 @@ vi.mock("@/lib/rpc", () => ({
 vi.mock("@/components/format-workspace/reader-view", () => ({
   ReaderView: (props: Record<string, unknown>) => (
     <div
+      ref={(el: HTMLDivElement | null) => {
+        if (el) {
+          makeScrollable(el);
+          if (typeof props.onScrollRefChange === "function") {
+            (props.onScrollRefChange as (el: HTMLDivElement | null) => void)(
+              el,
+            );
+          }
+        }
+      }}
       data-testid="reader-view"
       data-adjust-mode={String(props.adjustModeEnabled)}
     />
@@ -38,7 +49,21 @@ vi.mock("@/components/format-workspace/reader-view", () => ({
 }));
 
 vi.mock("@/components/format-workspace/markdown-view", () => ({
-  MarkdownView: () => <div data-testid="markdown-view" />,
+  MarkdownView: (props: Record<string, unknown>) => (
+    <div
+      ref={(el: HTMLDivElement | null) => {
+        if (el) {
+          makeScrollable(el);
+          if (typeof props.onScrollRefChange === "function") {
+            (props.onScrollRefChange as (el: HTMLDivElement | null) => void)(
+              el,
+            );
+          }
+        }
+      }}
+      data-testid="markdown-view"
+    />
+  ),
 }));
 
 vi.mock("@/components/format-workspace/artifact-view", () => ({
@@ -60,6 +85,25 @@ vi.mock("@/components/format-workspace/rules-list-popover", () => ({
 vi.mock("@/components/format-workspace/rule-engine", () => ({
   applyMarkdownRules: (content: string) => content,
 }));
+
+// ---------------------------------------------------------------------------
+// jsdom scrollTop helper — jsdom clamps scrollTop to 0 without real layout.
+// Uses a WeakMap so the value survives ref callback re-invocations (React
+// calls the inline callback again on every re-render with a new closure).
+// ---------------------------------------------------------------------------
+
+const scrollTopStore = new WeakMap<HTMLElement, number>();
+
+function makeScrollable(el: HTMLElement) {
+  if (!scrollTopStore.has(el)) {
+    scrollTopStore.set(el, 0);
+  }
+  Object.defineProperty(el, "scrollTop", {
+    get: () => scrollTopStore.get(el) ?? 0,
+    set: (v: number) => scrollTopStore.set(el, v),
+    configurable: true,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -401,6 +445,86 @@ describe("FormatWorkspace", () => {
       await user.click(screen.getByTestId("format-view-markdown"));
 
       expect(onViewChange).toHaveBeenCalledWith("markdown");
+    });
+  });
+
+  describe("scroll position restoration", () => {
+    const originalRaf = globalThis.requestAnimationFrame;
+
+    beforeEach(() => {
+      globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      }) as typeof globalThis.requestAnimationFrame;
+    });
+
+    afterEach(() => {
+      globalThis.requestAnimationFrame = originalRaf;
+    });
+
+    test("restores scroll position when switching back to a previous view", async () => {
+      const user = userEvent.setup();
+      mockRpc.rules.list.mockResolvedValue([]);
+
+      function TestHarness() {
+        const [view, setView] = useState<ViewMode>("reader");
+        return (
+          <FormatWorkspace
+            activeStage={null}
+            elapsedTime=""
+            job={createJob()}
+            view={view}
+            onViewChange={setView}
+          />
+        );
+      }
+
+      renderWithProviders(<TestHarness />);
+
+      // Set scroll position on the reader scroll container
+      const readerEl = screen.getByTestId("reader-view");
+      readerEl.scrollTop = 150;
+      // Verify makeScrollable works
+      expect(readerEl.scrollTop).toBe(150);
+
+      // Switch to markdown view
+      await user.click(screen.getByTestId("format-view-markdown"));
+      expect(screen.getByTestId("markdown-view")).toBeInTheDocument();
+
+      // Switch back to reader view
+      await user.click(screen.getByTestId("format-view-reader"));
+
+      // Scroll position should be restored via requestAnimationFrame
+      const restoredEl = screen.getByTestId("reader-view");
+      expect(restoredEl.scrollTop).toBe(150);
+    });
+
+    test("does not restore scroll for views that were never scrolled", async () => {
+      const user = userEvent.setup();
+      mockRpc.rules.list.mockResolvedValue([]);
+
+      function TestHarness() {
+        const [view, setView] = useState<ViewMode>("reader");
+        return (
+          <FormatWorkspace
+            activeStage={null}
+            elapsedTime=""
+            job={createJob()}
+            view={view}
+            onViewChange={setView}
+          />
+        );
+      }
+
+      renderWithProviders(<TestHarness />);
+
+      // Switch to markdown without scrolling reader
+      await user.click(screen.getByTestId("format-view-markdown"));
+
+      // Markdown scroll should start at 0
+      await waitFor(() => {
+        expect(screen.getByTestId("markdown-view").scrollTop).toBe(0);
+      });
     });
   });
 });

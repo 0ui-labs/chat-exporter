@@ -1,5 +1,5 @@
 import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
@@ -69,16 +69,35 @@ export function FormatWorkspace({
 }: FormatWorkspaceProps) {
   const isAdjustableView = adjustableViews.has(view);
   const viewScrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollPositionByView = useRef<Record<ViewMode, number>>({
+    reader: 0,
+    markdown: 0,
+    handover: 0,
+    json: 0,
+  });
 
   const handleScrollRefChange = useCallback((el: HTMLDivElement | null) => {
     viewScrollRef.current = el;
   }, []);
 
-  const session = useAdjustmentSession(
-    view,
-    job.id,
-    () => viewScrollRef.current?.scrollTop ?? 0,
+  const handleViewChange = useCallback(
+    (nextView: ViewMode) => {
+      scrollPositionByView.current[view] =
+        viewScrollRef.current?.scrollTop ?? 0;
+      onViewChange(nextView);
+    },
+    [view, onViewChange],
   );
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (viewScrollRef.current) {
+        viewScrollRef.current.scrollTop = scrollPositionByView.current[view];
+      }
+    });
+  }, [view]);
+
+  const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
   const popover = useAdjustmentPopover(view, Boolean(session.activeSelection));
 
@@ -128,7 +147,7 @@ export function FormatWorkspace({
   return (
     <section
       ref={mergedRef}
-      className="relative space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
+      className="relative flex max-h-[85vh] flex-col space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
     >
       <StatusHeader
         activeStage={activeStage}
@@ -146,7 +165,7 @@ export function FormatWorkspace({
         job.status === "running" ? (
         <LoadingStateBlock stageDetail={activeStage?.detail} />
       ) : (
-        <div className="flex flex-col space-y-4 min-h-0">
+        <div className="flex flex-1 flex-col space-y-4 min-h-0">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
             isAdjustableView={isAdjustableView}
@@ -154,7 +173,7 @@ export function FormatWorkspace({
             view={view}
             onDownloadMarkdown={handleDownloadMarkdown}
             onToggleAdjustMode={session.toggleAdjustMode}
-            onViewChange={onViewChange}
+            onViewChange={handleViewChange}
           />
 
           {sessionError && !session.adjustModeEnabled ? (
@@ -163,29 +182,33 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          {view === "reader" ? (
-            <ReaderView
-              activeRules={rules.activeRules}
-              conversation={job.conversation}
-              adjustModeEnabled={session.adjustModeEnabled}
-              highlightedRuleId={rules.hoveredRuleId}
-              onScrollRefChange={handleScrollRefChange}
-              selectedBlock={view === "reader" ? session.activeSelection : null}
-              onSelectBlock={session.handleSelectionChange}
-            />
-          ) : view === "markdown" ? (
-            <MarkdownView
-              activeRules={rules.activeRules}
-              content={displayedMarkdown}
-              adjustModeEnabled={session.adjustModeEnabled}
-              highlightedRuleId={rules.hoveredRuleId}
-              onScrollRefChange={handleScrollRefChange}
-              selectedRange={session.activeSelection}
-              onSelectLines={session.handleSelectionChange}
-            />
-          ) : (
-            <ArtifactView content={artifact} />
-          )}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {view === "reader" ? (
+              <ReaderView
+                activeRules={rules.activeRules}
+                conversation={job.conversation}
+                adjustModeEnabled={session.adjustModeEnabled}
+                highlightedRuleId={rules.hoveredRuleId}
+                onScrollRefChange={handleScrollRefChange}
+                selectedBlock={
+                  view === "reader" ? session.activeSelection : null
+                }
+                onSelectBlock={session.handleSelectionChange}
+              />
+            ) : view === "markdown" ? (
+              <MarkdownView
+                activeRules={rules.activeRules}
+                content={displayedMarkdown}
+                adjustModeEnabled={session.adjustModeEnabled}
+                highlightedRuleId={rules.hoveredRuleId}
+                onScrollRefChange={handleScrollRefChange}
+                selectedRange={session.activeSelection}
+                onSelectLines={session.handleSelectionChange}
+              />
+            ) : (
+              <ArtifactView content={artifact} />
+            )}
+          </div>
 
           {session.showGuide ? (
             <AdjustmentModeGuide
@@ -198,7 +221,7 @@ export function FormatWorkspace({
             <AdjustmentPopover
               anchor={session.activeAnchor}
               containerDimensions={popover.containerDimensions}
-              containerScrollTop={viewScrollRef.current?.scrollTop ?? 0}
+              containerScrollTop={0}
               draftMessage={session.activeDraftMessage}
               error={session.activeSessionError}
               isLoading={session.activeSessionLoading || session.isDiscarding}
