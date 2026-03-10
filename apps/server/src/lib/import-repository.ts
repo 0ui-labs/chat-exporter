@@ -2,9 +2,11 @@ import type {
   Conversation,
   ImportArtifacts,
   ImportJob,
+  ImportListRequest,
+  ImportSummary,
 } from "@chat-exporter/shared";
-import { importJobSchema } from "@chat-exporter/shared";
-import { desc, eq } from "drizzle-orm";
+import { importJobSchema, importSummarySchema } from "@chat-exporter/shared";
+import { asc, desc, eq, like, or } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import type { Import } from "../db/schema.js";
@@ -120,6 +122,93 @@ export function saveImportSnapshot(input: {
       },
     })
     .run();
+}
+
+export function listImportSummaries(
+  params?: Partial<ImportListRequest>,
+): ImportSummary[] {
+  const sortBy = params?.sortBy ?? "createdAt";
+  const sortOrder = params?.sortOrder ?? "desc";
+
+  const columnMap = {
+    createdAt: imports.createdAt,
+    updatedAt: imports.updatedAt,
+    sourcePlatform: imports.sourcePlatform,
+    status: imports.status,
+  } as const;
+
+  const orderColumn = columnMap[sortBy];
+  const orderFn = sortOrder === "asc" ? asc : desc;
+
+  let query = db
+    .select({
+      id: imports.id,
+      sourceUrl: imports.sourceUrl,
+      sourcePlatform: imports.sourcePlatform,
+      mode: imports.mode,
+      status: imports.status,
+      currentStage: imports.currentStage,
+      createdAt: imports.createdAt,
+      updatedAt: imports.updatedAt,
+      warningsJson: imports.warningsJson,
+      error: imports.error,
+      summaryJson: imports.summaryJson,
+      pageTitle: importSnapshots.pageTitle,
+    })
+    .from(imports)
+    .leftJoin(importSnapshots, eq(imports.id, importSnapshots.importId))
+    .orderBy(orderFn(orderColumn))
+    .$dynamic();
+
+  const conditions = [];
+
+  if (params?.status) {
+    conditions.push(eq(imports.status, params.status));
+  }
+
+  if (params?.platform) {
+    conditions.push(eq(imports.sourcePlatform, params.platform));
+  }
+
+  if (params?.search) {
+    const pattern = `%${params.search}%`;
+    conditions.push(
+      or(
+        like(imports.sourceUrl, pattern),
+        like(importSnapshots.pageTitle, pattern),
+      ),
+    );
+  }
+
+  if (conditions.length > 0) {
+    for (const condition of conditions) {
+      if (condition) {
+        query = query.where(condition);
+      }
+    }
+  }
+
+  return query.all().map((row) =>
+    importSummarySchema.parse({
+      id: row.id,
+      sourceUrl: row.sourceUrl,
+      sourcePlatform: row.sourcePlatform,
+      mode: row.mode,
+      status: row.status,
+      currentStage: row.currentStage,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      warnings: parseJson<string[]>(row.warningsJson) ?? [],
+      error: row.error ?? undefined,
+      summary: parseJson<ImportJob["summary"]>(row.summaryJson),
+      pageTitle: row.pageTitle ?? undefined,
+    }),
+  );
+}
+
+export function deleteImport(id: string): boolean {
+  const result = db.delete(imports).where(eq(imports.id, id)).run();
+  return result.changes > 0;
 }
 
 export function getPersistedImportSnapshot(importId: string) {

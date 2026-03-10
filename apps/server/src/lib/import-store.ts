@@ -1,7 +1,9 @@
 import type {
   ImportArtifacts,
   ImportJob,
+  ImportListRequest,
   ImportRequest,
+  ImportSummary,
 } from "@chat-exporter/shared";
 import { withTransaction } from "../db/client.js";
 import { IMPORT_TIMEOUT_MS } from "./constants.js";
@@ -11,8 +13,10 @@ import {
   conversationWordCount,
 } from "./conversation-artifacts.js";
 import {
+  deleteImport,
   getPersistedImport,
   insertImport,
+  listImportSummaries,
   listPersistedImports,
   replaceImport,
   saveImportSnapshot,
@@ -55,12 +59,18 @@ function patchJob(id: string, patch: Partial<ImportJob>) {
   });
 }
 
-export function listImportJobs() {
-  return listPersistedImports();
+export function listImportJobs(
+  params?: Partial<ImportListRequest>,
+): ImportSummary[] {
+  return listImportSummaries(params);
 }
 
 export function getImportJob(id: string) {
   return getPersistedImport(id);
+}
+
+export function deleteImportJob(id: string): boolean {
+  return deleteImport(id);
 }
 
 export function createImportJob(input: ImportRequest) {

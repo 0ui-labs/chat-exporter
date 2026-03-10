@@ -27,6 +27,7 @@ import {
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
   createImportJob,
+  deleteImportJob,
   getImportJob,
   listImportJobs,
   runImportJob,
@@ -43,8 +44,19 @@ const os = implement(contract);
 
 export const router = os.router({
   imports: {
-    list: os.imports.list.handler(() => {
-      return listImportJobs();
+    list: os.imports.list.handler(({ input }) => {
+      return listImportJobs(input);
+    }),
+
+    delete: os.imports.delete.handler(({ input }) => {
+      const job = getImportJob(input.id);
+      if (!job) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Import nicht gefunden.",
+        });
+      }
+      const deleted = deleteImportJob(input.id);
+      return { deleted };
     }),
 
     create: os.imports.create.handler(({ input }) => {

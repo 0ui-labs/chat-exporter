@@ -60,3 +60,37 @@ export type ImportStage = z.infer<typeof importStageSchema>;
 export type ImportRequest = z.infer<typeof importRequestSchema>;
 export type ImportArtifacts = z.infer<typeof importArtifactsSchema>;
 export type ImportJob = z.infer<typeof importJobSchema>;
+
+export const importSummarySchema = z.object({
+  id: z.string(),
+  sourceUrl: z.string().url(),
+  sourcePlatform: sourcePlatformSchema,
+  mode: importModeSchema,
+  status: importStatusSchema,
+  currentStage: importStageSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  warnings: z.array(z.string()).default([]),
+  error: z.string().optional(),
+  summary: z
+    .object({
+      messageCount: z.number().int().nonnegative(),
+      transcriptWords: z.number().int().nonnegative(),
+    })
+    .optional(),
+  pageTitle: z.string().optional(),
+});
+
+export type ImportSummary = z.infer<typeof importSummarySchema>;
+
+export const importListRequestSchema = z.object({
+  search: z.string().optional(),
+  status: importStatusSchema.optional(),
+  platform: sourcePlatformSchema.optional(),
+  sortBy: z
+    .enum(["createdAt", "updatedAt", "sourcePlatform", "status"])
+    .default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
+export type ImportListRequest = z.infer<typeof importListRequestSchema>;

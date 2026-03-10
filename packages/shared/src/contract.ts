@@ -10,12 +10,23 @@ import {
   createAdjustmentSessionRequestSchema,
   formatRuleSchema,
 } from "./adjustments.js";
-import { importJobSchema, importRequestSchema } from "./imports.js";
+import {
+  importJobSchema,
+  importListRequestSchema,
+  importRequestSchema,
+  importSummarySchema,
+} from "./imports.js";
 import { importSnapshotSchema } from "./snapshots.js";
 
 export const contract = {
   imports: {
-    list: oc.output(z.array(importJobSchema)),
+    list: oc
+      .input(importListRequestSchema.optional())
+      .output(z.array(importSummarySchema)),
+
+    delete: oc
+      .input(z.object({ id: z.string() }))
+      .output(z.object({ deleted: z.boolean() })),
 
     create: oc.input(importRequestSchema).output(importJobSchema),
 
