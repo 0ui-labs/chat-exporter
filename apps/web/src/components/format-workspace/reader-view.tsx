@@ -10,6 +10,7 @@ import { memo, useMemo, useRef } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
 import { getRoleLabel } from "@/components/format-workspace/labels";
+import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
 import {
   blockToPlainText,
   getBlocksMatchingRule,
@@ -46,6 +47,8 @@ type ReaderViewProps = {
   deletedMessageIds?: Set<string>;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onDeleteMessage?: (messageId: string) => void;
+  onDeleteRound?: (messageId: string) => void;
   onRestoreMessage?: (messageId: string) => Promise<{ restored: boolean }>;
   onSelectBlock: (
     selection: AdjustmentSelection,
@@ -78,6 +81,8 @@ type ReaderMessageProps = {
   isDeleted?: boolean;
   message: Message;
   messageIndex: number;
+  onDeleteMessage?: () => void;
+  onDeleteRound?: () => void;
   onRestore?: () => void;
   onSelectBlock: ReaderViewProps["onSelectBlock"];
   selectedBlock: AdjustmentSelection | null;
@@ -90,6 +95,8 @@ const ReaderMessage = memo(function ReaderMessage({
   isDeleted,
   message,
   messageIndex,
+  onDeleteMessage,
+  onDeleteRound,
   onRestore,
   onSelectBlock,
   selectedBlock,
@@ -121,9 +128,17 @@ const ReaderMessage = memo(function ReaderMessage({
           )}
         </div>
       )}
-      <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="group/header mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         <span>{getRoleLabel(message.role)}</span>
         <span>{messageIndex + 1}</span>
+        {!isDeleted && onDeleteMessage && onDeleteRound && (
+          <span className="ml-auto opacity-0 group-hover/header:opacity-100 transition-opacity">
+            <MessageDeleteMenu
+              onDeleteMessage={onDeleteMessage}
+              onDeleteRound={onDeleteRound}
+            />
+          </span>
+        )}
       </div>
       <div className="space-y-4">
         {message.blocks.map((block, blockIndex) => {
@@ -241,6 +256,8 @@ export function ReaderView({
   deletedMessageIds,
   effectsMap,
   highlightedRuleId,
+  onDeleteMessage,
+  onDeleteRound,
   onRestoreMessage,
   onSelectBlock,
   selectedBlock,
@@ -291,6 +308,12 @@ export function ReaderView({
           onSelectBlock={onSelectBlock}
           selectedBlock={selectedBlock}
           isDeleted={deletedMessageIds?.has(message.id)}
+          onDeleteMessage={
+            onDeleteMessage ? () => onDeleteMessage(message.id) : undefined
+          }
+          onDeleteRound={
+            onDeleteRound ? () => onDeleteRound(message.id) : undefined
+          }
           onRestore={
             onRestoreMessage
               ? () => {

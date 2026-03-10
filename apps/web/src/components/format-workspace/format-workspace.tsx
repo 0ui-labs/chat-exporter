@@ -1,11 +1,12 @@
 import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
+import { DeleteMessageDialog } from "@/components/format-workspace/delete-message-dialog";
 import {
   formatMarkdownLinesLabel,
   formatMessageBlockLabel,
@@ -25,8 +26,10 @@ import {
   adjustableViews,
   type ViewMode,
 } from "@/components/format-workspace/types";
+import { UndoToast } from "@/components/format-workspace/undo-toast";
 import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
 import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
+import { useDeletionToast } from "@/components/format-workspace/use-deletion-toast";
 import { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
 
@@ -82,7 +85,61 @@ export function FormatWorkspace({
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
   const deletion = useMessageDeletion(job.id);
+  const deletionToast = useDeletionToast();
+  const [deleteDialog, setDeleteDialog] = useState<{
+    messageId: string;
+    isRound: boolean;
+    preview: string;
+  } | null>(null);
   const popover = useAdjustmentPopover(view, Boolean(session.activeSelection));
+
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      const msg = job.conversation?.messages.find((m) => m.id === messageId);
+      const preview =
+        msg?.blocks
+          .map((b) => ("text" in b ? b.text : b.type))
+          .join(" ")
+          .slice(0, 200) ?? messageId;
+      setDeleteDialog({ messageId, isRound: false, preview });
+    },
+    [job.conversation?.messages],
+  );
+
+  const handleDeleteRound = useCallback(
+    (messageId: string) => {
+      const msg = job.conversation?.messages.find((m) => m.id === messageId);
+      const preview =
+        msg?.blocks
+          .map((b) => ("text" in b ? b.text : b.type))
+          .join(" ")
+          .slice(0, 200) ?? messageId;
+      setDeleteDialog({ messageId, isRound: true, preview });
+    },
+    [job.conversation?.messages],
+  );
+
+  const handleConfirmDelete = useCallback(
+    async (reason?: string) => {
+      if (!deleteDialog) return;
+      const { messageId, isRound } = deleteDialog;
+      setDeleteDialog(null);
+      if (isRound) {
+        const result = await deletion.deleteRound(messageId, reason);
+        deletionToast.showDeletedToast(messageId, true, result.length);
+      } else {
+        await deletion.deleteMessage(messageId, reason);
+        deletionToast.showDeletedToast(messageId, false);
+      }
+    },
+    [deleteDialog, deletion, deletionToast],
+  );
+
+  const handleUndoDelete = useCallback(async () => {
+    if (!deletionToast.toast) return;
+    await deletion.restoreMessage(deletionToast.toast.messageId);
+    deletionToast.dismissToast();
+  }, [deletion, deletionToast]);
 
   const mergedRef = useCallback(
     (node: HTMLElement | null) => {
@@ -218,6 +275,8 @@ export function FormatWorkspace({
                 onSelectBlock={session.handleSelectionChange}
                 deletedMessageIds={deletion.deletedMessageIds}
                 showDeleted={deletion.showDeleted}
+                onDeleteMessage={handleDeleteMessage}
+                onDeleteRound={handleDeleteRound}
                 onRestoreMessage={deletion.restoreMessage}
               />
             </ErrorBoundary>
@@ -282,6 +341,27 @@ export function FormatWorkspace({
             </ErrorBoundary>
           ) : null}
         </div>
+      )}
+
+      {deleteDialog && (
+        <DeleteMessageDialog
+          messagePreview={deleteDialog.preview}
+          isRound={deleteDialog.isRound}
+          onConfirm={(reason) => {
+            void handleConfirmDelete(reason);
+          }}
+          onCancel={() => setDeleteDialog(null)}
+        />
+      )}
+
+      {deletionToast.toast && (
+        <UndoToast
+          message={deletionToast.toast.message}
+          onUndo={() => {
+            void handleUndoDelete();
+          }}
+          onDismiss={deletionToast.dismissToast}
+        />
       )}
     </section>
   );

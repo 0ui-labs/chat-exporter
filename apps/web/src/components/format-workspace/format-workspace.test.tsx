@@ -68,6 +68,27 @@ vi.mock("@/components/format-workspace/rules-list-popover", () => ({
   RulesListPopover: () => <div data-testid="rules-list-popover" />,
 }));
 
+vi.mock("@/components/format-workspace/use-message-deletion", () => ({
+  useMessageDeletion: () => ({
+    deletedMessageIds: new Set<string>(),
+    deletionsCount: 0,
+    isLoading: false,
+    showDeleted: false,
+    setShowDeleted: vi.fn(),
+    deleteMessage: vi.fn(),
+    deleteRound: vi.fn(),
+    restoreMessage: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/format-workspace/use-deletion-toast", () => ({
+  useDeletionToast: () => ({
+    toast: null,
+    showDeletedToast: vi.fn(),
+    dismissToast: vi.fn(),
+  }),
+}));
+
 let applyMarkdownRulesShouldThrow = false;
 
 vi.mock("@/components/format-workspace/rule-engine", () => ({
