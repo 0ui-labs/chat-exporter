@@ -35,6 +35,13 @@ vi.mock("../lib/adjustment-chat-orchestrator.js", () => ({
   AdjustmentChatUnavailableError: class AdjustmentChatUnavailableError extends Error {},
 }));
 
+vi.mock("../lib/delete-repository.js", () => ({
+  listDeletions: vi.fn(),
+  softDeleteMessage: vi.fn(),
+  softDeleteRound: vi.fn(),
+  restoreMessage: vi.fn(),
+}));
+
 vi.mock("../db/client.js", () => ({
   databasePath: "/test/chat-exporter.db",
   db: {},
@@ -59,6 +66,12 @@ import {
   reopenAdjustmentSession,
   saveAdjustmentPreview,
 } from "../lib/adjustment-repository.js";
+import {
+  listDeletions,
+  restoreMessage,
+  softDeleteMessage,
+  softDeleteRound,
+} from "../lib/delete-repository.js";
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
   createImportJob,
@@ -115,6 +128,10 @@ const mockRecordAdjustmentEvent = recordAdjustmentEvent as ReturnType<
 const _mockReopenAdjustmentSession = reopenAdjustmentSession as ReturnType<
   typeof vi.fn
 >;
+const mockListDeletions = listDeletions as ReturnType<typeof vi.fn>;
+const mockSoftDeleteMessage = softDeleteMessage as ReturnType<typeof vi.fn>;
+const mockSoftDeleteRound = softDeleteRound as ReturnType<typeof vi.fn>;
+const mockRestoreMessage = restoreMessage as ReturnType<typeof vi.fn>;
 
 function createImportJobFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -179,13 +196,14 @@ describe("health.check", () => {
 });
 
 describe("imports.list", () => {
-  test("returns all import jobs", async () => {
+  test("returns import summaries", async () => {
     const jobs = [createImportJobFixture()];
     mockListImportJobs.mockReturnValue(jobs);
 
     const result = await client.imports.list();
 
-    expect(result).toEqual(jobs);
+    const { artifacts, ...expectedSummary } = jobs[0]!;
+    expect(result).toEqual([expectedSummary]);
     expect(mockListImportJobs).toHaveBeenCalledOnce();
   });
 });
@@ -648,5 +666,137 @@ describe("adjustments.appendMessage", () => {
     );
     expect(mockRunAdjustmentChatTurn).toHaveBeenCalledOnce();
     expect(result.messages).toHaveLength(2);
+  });
+});
+
+describe("deletions.list", () => {
+  test("returns deletions for import", async () => {
+    const deletions = [
+      {
+        id: "del-1",
+        importId: "import-1",
+        messageId: "msg-1",
+        deletedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+    mockListDeletions.mockReturnValue(deletions);
+
+    const result = await client.deletions.list({ importId: "import-1" });
+
+    expect(result).toEqual(deletions);
+    expect(mockListDeletions).toHaveBeenCalledWith("import-1");
+  });
+});
+
+describe("deletions.delete", () => {
+  test("soft-deletes a message and records event", async () => {
+    const deletion = {
+      id: "del-1",
+      importId: "import-1",
+      messageId: "msg-1",
+      deletedAt: "2026-03-08T12:00:00.000Z",
+    };
+    mockSoftDeleteMessage.mockReturnValue(deletion);
+
+    const result = await client.deletions.delete({
+      importId: "import-1",
+      messageId: "msg-1",
+    });
+
+    expect(result).toEqual(deletion);
+    expect(mockSoftDeleteMessage).toHaveBeenCalledWith(
+      "import-1",
+      "msg-1",
+      undefined,
+    );
+    expect(mockRecordAdjustmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "message_deleted" }),
+    );
+  });
+
+  test("throws BAD_REQUEST when delete fails", async () => {
+    mockSoftDeleteMessage.mockImplementation(() => {
+      throw new Error("Duplicate");
+    });
+
+    await expect(
+      client.deletions.delete({ importId: "import-1", messageId: "msg-1" }),
+    ).rejects.toThrow(ORPCError);
+  });
+});
+
+describe("deletions.deleteRound", () => {
+  test("soft-deletes a round and records event", async () => {
+    const deletions = [
+      {
+        id: "del-1",
+        importId: "import-1",
+        messageId: "msg-1",
+        deletedAt: "2026-03-08T12:00:00.000Z",
+      },
+      {
+        id: "del-2",
+        importId: "import-1",
+        messageId: "msg-2",
+        deletedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+    mockSoftDeleteRound.mockReturnValue(deletions);
+
+    const result = await client.deletions.deleteRound({
+      importId: "import-1",
+      messageId: "msg-1",
+    });
+
+    expect(result).toEqual(deletions);
+    expect(mockSoftDeleteRound).toHaveBeenCalledWith(
+      "import-1",
+      "msg-1",
+      undefined,
+    );
+    expect(mockRecordAdjustmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "round_deleted" }),
+    );
+  });
+
+  test("throws BAD_REQUEST when round delete fails", async () => {
+    mockSoftDeleteRound.mockImplementation(() => {
+      throw new Error("Not found");
+    });
+
+    await expect(
+      client.deletions.deleteRound({
+        importId: "import-1",
+        messageId: "msg-1",
+      }),
+    ).rejects.toThrow(ORPCError);
+  });
+});
+
+describe("deletions.restore", () => {
+  test("restores a deleted message and records event", async () => {
+    mockRestoreMessage.mockReturnValue(true);
+
+    const result = await client.deletions.restore({
+      importId: "import-1",
+      messageId: "msg-1",
+    });
+
+    expect(result).toEqual({ restored: true });
+    expect(mockRestoreMessage).toHaveBeenCalledWith("import-1", "msg-1");
+    expect(mockRecordAdjustmentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "message_restored" }),
+    );
+  });
+
+  test("returns false when message was not deleted", async () => {
+    mockRestoreMessage.mockReturnValue(false);
+
+    const result = await client.deletions.restore({
+      importId: "import-1",
+      messageId: "msg-1",
+    });
+
+    expect(result).toEqual({ restored: false });
   });
 });

@@ -24,6 +24,12 @@ import {
   reopenAdjustmentSession,
   saveAdjustmentPreview,
 } from "../lib/adjustment-repository.js";
+import {
+  listDeletions,
+  restoreMessage,
+  softDeleteMessage,
+  softDeleteRound,
+} from "../lib/delete-repository.js";
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
   createImportJob,
@@ -496,26 +502,87 @@ export const router = os.router({
   },
 
   deletions: {
-    list: os.deletions.list.handler(({ input: _input }) => {
-      return [];
+    list: os.deletions.list.handler(({ input }) => {
+      return listDeletions(input.importId);
     }),
 
-    delete: os.deletions.delete.handler(({ input: _input }) => {
-      throw new ORPCError("NOT_IMPLEMENTED", {
-        message: "Löschung noch nicht implementiert.",
-      });
+    delete: os.deletions.delete.handler(({ input }) => {
+      try {
+        const deletion = withTransaction(() => {
+          const result = softDeleteMessage(
+            input.importId,
+            input.messageId,
+            input.reason,
+          );
+          recordAdjustmentEvent({
+            importId: input.importId,
+            targetFormat: "reader",
+            type: "message_deleted",
+            payload: { messageId: input.messageId },
+          });
+          return result;
+        });
+        return deletion;
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Message konnte nicht gelöscht werden.",
+        });
+      }
     }),
 
-    deleteRound: os.deletions.deleteRound.handler(({ input: _input }) => {
-      throw new ORPCError("NOT_IMPLEMENTED", {
-        message: "Rundenlöschung noch nicht implementiert.",
-      });
+    deleteRound: os.deletions.deleteRound.handler(({ input }) => {
+      try {
+        const deletions = withTransaction(() => {
+          const result = softDeleteRound(
+            input.importId,
+            input.messageId,
+            input.reason,
+          );
+          recordAdjustmentEvent({
+            importId: input.importId,
+            targetFormat: "reader",
+            type: "round_deleted",
+            payload: { messageId: input.messageId, count: result.length },
+          });
+          return result;
+        });
+        return deletions;
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Round konnte nicht gelöscht werden.",
+        });
+      }
     }),
 
-    restore: os.deletions.restore.handler(({ input: _input }) => {
-      throw new ORPCError("NOT_IMPLEMENTED", {
-        message: "Wiederherstellung noch nicht implementiert.",
-      });
+    restore: os.deletions.restore.handler(({ input }) => {
+      try {
+        const restored = withTransaction(() => {
+          const result = restoreMessage(input.importId, input.messageId);
+          if (result) {
+            recordAdjustmentEvent({
+              importId: input.importId,
+              targetFormat: "reader",
+              type: "message_restored",
+              payload: { messageId: input.messageId },
+            });
+          }
+          return result;
+        });
+        return { restored };
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Message konnte nicht wiederhergestellt werden.",
+        });
+      }
     }),
   },
 
