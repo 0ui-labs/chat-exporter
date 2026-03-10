@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("./share-import.js", () => ({
   importSharePage: vi.fn(),
@@ -162,5 +162,55 @@ describe("runImportJob", () => {
     await runImportJob("non-existent-id");
 
     expect(mockImportSharePage).not.toHaveBeenCalled();
+  });
+
+  describe("import timeout", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    test("sets status to failed with timeout error when importSharePage exceeds 120s", async () => {
+      const job = createImportJob({
+        url: "https://chatgpt.com/share/test-timeout",
+        mode: "archive",
+      });
+      mockImportSharePage.mockImplementation(
+        () => new Promise(() => {}), // never resolves
+      );
+
+      const runPromise = runImportJob(job.id);
+      await vi.advanceTimersByTimeAsync(120_000);
+      await runPromise;
+
+      const result = getImportJob(job.id);
+      expect(result?.status).toBe("failed");
+      expect(result?.currentStage).toBe("done");
+      expect(result?.error).toMatch(/timed out/i);
+    });
+
+    test("completes normally when importSharePage resolves before timeout", async () => {
+      const job = createImportJob({
+        url: "https://chatgpt.com/share/test-no-timeout",
+        mode: "archive",
+      });
+      mockImportSharePage.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(createImportResult()), 1_000);
+          }),
+      );
+
+      const runPromise = runImportJob(job.id);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await runPromise;
+
+      const result = getImportJob(job.id);
+      expect(result?.status).toBe("completed");
+      expect(result?.currentStage).toBe("done");
+    });
   });
 });
