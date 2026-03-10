@@ -1,5 +1,5 @@
 import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
@@ -68,8 +68,17 @@ export function FormatWorkspace({
   onViewChange,
 }: FormatWorkspaceProps) {
   const isAdjustableView = adjustableViews.has(view);
+  const viewScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const session = useAdjustmentSession(view, job.id);
+  const handleScrollRefChange = useCallback((el: HTMLDivElement | null) => {
+    viewScrollRef.current = el;
+  }, []);
+
+  const session = useAdjustmentSession(
+    view,
+    job.id,
+    () => viewScrollRef.current?.scrollTop ?? 0,
+  );
   const rules = useFormatRules(view, job.id);
   const popover = useAdjustmentPopover(view, Boolean(session.activeSelection));
 
@@ -137,7 +146,7 @@ export function FormatWorkspace({
         job.status === "running" ? (
         <LoadingStateBlock stageDetail={activeStage?.detail} />
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col space-y-4 min-h-0">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
             isAdjustableView={isAdjustableView}
@@ -160,7 +169,7 @@ export function FormatWorkspace({
               conversation={job.conversation}
               adjustModeEnabled={session.adjustModeEnabled}
               highlightedRuleId={rules.hoveredRuleId}
-              onScrollRefChange={() => {}}
+              onScrollRefChange={handleScrollRefChange}
               selectedBlock={view === "reader" ? session.activeSelection : null}
               onSelectBlock={session.handleSelectionChange}
             />
@@ -170,7 +179,7 @@ export function FormatWorkspace({
               content={displayedMarkdown}
               adjustModeEnabled={session.adjustModeEnabled}
               highlightedRuleId={rules.hoveredRuleId}
-              onScrollRefChange={() => {}}
+              onScrollRefChange={handleScrollRefChange}
               selectedRange={session.activeSelection}
               onSelectLines={session.handleSelectionChange}
             />
@@ -189,7 +198,7 @@ export function FormatWorkspace({
             <AdjustmentPopover
               anchor={session.activeAnchor}
               containerDimensions={popover.containerDimensions}
-              containerScrollTop={session.sectionRef.current?.scrollTop ?? 0}
+              containerScrollTop={viewScrollRef.current?.scrollTop ?? 0}
               draftMessage={session.activeDraftMessage}
               error={session.activeSessionError}
               isLoading={session.activeSessionLoading || session.isDiscarding}
