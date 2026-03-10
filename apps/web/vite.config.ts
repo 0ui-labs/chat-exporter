@@ -20,6 +20,7 @@ export default defineConfig({
     port: devServerPort,
     proxy: {
       "/api": apiProxyTarget,
+      "/rpc": apiProxyTarget,
     },
   },
 });

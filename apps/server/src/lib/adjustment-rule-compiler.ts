@@ -199,7 +199,7 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
       .reverse()
       .find((message) => message.role === "user")?.content ?? "";
 
-  const isBroadRequest = wantsBroadRule(latestUserMessage);
+  const wantsBroad = wantsBroadRule(latestUserMessage);
   const hasLabelPrefix = hasLabelStylePrefix(selection.selectedText);
 
   return JSON.stringify(
@@ -218,14 +218,14 @@ function buildCompilationPrompt(input: CompileAdjustmentPreviewInput) {
         hasMarkdownStrongMarkers(selection.selectedText)
           ? "If the selected Reader content contains literal Markdown bold markers like **text**, prefer render_markdown_strong with the exact selection."
           : "Keep the compiled preview narrowly anchored unless clear reuse is justified.",
-        "selectionSignals.isBroadRequest=true means the user explicitly wants the rule to apply broadly — prefer block_type selector over exact.",
+        "selectionSignals.wantsBroadRule=true means the user explicitly wants the rule to apply broadly — prefer block_type selector over exact.",
         "selectionSignals.hasLabelPrefix=true means the selected text starts with a label-style prefix before a colon — prefer prefix_before_colon selector for bold_prefix_before_colon effects.",
         "If neither signal is set and no clear reuse pattern is visible, use exact selector as fallback.",
       ],
       selection,
       selectionSignals: {
         hasLabelPrefix,
-        isBroadRequest,
+        wantsBroadRule: wantsBroad,
       },
       selectionContext:
         targetFormat === "markdown"
@@ -705,7 +705,7 @@ async function requestOpenAiPreview(
         {
           content: [
             {
-              text: "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields. The selected block is an example. When the prompt signals a reusable pattern (isBroadRequest or hasLabelPrefix), generate a pattern-based selector (block_type or prefix_before_colon) so the rule applies to all matching blocks, not just the example.",
+              text: "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields. The selected block is an example. When the prompt signals a reusable pattern (wantsBroadRule or hasLabelPrefix), generate a pattern-based selector (block_type or prefix_before_colon) so the rule applies to all matching blocks, not just the example.",
               type: "input_text",
             },
           ],
@@ -769,7 +769,7 @@ async function requestCerebrasPreview(
         messages: [
           {
             content:
-              "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields. The selected block is an example. When the prompt signals a reusable pattern (isBroadRequest or hasLabelPrefix), generate a pattern-based selector (block_type or prefix_before_colon) so the rule applies to all matching blocks, not just the example.",
+              "Compile one transcript adjustment request into a strict preview JSON object. Only use supported selectors and effect types from the provided catalog. Do not invent new fields. The selected block is an example. When the prompt signals a reusable pattern (wantsBroadRule or hasLabelPrefix), generate a pattern-based selector (block_type or prefix_before_colon) so the rule applies to all matching blocks, not just the example.",
             role: "system",
           },
           {

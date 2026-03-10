@@ -1,12 +1,6 @@
 import type { AdjustmentSessionDetail } from "@chat-exporter/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  type FormEvent,
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import type {
   AdjustmentSelection,
@@ -18,16 +12,16 @@ import { orpc } from "@/lib/orpc";
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
-export function useAdjustmentSession(
-  view: ViewMode,
-  jobId: string,
-  sectionRef: RefObject<HTMLElement | null>,
-) {
-  // ── State ──────────────────────────────────────────────────────────────
+export function useAdjustmentSession(view: ViewMode, jobId: string) {
+  // ── Refs ──────────────────────────────────────────────────────────────
+
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // ── State ──────────────────────────────────────────────────────────────
 
   const [draftMessageByView, setDraftMessageByView] = useState<
     Record<ViewMode, string>
@@ -320,6 +314,7 @@ export function useAdjustmentSession(
   // ── Return ─────────────────────────────────────────────────────────────
 
   return {
+    sectionRef,
     adjustModeEnabled: isAdjustModeEnabled,
     activeSessionDetail,
     activeSelection,

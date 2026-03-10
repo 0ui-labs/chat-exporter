@@ -627,9 +627,15 @@ export function promoteRuleToProfile(ruleId: string) {
       .where(eq(formatRules.id, ruleId))
       .run();
 
+    if (!originalImportId) {
+      throw new Error(
+        "Regel hat keine gültige importId – Promote nicht möglich.",
+      );
+    }
+
     recordAdjustmentEvent(
       {
-        importId: originalImportId ?? "",
+        importId: originalImportId,
         ruleId: existingRule.id,
         sessionId: existingRule.sourceSessionId,
         targetFormat: existingRule.targetFormat,
@@ -681,7 +687,7 @@ export function demoteRuleToLocal(ruleId: string, importId: string) {
   return nextRule;
 }
 
-export function disableFormatRule(ruleId: string) {
+export function disableFormatRule(ruleId: string, importId?: string) {
   const existingRule = getFormatRule(ruleId);
 
   if (!existingRule) {
@@ -690,6 +696,14 @@ export function disableFormatRule(ruleId: string) {
 
   if (existingRule.status !== "active") {
     throw new Error("Nur aktive Regeln können deaktiviert werden.");
+  }
+
+  const resolvedImportId = existingRule.importId ?? importId;
+
+  if (!resolvedImportId) {
+    throw new Error(
+      "Für Profil-Regeln muss eine gültige importId angegeben werden.",
+    );
   }
 
   db.transaction((tx) => {
@@ -705,7 +719,7 @@ export function disableFormatRule(ruleId: string) {
 
     recordAdjustmentEvent(
       {
-        importId: existingRule.importId ?? "",
+        importId: resolvedImportId,
         ruleId: existingRule.id,
         sessionId: existingRule.sourceSessionId,
         targetFormat: existingRule.targetFormat,

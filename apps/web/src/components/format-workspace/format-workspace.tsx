@@ -86,6 +86,9 @@ export function FormatWorkspace({
   );
 
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
+  // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
+  // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
+  // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.
   const displayedMarkdown =
     view === "markdown"
       ? applyMarkdownRules(artifact, rules.activeRules)
@@ -99,8 +102,10 @@ export function FormatWorkspace({
       const a = document.createElement("a");
       a.href = url;
       a.download = `export-${job.id}.md`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     };
   }, [view, displayedMarkdown, job.id]);
   const showPopover =

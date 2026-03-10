@@ -133,6 +133,7 @@ export function RulesListPopover({
                           onClick={() => onPromoteRule(rule.id)}
                         >
                           <Globe className="h-3.5 w-3.5" />
+                          Für alle Imports
                         </Button>
                       ) : rule.scope === "format_profile" ? (
                         <Button
@@ -144,6 +145,7 @@ export function RulesListPopover({
                           onClick={() => onDemoteRule(rule.id)}
                         >
                           <Globe className="h-3.5 w-3.5 text-primary" />
+                          Nur dieser Import
                         </Button>
                       ) : null}
                     </div>

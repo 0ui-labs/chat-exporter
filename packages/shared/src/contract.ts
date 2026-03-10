@@ -99,7 +99,9 @@ export const contract = {
       )
       .output(z.array(formatRuleSchema)),
 
-    disable: oc.input(z.object({ id: z.string() })).output(formatRuleSchema),
+    disable: oc
+      .input(z.object({ id: z.string(), importId: z.string().optional() }))
+      .output(formatRuleSchema),
 
     promote: oc.input(z.object({ id: z.string() })).output(formatRuleSchema),
 

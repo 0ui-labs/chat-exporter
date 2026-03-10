@@ -1,8 +1,12 @@
-import { type RefObject, useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
-export function useAdjustmentPopover(
-  sectionRef: RefObject<HTMLElement | null>,
-) {
+import type { ViewMode } from "@/components/format-workspace/types";
+
+const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+
+export function useAdjustmentPopover(view: ViewMode, hasSelection: boolean) {
+  const containerRef = useRef<HTMLElement | null>(null);
+
   const [containerDimensions, setContainerDimensions] = useState<{
     width: number;
     height: number;
@@ -11,10 +15,12 @@ export function useAdjustmentPopover(
     height: 0,
   });
 
-  useLayoutEffect(() => {
-    const node = sectionRef.current;
+  const isActive = adjustableViews.has(view) && hasSelection;
 
-    if (!node) {
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+
+    if (!node || !isActive) {
       return;
     }
 
@@ -43,9 +49,10 @@ export function useAdjustmentPopover(
     return () => {
       resizeObserver?.disconnect();
     };
-  }, [sectionRef.current]);
+  }, [isActive]);
 
   return {
+    containerRef,
     containerDimensions,
   };
 }

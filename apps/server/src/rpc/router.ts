@@ -109,6 +109,10 @@ export const router = os.router({
       return snapshot.rawHtml;
     }),
 
+    // Design-Entscheidung: Dieser Endpoint liefert absichtlich rohe, unveränderte
+    // Artefakte ohne angewendete Format-Rules. Client-seitiger Markdown-Download
+    // verwendet stattdessen `displayedMarkdown` (mit `applyMarkdownRules` inkl.
+    // format_profile-Rules). Änderungen hier dürfen diese Trennung nicht aufheben.
     exportArtifact: os.imports.exportArtifact.handler(({ input }) => {
       const job = getImportJob(input.id);
 
@@ -432,7 +436,7 @@ export const router = os.router({
 
     disable: os.rules.disable.handler(({ input }) => {
       try {
-        return disableFormatRule(input.id);
+        return disableFormatRule(input.id, input.importId);
       } catch (error) {
         throw new ORPCError("BAD_REQUEST", {
           message:

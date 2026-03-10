@@ -128,6 +128,7 @@ sqlite.exec(`
 `);
 
 // Migration: make format_rules.import_id nullable (SQLite cannot ALTER COLUMN)
+// Uses a new temp table to avoid FK issues with rename-based approach.
 const importIdColumn = sqlite
   .prepare(
     `SELECT "notnull" FROM pragma_table_info('format_rules') WHERE name = 'import_id'`,
@@ -135,11 +136,14 @@ const importIdColumn = sqlite
   .get() as { notnull: number } | undefined;
 
 if (importIdColumn && importIdColumn.notnull === 1) {
-  // Note: sqlite.exec() here is the better-sqlite3 API, not child_process.exec()
+  // Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
+  // not Node.js child_process.exec(). This is safe - no shell invocation.
   sqlite.exec(`
-    ALTER TABLE format_rules RENAME TO format_rules_old;
+    -- Temporarily disable FK enforcement during migration
+    PRAGMA foreign_keys = OFF;
 
-    CREATE TABLE format_rules (
+    -- Create the new table with nullable import_id
+    CREATE TABLE format_rules_new (
       id TEXT PRIMARY KEY,
       import_id TEXT REFERENCES imports(id) ON DELETE CASCADE,
       target_format TEXT NOT NULL,
@@ -154,12 +158,28 @@ if (importIdColumn && importIdColumn.notnull === 1) {
       updated_at TEXT NOT NULL
     );
 
-    INSERT INTO format_rules SELECT * FROM format_rules_old;
-    DROP TABLE format_rules_old;
+    -- Copy data from old table to new
+    INSERT INTO format_rules_new SELECT * FROM format_rules;
 
+    -- Drop original and rename new to final name
+    DROP TABLE format_rules;
+    ALTER TABLE format_rules_new RENAME TO format_rules;
+
+    -- Recreate indexes
     CREATE INDEX IF NOT EXISTS idx_format_rules_import_id
       ON format_rules (import_id, target_format, status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_format_rules_profile
       ON format_rules (target_format, status, created_at DESC);
+
+    -- Re-enable FK enforcement
+    PRAGMA foreign_keys = ON;
   `);
+
+  // Verify FK integrity after migration
+  const fkErrors = sqlite.pragma("foreign_key_check") as unknown[];
+  if (fkErrors.length > 0) {
+    throw new Error(
+      `FK-Integritätsprüfung nach Migration fehlgeschlagen: ${JSON.stringify(fkErrors)}`,
+    );
+  }
 }
