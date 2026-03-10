@@ -42,7 +42,7 @@ function renderTextWithMarkdownStrong(text: string) {
     return text;
   }
 
-  return parts.map((part, index) => {
+  return parts.map((part) => {
     const strongMatch =
       part.match(/^\*\*([^*\n][^*\n]*)\*\*$/) ??
       part.match(/^__([^_\n][^_\n]*)__$/);
@@ -51,7 +51,7 @@ function renderTextWithMarkdownStrong(text: string) {
       return part;
     }
 
-    return <strong key={`strong-${index}`}>{strongMatch[1]}</strong>;
+    return <strong key={`strong-${strongMatch[1]}`}>{strongMatch[1]}</strong>;
   });
 }
 
@@ -174,14 +174,11 @@ export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
               </tr>
             </thead>
             <tbody>
-              {block.rows.map((row, rowIndex) => (
-                <tr
-                  key={`${rowIndex}-${row.join("-")}`}
-                  className="border-t border-border/80"
-                >
+              {block.rows.map((row) => (
+                <tr key={row.join("-")} className="border-t border-border/80">
                   {row.map((cell) => (
                     <td
-                      key={`${rowIndex}-${cell}`}
+                      key={cell}
                       className="px-4 py-3 align-top text-muted-foreground"
                     >
                       {cell}

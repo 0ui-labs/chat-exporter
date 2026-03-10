@@ -12,10 +12,22 @@ import { useRuleExplanations } from "@/components/format-workspace/use-rule-expl
 import { orpc } from "@/lib/orpc";
 import { demoteFormatRule, promoteFormatRule, rpc } from "@/lib/rpc";
 
+function errorMsg(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function removeKey(
+  rec: Record<string, boolean>,
+  key: string,
+): Record<string, boolean> {
+  const next = { ...rec };
+  delete next[key];
+  return next;
+}
+
 export function useFormatRules(view: ViewMode, jobId: string) {
   const queryClient = useQueryClient();
   const isAdjustableView = adjustableViews.has(view);
-
   const rulesQuery = useQuery({
     ...orpc.rules.list.queryOptions({
       input: { importId: jobId, format: view },
@@ -33,112 +45,85 @@ export function useFormatRules(view: ViewMode, jobId: string) {
   const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
   const [disableError, setDisableError] = useState<string | null>(null);
   const [promoteError, setPromoteError] = useState<string | null>(null);
-
   const explanations = useRuleExplanations();
-
-  // ── Handlers ───────────────────────────────────────────────────────────
+  const invalidateRules = () =>
+    queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
 
   async function handleDisableRule(ruleId: string): Promise<boolean> {
-    setDisablingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setDisablingRuleById((c) => ({ ...c, [ruleId]: true }));
     setDisableError(null);
-
     try {
       await rpc.rules.disable({ id: ruleId });
-      queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
-      setHoveredRuleId((current) => (current === ruleId ? null : current));
+      invalidateRules();
+      setHoveredRuleId((c) => (c === ruleId ? null : c));
       return true;
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Regel konnte nicht deaktiviert werden.";
-      setDisableError(message);
+      setDisableError(
+        errorMsg(error, "Regel konnte nicht deaktiviert werden."),
+      );
       return false;
     } finally {
-      setDisablingRuleById((current) => {
-        const nextState = { ...current };
-        delete nextState[ruleId];
-        return nextState;
-      });
+      setDisablingRuleById((c) => removeKey(c, ruleId));
     }
   }
 
   async function handleRejectLastChange(
     sessionDetail: AdjustmentSessionDetail,
   ): Promise<boolean> {
-    let matchingRule = activeRules.find(
-      (rule) =>
-        rule.sourceSessionId === sessionDetail.session.id &&
-        rule.status === "active",
-    );
-
+    const findMatch = (rules: FormatRule[]) =>
+      rules.find(
+        (r) =>
+          r.sourceSessionId === sessionDetail.session.id &&
+          r.status === "active",
+      );
+    let matchingRule = findMatch(activeRules);
     if (!matchingRule) {
       try {
         const freshRules = await rpc.rules.list({
           importId: jobId,
           format: view,
         });
-        queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
-        matchingRule = freshRules.find(
-          (rule) =>
-            rule.sourceSessionId === sessionDetail.session.id &&
-            rule.status === "active",
-        );
+        invalidateRules();
+        matchingRule = findMatch(freshRules);
       } catch {
         return false;
       }
     }
-
     if (!matchingRule) return false;
-
     return handleDisableRule(matchingRule.id);
   }
 
   async function handlePromoteRule(ruleId: string): Promise<boolean> {
-    setPromotingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setPromotingRuleById((c) => ({ ...c, [ruleId]: true }));
     setPromoteError(null);
-
     try {
       await promoteFormatRule(ruleId);
-      queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+      invalidateRules();
       return true;
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Regel konnte nicht hochgestuft werden.";
-      setPromoteError(message);
+      setPromoteError(
+        errorMsg(error, "Regel konnte nicht hochgestuft werden."),
+      );
       return false;
     } finally {
-      setPromotingRuleById((current) => {
-        const nextState = { ...current };
-        delete nextState[ruleId];
-        return nextState;
-      });
+      setPromotingRuleById((c) => removeKey(c, ruleId));
     }
   }
 
   async function handleDemoteRule(ruleId: string): Promise<boolean> {
-    setPromotingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setPromotingRuleById((c) => ({ ...c, [ruleId]: true }));
     setPromoteError(null);
-
     try {
       await demoteFormatRule(ruleId, jobId);
-      queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+      invalidateRules();
       return true;
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Regel konnte nicht herabgestuft werden.";
-      setPromoteError(message);
+      setPromoteError(
+        errorMsg(error, "Regel konnte nicht herabgestuft werden."),
+      );
       return false;
     } finally {
-      setPromotingRuleById((current) => {
-        const nextState = { ...current };
-        delete nextState[ruleId];
-        return nextState;
-      });
+      setPromotingRuleById((c) => removeKey(c, ruleId));
     }
   }
 
@@ -156,7 +141,6 @@ export function useFormatRules(view: ViewMode, jobId: string) {
     handlePromoteRule,
     handleDemoteRule,
     handleRejectLastChange,
-    // Explanation state & handlers
     ...explanations,
   };
 }

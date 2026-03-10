@@ -53,7 +53,11 @@ export function getBlocksMatchingRule(
       blockIndex < message.blocks.length;
       blockIndex += 1
     ) {
-      const block = message.blocks[blockIndex]!;
+      const block = message.blocks[blockIndex];
+
+      if (!block) {
+        continue;
+      }
 
       if (
         matchesReaderRule(

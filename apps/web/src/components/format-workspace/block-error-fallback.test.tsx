@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BlockErrorFallback } from "./block-error-fallback";
@@ -27,8 +29,8 @@ describe("BlockErrorFallback", () => {
     expect(div).toHaveClass(
       "border",
       "border-red-300/40",
-      "bg-red-50/70",
-      "text-red-700",
+      "bg-red-100/70",
+      "text-red-900",
       "px-3",
       "py-2",
       "rounded",

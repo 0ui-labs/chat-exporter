@@ -127,7 +127,7 @@ const ReaderMessage = memo(function ReaderMessage({
             // biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design
             // biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick
             <div
-              key={`${message.id}-${block.type}-${blockIndex}`}
+              key={`${message.id}-${block.type}-${blockText.slice(0, 32)}`}
               data-testid={`reader-block-${message.id}-${blockIndex}`}
               className={getReaderBlockClassName({
                 adjustModeEnabled,

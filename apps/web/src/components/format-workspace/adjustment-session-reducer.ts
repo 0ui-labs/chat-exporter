@@ -60,9 +60,19 @@ export type SessionAction =
       detail: AdjustmentSessionDetail | null;
     }
   | { type: "SET_SESSION_ERROR"; error: string | null }
-  | { type: "CLEAR_ADJUSTMENT_STATE"; view: ViewMode };
+  | { type: "CLEAR_ADJUSTMENT_STATE"; view: ViewMode }
+  | {
+      type: "SELECTION_CHANGED";
+      view: ViewMode;
+      selection: AdjustmentSelection;
+      anchor: FloatingAdjustmentAnchor;
+    }
+  | {
+      type: "APPEND_MESSAGE_SUCCESS";
+      view: ViewMode;
+      detail: AdjustmentSessionDetail;
+    };
 
-/** Sets `key` in a per-view record to `value` for `view`. */
 function setView<K extends keyof SessionState>(
   state: SessionState,
   key: K,
@@ -109,20 +119,27 @@ export function sessionReducer(
     case "SET_SESSION_ERROR":
       return { ...state, sessionError: action.error };
     case "CLEAR_ADJUSTMENT_STATE": {
-      const { view } = action;
-      return {
-        ...state,
-        draftMessageByView: { ...state.draftMessageByView, [view]: "" },
-        selectionByView: { ...state.selectionByView, [view]: null },
-        anchorByView: { ...state.anchorByView, [view]: null },
-        sessionSelectionKeyByView: {
-          ...state.sessionSelectionKeyByView,
-          [view]: null,
-        },
-        replyVisibleByView: { ...state.replyVisibleByView, [view]: false },
-        activeSessionDetail: null,
-        sessionError: null,
-      };
+      const v = action.view;
+      let s = setView(state, "draftMessageByView", v, "");
+      s = setView(s, "selectionByView", v, null);
+      s = setView(s, "anchorByView", v, null);
+      s = setView(s, "sessionSelectionKeyByView", v, null);
+      s = setView(s, "replyVisibleByView", v, false);
+      return { ...s, activeSessionDetail: null, sessionError: null };
+    }
+    case "SELECTION_CHANGED": {
+      const { view, selection, anchor } = action;
+      let s = setView(state, "selectionByView", view, selection);
+      s = setView(s, "anchorByView", view, anchor);
+      s = setView(s, "guideDismissedByView", view, true);
+      s = setView(s, "replyVisibleByView", view, false);
+      return { ...s, sessionError: null };
+    }
+    case "APPEND_MESSAGE_SUCCESS": {
+      const { view, detail } = action;
+      let s = setView(state, "draftMessageByView", view, "");
+      s = setView(s, "replyVisibleByView", view, true);
+      return { ...s, activeSessionDetail: detail };
     }
   }
 }
