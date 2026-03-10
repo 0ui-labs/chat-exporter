@@ -7,7 +7,7 @@ import {
 import type { Page } from "playwright";
 
 import { acquireContext, releaseContext } from "./browser-pool.js";
-
+import { MAX_MESSAGE_COUNT, MAX_RAW_HTML_BYTES } from "./constants.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 import { looksLikeSharedConversationUrl } from "./source-platform.js";
 
@@ -1160,6 +1160,16 @@ export async function importGenericSharePage(
     options.onStage?.("normalize");
     const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
 
+    if (normalizedPayload.messages.length > MAX_MESSAGE_COUNT) {
+      const originalCount = normalizedPayload.messages.length;
+      normalizedPayload.messages = normalizedPayload.messages.slice(
+        -MAX_MESSAGE_COUNT,
+      );
+      normalizedPayload.warnings.push(
+        `Nachrichtenlimit überschritten: ${originalCount} Nachrichten gefunden, auf die letzten ${MAX_MESSAGE_COUNT} gekürzt.`,
+      );
+    }
+
     const previewText = normalizedPayload.messages
       .slice(0, 3)
       .flatMap((message) =>
@@ -1215,6 +1225,14 @@ export async function importGenericSharePage(
       structuring: structured.structuring,
     });
     const rawHtml = await page.content();
+    const rawHtmlBytes = Buffer.byteLength(rawHtml, "utf8");
+    if (rawHtmlBytes > MAX_RAW_HTML_BYTES) {
+      const sizeMb = (rawHtmlBytes / (1024 * 1024)).toFixed(1);
+      const limitMb = (MAX_RAW_HTML_BYTES / (1024 * 1024)).toFixed(1);
+      throw new Error(
+        `HTML-Größe überschritten: ${sizeMb} MB (Limit: ${limitMb} MB).`,
+      );
+    }
     const fetchedAt = new Date().toISOString();
 
     const conversation = conversationSchema.parse({
