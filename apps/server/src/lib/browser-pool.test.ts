@@ -25,9 +25,16 @@ import { chromium } from "playwright";
 import {
   acquireContext,
   getPoolStats,
+  MAX_CONTEXTS_PER_BROWSER,
   releaseContext,
   shutdownPool,
 } from "./browser-pool.js";
+
+describe("browser-pool constants", () => {
+  test("MAX_CONTEXTS_PER_BROWSER is exported with value 50", () => {
+    expect(MAX_CONTEXTS_PER_BROWSER).toBe(50);
+  });
+});
 
 describe("browser-pool", () => {
   beforeEach(() => {

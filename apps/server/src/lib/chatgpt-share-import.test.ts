@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-// Mock browser-pool before importing the module under test
-const mockContext = {
-  close: vi.fn().mockResolvedValue(undefined),
-  route: vi.fn().mockResolvedValue(undefined),
-  newPage: vi.fn(),
-};
+// Hoist mock variables so they're available when vi.mock factories run
+const { mockContext, mockAcquireContext, mockReleaseContext } = vi.hoisted(
+  () => {
+    const mockContext = {
+      close: vi.fn().mockResolvedValue(undefined),
+      route: vi.fn().mockResolvedValue(undefined),
+      newPage: vi.fn(),
+    };
 
-const mockAcquireContext = vi.fn().mockResolvedValue(mockContext);
-const mockReleaseContext = vi.fn().mockResolvedValue(undefined);
+    return {
+      mockContext,
+      mockAcquireContext: vi.fn().mockResolvedValue(mockContext),
+      mockReleaseContext: vi.fn().mockResolvedValue(undefined),
+    };
+  },
+);
 
 vi.mock("./browser-pool.js", () => ({
   acquireContext: mockAcquireContext,
@@ -27,6 +34,31 @@ vi.mock("./openai-structuring.js", () => ({
     warnings: [],
   }),
 }));
+
+import {
+  CHATGPT_SHARE_SELECTOR,
+  MESSAGE_WAIT_TIMEOUT_MS,
+  PAGE_LOAD_TIMEOUT_MS,
+  PAGE_STABILIZATION_MS,
+} from "./chatgpt-share-import.js";
+
+describe("chatgpt-share-import constants", () => {
+  test("PAGE_LOAD_TIMEOUT_MS is exported with value 30_000", () => {
+    expect(PAGE_LOAD_TIMEOUT_MS).toBe(30_000);
+  });
+
+  test("MESSAGE_WAIT_TIMEOUT_MS is exported with value 20_000", () => {
+    expect(MESSAGE_WAIT_TIMEOUT_MS).toBe(20_000);
+  });
+
+  test("PAGE_STABILIZATION_MS is exported with value 800", () => {
+    expect(PAGE_STABILIZATION_MS).toBe(800);
+  });
+
+  test("CHATGPT_SHARE_SELECTOR matches article author-role elements", () => {
+    expect(CHATGPT_SHARE_SELECTOR).toBe("article [data-message-author-role]");
+  });
+});
 
 describe("importChatGptSharePage", () => {
   afterEach(() => {
