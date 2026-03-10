@@ -150,6 +150,25 @@ export const adjustmentEvents = sqliteTable(
   ],
 );
 
+export const messageDeletions = sqliteTable(
+  "message_deletions",
+  {
+    id: text("id").primaryKey(),
+    importId: text("import_id")
+      .notNull()
+      .references(() => imports.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(),
+    reason: text("reason"),
+    deletedAt: text("deleted_at").notNull(),
+  },
+  (table) => [
+    index("idx_message_deletions_import_message").on(
+      table.importId,
+      table.messageId,
+    ),
+  ],
+);
+
 export type Import = typeof imports.$inferSelect;
 export type NewImport = typeof imports.$inferInsert;
 export type ImportSnapshot = typeof importSnapshots.$inferSelect;
@@ -158,3 +177,4 @@ export type AdjustmentSessionRecord = typeof adjustmentSessions.$inferSelect;
 export type AdjustmentMessageRecord = typeof adjustmentMessages.$inferSelect;
 export type FormatRuleRecord = typeof formatRules.$inferSelect;
 export type AdjustmentEventRecord = typeof adjustmentEvents.$inferSelect;
+export type MessageDeletionRecord = typeof messageDeletions.$inferSelect;

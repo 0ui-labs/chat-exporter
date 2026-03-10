@@ -129,6 +129,17 @@ sqlite.exec(`
     ON adjustment_events (import_id, target_format, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_adjustment_events_session_id
     ON adjustment_events (session_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS message_deletions (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    message_id TEXT NOT NULL,
+    reason TEXT,
+    deleted_at TEXT NOT NULL
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_message_deletions_import_message
+    ON message_deletions (import_id, message_id);
 `);
 
 // Migration: make format_rules.import_id nullable (SQLite cannot ALTER COLUMN)
