@@ -3,7 +3,7 @@ import type {
   ImportJob,
   ImportRequest,
 } from "@chat-exporter/shared";
-
+import { withTransaction } from "../db/client.js";
 import {
   conversationToHandover,
   conversationToMarkdown,
@@ -102,36 +102,38 @@ export async function runImportJob(id: string) {
       },
     });
 
-    patchJob(id, {
-      currentStage: "render",
-      conversation: imported.conversation,
-      summary: {
-        messageCount: imported.conversation.messages.length,
-        transcriptWords: conversationWordCount(imported.conversation),
-      },
-      warnings: imported.warnings,
-    });
+    withTransaction(() => {
+      patchJob(id, {
+        currentStage: "render",
+        conversation: imported.conversation,
+        summary: {
+          messageCount: imported.conversation.messages.length,
+          transcriptWords: conversationWordCount(imported.conversation),
+        },
+        warnings: imported.warnings,
+      });
 
-    saveImportSnapshot({
-      importId: id,
-      sourceUrl: job.sourceUrl,
-      finalUrl: imported.snapshot.finalUrl,
-      fetchedAt: imported.snapshot.fetchedAt,
-      pageTitle: imported.snapshot.pageTitle,
-      rawHtml: imported.snapshot.rawHtml,
-      normalizedPayload: imported.snapshot.normalizedPayload,
-      fetchMetadata: imported.snapshot.fetchMetadata,
-    });
+      saveImportSnapshot({
+        importId: id,
+        sourceUrl: job.sourceUrl,
+        finalUrl: imported.snapshot.finalUrl,
+        fetchedAt: imported.snapshot.fetchedAt,
+        pageTitle: imported.snapshot.pageTitle,
+        rawHtml: imported.snapshot.rawHtml,
+        normalizedPayload: imported.snapshot.normalizedPayload,
+        fetchMetadata: imported.snapshot.fetchMetadata,
+      });
 
-    const rendered = getImportJob(id);
-    if (!rendered) {
-      return;
-    }
+      const rendered = getImportJob(id);
+      if (!rendered) {
+        return;
+      }
 
-    patchJob(id, {
-      status: "completed",
-      currentStage: "done",
-      artifacts: buildArtifacts(rendered),
+      patchJob(id, {
+        status: "completed",
+        currentStage: "done",
+        artifacts: buildArtifacts(rendered),
+      });
     });
   } catch (error) {
     patchJob(id, {

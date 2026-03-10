@@ -39,6 +39,7 @@ vi.mock("../db/client.js", () => ({
   databasePath: "/test/chat-exporter.db",
   db: {},
   rawDb: {},
+  withTransaction: (fn: () => unknown) => fn(),
 }));
 
 import { createRouterClient, ORPCError } from "@orpc/server";
