@@ -12,12 +12,14 @@ import {
   appendAdjustmentMessage,
   applyAdjustmentPreview,
   createAdjustmentSession,
+  demoteRuleToLocal,
   disableFormatRule,
   discardAdjustmentSession,
   getAdjustmentMetrics,
   getAdjustmentSessionDetail,
   listAdjustmentSessions,
   listFormatRules,
+  promoteRuleToProfile,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
   saveAdjustmentPreview,
@@ -437,6 +439,32 @@ export const router = os.router({
             error instanceof Error
               ? error.message
               : "Formatregel konnte nicht deaktiviert werden.",
+        });
+      }
+    }),
+
+    promote: os.rules.promote.handler(({ input }) => {
+      try {
+        return promoteRuleToProfile(input.id);
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Formatregel konnte nicht zum Profil befördert werden.",
+        });
+      }
+    }),
+
+    demote: os.rules.demote.handler(({ input }) => {
+      try {
+        return demoteRuleToLocal(input.id, input.importId);
+      } catch (error) {
+        throw new ORPCError("BAD_REQUEST", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Formatregel konnte nicht zurückgestuft werden.",
         });
       }
     }),

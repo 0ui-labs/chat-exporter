@@ -48,6 +48,7 @@ export const adjustmentEventTypeSchema = z.enum([
   "preview_failed",
   "rule_applied",
   "rule_disabled",
+  "rule_promoted",
   "session_discarded",
 ]);
 
@@ -313,7 +314,7 @@ export const applyAdjustmentSessionResponseSchema = z.object({
 
 export const formatRuleSchema = z.object({
   id: z.string(),
-  importId: z.string(),
+  importId: z.string().nullable(),
   targetFormat: adjustmentTargetFormatSchema,
   kind: formatRuleKindSchema,
   scope: formatRuleScopeSchema,

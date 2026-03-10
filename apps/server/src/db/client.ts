@@ -92,7 +92,7 @@ sqlite.exec(`
 
   CREATE TABLE IF NOT EXISTS format_rules (
     id TEXT PRIMARY KEY,
-    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    import_id TEXT REFERENCES imports(id) ON DELETE CASCADE,
     target_format TEXT NOT NULL,
     kind TEXT NOT NULL,
     scope TEXT NOT NULL,
@@ -107,6 +107,8 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_format_rules_import_id
     ON format_rules (import_id, target_format, status, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_format_rules_profile
+    ON format_rules (target_format, status, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS adjustment_events (
     id TEXT PRIMARY KEY,
@@ -124,3 +126,40 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_adjustment_events_session_id
     ON adjustment_events (session_id, created_at DESC);
 `);
+
+// Migration: make format_rules.import_id nullable (SQLite cannot ALTER COLUMN)
+const importIdColumn = sqlite
+  .prepare(
+    `SELECT "notnull" FROM pragma_table_info('format_rules') WHERE name = 'import_id'`,
+  )
+  .get() as { notnull: number } | undefined;
+
+if (importIdColumn && importIdColumn.notnull === 1) {
+  // Note: sqlite.exec() here is the better-sqlite3 API, not child_process.exec()
+  sqlite.exec(`
+    ALTER TABLE format_rules RENAME TO format_rules_old;
+
+    CREATE TABLE format_rules (
+      id TEXT PRIMARY KEY,
+      import_id TEXT REFERENCES imports(id) ON DELETE CASCADE,
+      target_format TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      status TEXT NOT NULL,
+      selector_json TEXT NOT NULL,
+      instruction TEXT NOT NULL,
+      compiled_rule_json TEXT,
+      source_session_id TEXT REFERENCES adjustment_sessions(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    INSERT INTO format_rules SELECT * FROM format_rules_old;
+    DROP TABLE format_rules_old;
+
+    CREATE INDEX IF NOT EXISTS idx_format_rules_import_id
+      ON format_rules (import_id, target_format, status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_format_rules_profile
+      ON format_rules (target_format, status, created_at DESC);
+  `);
+}

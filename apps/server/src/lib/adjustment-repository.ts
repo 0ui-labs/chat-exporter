@@ -19,7 +19,7 @@ import {
 } from "@chat-exporter/shared";
 import type { RunResult } from "better-sqlite3";
 import type { ExtractTablesWithRelations } from "drizzle-orm";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 import { db } from "../db/client.js";
@@ -502,20 +502,32 @@ export function listFormatRules(
   importId: string,
   targetFormat?: AdjustmentTargetFormat,
 ) {
-  const conditions = [eq(formatRules.importId, importId)];
+  const localConditions = [eq(formatRules.importId, importId)];
+  const profileConditions = [
+    isNull(formatRules.importId),
+    eq(formatRules.scope, "format_profile"),
+  ];
 
   if (targetFormat) {
-    conditions.push(eq(formatRules.targetFormat, targetFormat));
+    localConditions.push(eq(formatRules.targetFormat, targetFormat));
+    profileConditions.push(eq(formatRules.targetFormat, targetFormat));
   }
 
-  const rows = db
+  const profileRows = db
     .select()
     .from(formatRules)
-    .where(and(...conditions))
+    .where(and(...profileConditions))
     .orderBy(desc(formatRules.createdAt))
     .all();
 
-  return rows.map(deserializeFormatRule);
+  const localRows = db
+    .select()
+    .from(formatRules)
+    .where(and(...localConditions))
+    .orderBy(desc(formatRules.createdAt))
+    .all();
+
+  return [...profileRows, ...localRows].map(deserializeFormatRule);
 }
 
 export function getAdjustmentMetrics(
@@ -591,6 +603,84 @@ export function updateFormatRuleStatus(
   return nextRule;
 }
 
+export function promoteRuleToProfile(ruleId: string) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
+  }
+
+  if (existingRule.scope === "format_profile") {
+    throw new Error("Regel ist bereits eine Profil-Regel.");
+  }
+
+  const originalImportId = existingRule.importId;
+  const timestamp = now();
+
+  db.transaction((tx) => {
+    tx.update(formatRules)
+      .set({
+        scope: "format_profile",
+        importId: null,
+        updatedAt: timestamp,
+      })
+      .where(eq(formatRules.id, ruleId))
+      .run();
+
+    recordAdjustmentEvent(
+      {
+        importId: originalImportId ?? "",
+        ruleId: existingRule.id,
+        sessionId: existingRule.sourceSessionId,
+        targetFormat: existingRule.targetFormat,
+        type: "rule_promoted",
+      },
+      tx,
+    );
+  });
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
+}
+
+export function demoteRuleToLocal(ruleId: string, importId: string) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
+  }
+
+  if (existingRule.scope !== "format_profile") {
+    throw new Error("Regel ist bereits lokal.");
+  }
+
+  const timestamp = now();
+
+  db.transaction((tx) => {
+    tx.update(formatRules)
+      .set({
+        scope: "import_local",
+        importId,
+        updatedAt: timestamp,
+      })
+      .where(eq(formatRules.id, ruleId))
+      .run();
+  });
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
+}
+
 export function disableFormatRule(ruleId: string) {
   const existingRule = getFormatRule(ruleId);
 
@@ -615,7 +705,7 @@ export function disableFormatRule(ruleId: string) {
 
     recordAdjustmentEvent(
       {
-        importId: existingRule.importId,
+        importId: existingRule.importId ?? "",
         ruleId: existingRule.id,
         sessionId: existingRule.sourceSessionId,
         targetFormat: existingRule.targetFormat,

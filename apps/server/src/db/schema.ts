@@ -86,9 +86,9 @@ export const formatRules = sqliteTable(
   "format_rules",
   {
     id: text("id").primaryKey(),
-    importId: text("import_id")
-      .notNull()
-      .references(() => imports.id, { onDelete: "cascade" }),
+    importId: text("import_id").references(() => imports.id, {
+      onDelete: "cascade",
+    }),
     targetFormat: text("target_format").notNull(),
     kind: text("kind").notNull(),
     scope: text("scope").notNull(),
@@ -106,6 +106,11 @@ export const formatRules = sqliteTable(
   (table) => [
     index("idx_format_rules_import_id").on(
       table.importId,
+      table.targetFormat,
+      table.status,
+      table.createdAt,
+    ),
+    index("idx_format_rules_profile").on(
       table.targetFormat,
       table.status,
       table.createdAt,
