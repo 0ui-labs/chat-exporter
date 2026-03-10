@@ -43,13 +43,16 @@ type ReaderViewProps = {
   activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
+  deletedMessageIds?: Set<string>;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onRestoreMessage?: (messageId: string) => Promise<{ restored: boolean }>;
   onSelectBlock: (
     selection: AdjustmentSelection,
     anchor: ViewportAnchor,
   ) => void;
   selectedBlock: AdjustmentSelection | null;
+  showDeleted?: boolean;
 };
 
 function truncateSelectionText(value: string) {
@@ -72,8 +75,10 @@ type ReaderMessageProps = {
   adjustModeEnabled: boolean;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedBlocks: Set<string>;
+  isDeleted?: boolean;
   message: Message;
   messageIndex: number;
+  onRestore?: () => void;
   onSelectBlock: ReaderViewProps["onSelectBlock"];
   selectedBlock: AdjustmentSelection | null;
 };
@@ -82,8 +87,10 @@ const ReaderMessage = memo(function ReaderMessage({
   adjustModeEnabled,
   effectsMap,
   highlightedBlocks,
+  isDeleted,
   message,
   messageIndex,
+  onRestore,
   onSelectBlock,
   selectedBlock,
 }: ReaderMessageProps) {
@@ -94,8 +101,26 @@ const ReaderMessage = memo(function ReaderMessage({
       className={cn(
         "rounded-[1.55rem] border border-border/80 px-4 py-5 sm:px-5",
         message.role === "assistant" ? "bg-card/92" : "bg-secondary/30",
+        isDeleted && "opacity-50",
       )}
     >
+      {isDeleted && (
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-red-50 border border-red-200/60 px-3 py-2 text-xs text-red-700">
+          <span>Gelöscht</span>
+          {onRestore && (
+            <button
+              type="button"
+              className="text-red-600 hover:text-red-800 underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore();
+              }}
+            >
+              Wiederherstellen
+            </button>
+          )}
+        </div>
+      )}
       <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         <span>{getRoleLabel(message.role)}</span>
         <span>{messageIndex + 1}</span>
@@ -213,11 +238,21 @@ export function ReaderView({
   activeRules,
   adjustModeEnabled,
   conversation,
+  deletedMessageIds,
   effectsMap,
   highlightedRuleId,
+  onRestoreMessage,
   onSelectBlock,
   selectedBlock,
+  showDeleted,
 }: ReaderViewProps) {
+  const visibleMessages = useMemo(() => {
+    if (!conversation?.messages) return [];
+    if (!deletedMessageIds?.size) return conversation.messages;
+    if (showDeleted) return conversation.messages;
+    return conversation.messages.filter((m) => !deletedMessageIds.has(m.id));
+  }, [conversation?.messages, deletedMessageIds, showDeleted]);
+
   const highlightedBlocks = useMemo(() => {
     if (!highlightedRuleId || !conversation) {
       return new Set<string>();
@@ -245,7 +280,7 @@ export function ReaderView({
 
   return (
     <div className="space-y-3">
-      {conversation.messages.map((message, index) => (
+      {visibleMessages.map((message, index) => (
         <ReaderMessage
           key={message.id}
           adjustModeEnabled={adjustModeEnabled}
@@ -255,6 +290,14 @@ export function ReaderView({
           messageIndex={index}
           onSelectBlock={onSelectBlock}
           selectedBlock={selectedBlock}
+          isDeleted={deletedMessageIds?.has(message.id)}
+          onRestore={
+            onRestoreMessage
+              ? () => {
+                  void onRestoreMessage(message.id);
+                }
+              : undefined
+          }
         />
       ))}
     </div>

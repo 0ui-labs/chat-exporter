@@ -28,6 +28,7 @@ import {
 import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
 import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
 import { useFormatRules } from "@/components/format-workspace/use-format-rules";
+import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
 
 type ActiveStage = {
   detail: string;
@@ -80,6 +81,7 @@ export function FormatWorkspace({
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
+  const deletion = useMessageDeletion(job.id);
   const popover = useAdjustmentPopover(view, Boolean(session.activeSelection));
 
   const mergedRef = useCallback(
@@ -189,6 +191,11 @@ export function FormatWorkspace({
             onDownloadMarkdown={handleDownloadMarkdown}
             onToggleAdjustMode={session.toggleAdjustMode}
             onViewChange={onViewChange}
+            deletionsCount={deletion.deletionsCount}
+            showDeleted={deletion.showDeleted}
+            onToggleShowDeleted={() =>
+              deletion.setShowDeleted(!deletion.showDeleted)
+            }
           />
 
           {sessionError && !session.adjustModeEnabled ? (
@@ -209,6 +216,9 @@ export function FormatWorkspace({
                   view === "reader" ? session.activeSelection : null
                 }
                 onSelectBlock={session.handleSelectionChange}
+                deletedMessageIds={deletion.deletedMessageIds}
+                showDeleted={deletion.showDeleted}
+                onRestoreMessage={deletion.restoreMessage}
               />
             </ErrorBoundary>
           ) : view === "markdown" ? (
