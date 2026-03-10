@@ -11,6 +11,12 @@ import {
   formatRuleSchema,
 } from "./adjustments.js";
 import {
+  deleteMessageRequestSchema,
+  deleteRoundRequestSchema,
+  messageDeletionSchema,
+  restoreMessageRequestSchema,
+} from "./deletions.js";
+import {
   importJobSchema,
   importListRequestSchema,
   importRequestSchema,
@@ -119,6 +125,22 @@ export const contract = {
     demote: oc
       .input(z.object({ id: z.string(), importId: z.string() }))
       .output(formatRuleSchema),
+  },
+
+  deletions: {
+    list: oc
+      .input(z.object({ importId: z.string() }))
+      .output(z.array(messageDeletionSchema)),
+
+    delete: oc.input(deleteMessageRequestSchema).output(messageDeletionSchema),
+
+    deleteRound: oc
+      .input(deleteRoundRequestSchema)
+      .output(z.array(messageDeletionSchema)),
+
+    restore: oc
+      .input(restoreMessageRequestSchema)
+      .output(z.object({ restored: z.boolean() })),
   },
 
   health: {

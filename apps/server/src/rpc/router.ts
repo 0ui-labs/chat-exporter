@@ -495,6 +495,30 @@ export const router = os.router({
     }),
   },
 
+  deletions: {
+    list: os.deletions.list.handler(({ input: _input }) => {
+      return [];
+    }),
+
+    delete: os.deletions.delete.handler(({ input: _input }) => {
+      throw new ORPCError("NOT_IMPLEMENTED", {
+        message: "Löschung noch nicht implementiert.",
+      });
+    }),
+
+    deleteRound: os.deletions.deleteRound.handler(({ input: _input }) => {
+      throw new ORPCError("NOT_IMPLEMENTED", {
+        message: "Rundenlöschung noch nicht implementiert.",
+      });
+    }),
+
+    restore: os.deletions.restore.handler(({ input: _input }) => {
+      throw new ORPCError("NOT_IMPLEMENTED", {
+        message: "Wiederherstellung noch nicht implementiert.",
+      });
+    }),
+  },
+
   health: {
     check: os.health.check.handler(() => {
       return {
