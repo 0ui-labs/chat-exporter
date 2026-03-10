@@ -28,13 +28,18 @@ vi.mock("@/lib/rpc", () => ({
   },
 }));
 
+let readerViewShouldThrow = false;
+
 vi.mock("@/components/format-workspace/reader-view", () => ({
-  ReaderView: (props: Record<string, unknown>) => (
-    <div
-      data-testid="reader-view"
-      data-adjust-mode={String(props.adjustModeEnabled)}
-    />
-  ),
+  ReaderView: (props: Record<string, unknown>) => {
+    if (readerViewShouldThrow) throw new Error("ReaderView crash");
+    return (
+      <div
+        data-testid="reader-view"
+        data-adjust-mode={String(props.adjustModeEnabled)}
+      />
+    );
+  },
 }));
 
 vi.mock("@/components/format-workspace/markdown-view", () => ({
@@ -45,8 +50,14 @@ vi.mock("@/components/format-workspace/artifact-view", () => ({
   ArtifactView: () => <div data-testid="artifact-view" />,
 }));
 
+let adjustmentPopoverShouldThrow = false;
+
 vi.mock("@/components/format-workspace/adjustment-popover", () => ({
-  AdjustmentPopover: () => <div data-testid="adjustment-popover" />,
+  AdjustmentPopover: () => {
+    if (adjustmentPopoverShouldThrow)
+      throw new Error("AdjustmentPopover crash");
+    return <div data-testid="adjustment-popover" />;
+  },
 }));
 
 vi.mock("@/components/format-workspace/adjustment-mode-guide", () => ({
@@ -57,8 +68,13 @@ vi.mock("@/components/format-workspace/rules-list-popover", () => ({
   RulesListPopover: () => <div data-testid="rules-list-popover" />,
 }));
 
+let applyMarkdownRulesShouldThrow = false;
+
 vi.mock("@/components/format-workspace/rule-engine", () => ({
-  applyMarkdownRules: (content: string) => content,
+  applyMarkdownRules: (content: string) => {
+    if (applyMarkdownRulesShouldThrow) throw new Error("rule engine crash");
+    return content;
+  },
   buildReaderEffectsMap: () => new Map(),
 }));
 
@@ -205,6 +221,9 @@ const mockRpc = rpc as unknown as {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  readerViewShouldThrow = false;
+  adjustmentPopoverShouldThrow = false;
+  applyMarkdownRulesShouldThrow = false;
   mockRpc.rules.list.mockResolvedValue([]);
   mockRpc.rules.disable.mockResolvedValue(
     createFormatRule({ status: "disabled" }),
@@ -408,6 +427,81 @@ describe("FormatWorkspace", () => {
       await user.click(screen.getByTestId("format-view-markdown"));
 
       expect(onViewChange).toHaveBeenCalledWith("markdown");
+    });
+  });
+
+  describe("error boundaries", () => {
+    test("shows fallback when ReaderView throws", () => {
+      readerViewShouldThrow = true;
+      // Suppress React error boundary console.error noise
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      expect(
+        screen.getByText("Diese Ansicht konnte nicht geladen werden."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Erneut versuchen")).toBeInTheDocument();
+
+      spy.mockRestore();
+    });
+
+    test("clicking retry resets the view error boundary", async () => {
+      readerViewShouldThrow = true;
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      // Fallback is shown
+      expect(
+        screen.getByText("Diese Ansicht konnte nicht geladen werden."),
+      ).toBeInTheDocument();
+
+      // Fix the component so retry works
+      readerViewShouldThrow = false;
+
+      await user.click(screen.getByText("Erneut versuchen"));
+
+      expect(screen.getByTestId("reader-view")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Diese Ansicht konnte nicht geladen werden."),
+      ).not.toBeInTheDocument();
+
+      spy.mockRestore();
+    });
+
+    test("applyMarkdownRules error falls back to raw artifact", () => {
+      applyMarkdownRulesShouldThrow = true;
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="markdown"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      // Should not crash — the markdown view should render
+      expect(screen.getByTestId("markdown-view")).toBeInTheDocument();
     });
   });
 });

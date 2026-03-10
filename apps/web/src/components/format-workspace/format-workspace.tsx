@@ -1,6 +1,7 @@
 import type { ImportJob } from "@chat-exporter/shared";
 import { useCallback, useMemo } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
@@ -92,13 +93,14 @@ export function FormatWorkspace({
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
   // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
   // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.
-  const displayedMarkdown = useMemo(
-    () =>
-      view === "markdown"
-        ? applyMarkdownRules(artifact, rules.activeRules)
-        : artifact,
-    [artifact, rules.activeRules, view],
-  );
+  const displayedMarkdown = useMemo(() => {
+    if (view !== "markdown") return artifact;
+    try {
+      return applyMarkdownRules(artifact, rules.activeRules);
+    } catch {
+      return artifact;
+    }
+  }, [artifact, rules.activeRules, view]);
 
   const readerEffectsMap = useMemo(
     () =>
@@ -168,28 +170,47 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          {view === "reader" ? (
-            <ReaderView
-              activeRules={rules.activeRules}
-              conversation={job.conversation}
-              adjustModeEnabled={session.adjustModeEnabled}
-              effectsMap={readerEffectsMap}
-              highlightedRuleId={rules.hoveredRuleId}
-              selectedBlock={view === "reader" ? session.activeSelection : null}
-              onSelectBlock={session.handleSelectionChange}
-            />
-          ) : view === "markdown" ? (
-            <MarkdownView
-              activeRules={rules.activeRules}
-              content={displayedMarkdown}
-              adjustModeEnabled={session.adjustModeEnabled}
-              highlightedRuleId={rules.hoveredRuleId}
-              selectedRange={session.activeSelection}
-              onSelectLines={session.handleSelectionChange}
-            />
-          ) : (
-            <ArtifactView content={artifact} />
-          )}
+          <ErrorBoundary
+            fallback={(_error, reset) => (
+              <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+                <p className="text-red-700">
+                  Diese Ansicht konnte nicht geladen werden.
+                </p>
+                <button
+                  className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-foreground/5"
+                  type="button"
+                  onClick={reset}
+                >
+                  Erneut versuchen
+                </button>
+              </div>
+            )}
+          >
+            {view === "reader" ? (
+              <ReaderView
+                activeRules={rules.activeRules}
+                conversation={job.conversation}
+                adjustModeEnabled={session.adjustModeEnabled}
+                effectsMap={readerEffectsMap}
+                highlightedRuleId={rules.hoveredRuleId}
+                selectedBlock={
+                  view === "reader" ? session.activeSelection : null
+                }
+                onSelectBlock={session.handleSelectionChange}
+              />
+            ) : view === "markdown" ? (
+              <MarkdownView
+                activeRules={rules.activeRules}
+                content={displayedMarkdown}
+                adjustModeEnabled={session.adjustModeEnabled}
+                highlightedRuleId={rules.hoveredRuleId}
+                selectedRange={session.activeSelection}
+                onSelectLines={session.handleSelectionChange}
+              />
+            ) : (
+              <ArtifactView content={artifact} />
+            )}
+          </ErrorBoundary>
 
           {session.showGuide ? (
             <AdjustmentModeGuide
@@ -199,32 +220,40 @@ export function FormatWorkspace({
           ) : null}
 
           {showPopover && session.activeSelection && session.activeAnchor ? (
-            <AdjustmentPopover
-              anchor={session.activeAnchor}
-              containerDimensions={popover.containerDimensions}
-              containerScrollTop={session.sectionRef.current?.scrollTop ?? 0}
-              draftMessage={session.activeDraftMessage}
-              error={session.activeSessionError}
-              isLoading={session.activeSessionLoading || session.isDiscarding}
-              isSubmitting={session.isSubmitting}
-              sessionDetail={session.activeSessionDetail}
-              showReply={session.replyVisible}
-              view={view}
-              onClose={() => {
-                session.handleDiscardSession();
-              }}
-              onDraftMessageChange={session.handleDraftMessageChange}
-              onRejectLastChange={() => {
-                if (session.activeSessionDetail) {
-                  void rules
-                    .handleRejectLastChange(session.activeSessionDetail)
-                    .then((success) => {
-                      if (success) session.setReplyVisible(false);
-                    });
-                }
-              }}
-              onSubmitMessage={session.handleSubmitMessage}
-            />
+            <ErrorBoundary
+              fallback={
+                <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
+                  Anpassungen konnten nicht geladen werden.
+                </div>
+              }
+            >
+              <AdjustmentPopover
+                anchor={session.activeAnchor}
+                containerDimensions={popover.containerDimensions}
+                containerScrollTop={session.sectionRef.current?.scrollTop ?? 0}
+                draftMessage={session.activeDraftMessage}
+                error={session.activeSessionError}
+                isLoading={session.activeSessionLoading || session.isDiscarding}
+                isSubmitting={session.isSubmitting}
+                sessionDetail={session.activeSessionDetail}
+                showReply={session.replyVisible}
+                view={view}
+                onClose={() => {
+                  session.handleDiscardSession();
+                }}
+                onDraftMessageChange={session.handleDraftMessageChange}
+                onRejectLastChange={() => {
+                  if (session.activeSessionDetail) {
+                    void rules
+                      .handleRejectLastChange(session.activeSessionDetail)
+                      .then((success) => {
+                        if (success) session.setReplyVisible(false);
+                      });
+                  }
+                }}
+                onSubmitMessage={session.handleSubmitMessage}
+              />
+            </ErrorBoundary>
           ) : null}
         </div>
       )}
