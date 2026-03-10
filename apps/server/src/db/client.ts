@@ -29,6 +29,10 @@ sqlite.pragma("busy_timeout = 5000");
 export const db = drizzle(sqlite, { schema });
 export const rawDb = sqlite;
 
+export function withTransaction<T>(fn: () => T): T {
+  return rawDb.transaction(fn)();
+}
+
 // Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
 // not Node.js child_process.exec(). This is safe - no shell invocation.
 sqlite.exec(`

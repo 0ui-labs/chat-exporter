@@ -22,7 +22,7 @@ import type { ExtractTablesWithRelations } from "drizzle-orm";
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
-import { db } from "../db/client.js";
+import { db, withTransaction } from "../db/client.js";
 import type * as schema from "../db/schema.js";
 import {
   adjustmentEvents,
@@ -241,20 +241,22 @@ export function appendAdjustmentMessage(
 ) {
   const timestamp = now();
 
-  db.insert(adjustmentMessages)
-    .values({
-      id: crypto.randomUUID(),
-      sessionId,
-      role,
-      content,
-      createdAt: timestamp,
-    })
-    .run();
+  withTransaction(() => {
+    db.insert(adjustmentMessages)
+      .values({
+        id: crypto.randomUUID(),
+        sessionId,
+        role,
+        content,
+        createdAt: timestamp,
+      })
+      .run();
 
-  db.update(adjustmentSessions)
-    .set({ updatedAt: timestamp })
-    .where(eq(adjustmentSessions.id, sessionId))
-    .run();
+    db.update(adjustmentSessions)
+      .set({ updatedAt: timestamp })
+      .where(eq(adjustmentSessions.id, sessionId))
+      .run();
+  });
 
   const rows = db
     .select()
