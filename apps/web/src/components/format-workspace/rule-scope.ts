@@ -7,12 +7,17 @@ import type { ViewMode } from "@/components/format-workspace/types";
 type DescribeSelectorScopeParams = {
   blockType?: string;
   exactLabel: string;
+  scope?: string;
   selector: unknown;
   view: ViewMode;
 };
 
 export function describeSelectorScope(params: DescribeSelectorScopeParams) {
-  const { blockType, exactLabel, selector, view } = params;
+  const { blockType, exactLabel, scope, selector, view } = params;
+
+  if (scope === "format_profile") {
+    return "Diese Regel wirkt auf alle Imports mit dem gleichen Format.";
+  }
   const parsedSelector =
     selector && typeof selector === "object"
       ? (selector as Record<string, unknown>)

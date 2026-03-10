@@ -6,16 +6,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ViewMode } from "@/components/format-workspace/types";
 import { orpc } from "@/lib/orpc";
-import { rpc } from "@/lib/rpc";
+import { demoteFormatRule, promoteFormatRule, rpc } from "@/lib/rpc";
 
 const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
 
-export function useFormatRules(
-  view: ViewMode,
-  jobId: string,
-  activeSessionDetail: AdjustmentSessionDetail | null,
-  onRejectSuccess: () => void,
-) {
+export function useFormatRules(view: ViewMode, jobId: string) {
   const queryClient = useQueryClient();
   const isAdjustableView = adjustableViews.has(view);
 
@@ -30,17 +25,43 @@ export function useFormatRules(
   const [disablingRuleById, setDisablingRuleById] = useState<
     Record<string, boolean>
   >({});
+  const [promotingRuleById, setPromotingRuleById] = useState<
+    Record<string, boolean>
+  >({});
   const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
+  const [disableError, setDisableError] = useState<string | null>(null);
+  const [promoteError, setPromoteError] = useState<string | null>(null);
+
+  // ── Explanation state (moved from RulesListPopover) ────────────────────
+
+  const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
+  const [explanationCache, setExplanationCache] = useState<
+    Record<string, AdjustmentSessionDetail>
+  >({});
+  const [explanationLoadingById, setExplanationLoadingById] = useState<
+    Record<string, boolean>
+  >({});
+  const [explanationErrorById, setExplanationErrorById] = useState<
+    Record<string, string>
+  >({});
+
+  // ── Handlers ───────────────────────────────────────────────────────────
 
   async function handleDisableRule(ruleId: string): Promise<boolean> {
     setDisablingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setDisableError(null);
 
     try {
       await rpc.rules.disable({ id: ruleId });
       queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
       setHoveredRuleId((current) => (current === ruleId ? null : current));
       return true;
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Regel konnte nicht deaktiviert werden.";
+      setDisableError(message);
       return false;
     } finally {
       setDisablingRuleById((current) => {
@@ -51,12 +72,12 @@ export function useFormatRules(
     }
   }
 
-  async function handleRejectLastChange() {
-    if (!activeSessionDetail) return;
-
+  async function handleRejectLastChange(
+    sessionDetail: AdjustmentSessionDetail,
+  ): Promise<boolean> {
     let matchingRule = activeRules.find(
       (rule) =>
-        rule.sourceSessionId === activeSessionDetail.session.id &&
+        rule.sourceSessionId === sessionDetail.session.id &&
         rule.status === "active",
     );
 
@@ -69,28 +90,138 @@ export function useFormatRules(
         queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
         matchingRule = freshRules.find(
           (rule) =>
-            rule.sourceSessionId === activeSessionDetail.session.id &&
+            rule.sourceSessionId === sessionDetail.session.id &&
             rule.status === "active",
         );
       } catch {
-        return;
+        return false;
       }
     }
 
-    if (!matchingRule) return;
+    if (!matchingRule) return false;
 
-    const success = await handleDisableRule(matchingRule.id);
-    if (success) {
-      onRejectSuccess();
+    return handleDisableRule(matchingRule.id);
+  }
+
+  async function handlePromoteRule(ruleId: string): Promise<boolean> {
+    setPromotingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setPromoteError(null);
+
+    try {
+      await promoteFormatRule(ruleId);
+      queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Regel konnte nicht hochgestuft werden.";
+      setPromoteError(message);
+      return false;
+    } finally {
+      setPromotingRuleById((current) => {
+        const nextState = { ...current };
+        delete nextState[ruleId];
+        return nextState;
+      });
     }
+  }
+
+  async function handleDemoteRule(ruleId: string): Promise<boolean> {
+    setPromotingRuleById((current) => ({ ...current, [ruleId]: true }));
+    setPromoteError(null);
+
+    try {
+      await demoteFormatRule(ruleId, jobId);
+      queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Regel konnte nicht herabgestuft werden.";
+      setPromoteError(message);
+      return false;
+    } finally {
+      setPromotingRuleById((current) => {
+        const nextState = { ...current };
+        delete nextState[ruleId];
+        return nextState;
+      });
+    }
+  }
+
+  async function handleToggleRuleExplanation(rule: FormatRule) {
+    if (expandedRuleId === rule.id) {
+      setExpandedRuleId(null);
+      return;
+    }
+
+    setExpandedRuleId(rule.id);
+
+    const sourceSessionId = rule.sourceSessionId;
+
+    if (!sourceSessionId || explanationCache[sourceSessionId]) {
+      return;
+    }
+
+    setExplanationLoadingById((current) => ({ ...current, [rule.id]: true }));
+    setExplanationErrorById((current) => {
+      const next = { ...current };
+      delete next[rule.id];
+      return next;
+    });
+
+    try {
+      const detail = await rpc.adjustments.getSession({ id: sourceSessionId });
+      setExplanationCache((current) => ({
+        ...current,
+        [sourceSessionId]: detail,
+      }));
+    } catch (error) {
+      setExplanationErrorById((current) => ({
+        ...current,
+        [rule.id]:
+          error instanceof Error
+            ? error.message
+            : "Regelerklärung konnte nicht geladen werden.",
+      }));
+    } finally {
+      setExplanationLoadingById((current) => {
+        const next = { ...current };
+        delete next[rule.id];
+        return next;
+      });
+    }
+  }
+
+  function getExplanationDetail(
+    rule: FormatRule,
+  ): AdjustmentSessionDetail | null {
+    return rule.sourceSessionId
+      ? (explanationCache[rule.sourceSessionId] ?? null)
+      : null;
   }
 
   return {
     activeRules,
     disablingRuleById,
+    promotingRuleById,
     hoveredRuleId,
+    disableError,
+    promoteError,
     setHoveredRuleId,
+    clearDisableError: () => setDisableError(null),
+    clearPromoteError: () => setPromoteError(null),
     handleDisableRule,
+    handlePromoteRule,
+    handleDemoteRule,
     handleRejectLastChange,
+    // Explanation state & handlers
+    expandedRuleId,
+    explanationLoadingById,
+    explanationErrorById,
+    handleToggleRuleExplanation,
+    getExplanationDetail,
   };
 }
