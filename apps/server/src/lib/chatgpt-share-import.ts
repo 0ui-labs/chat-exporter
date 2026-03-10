@@ -5,8 +5,7 @@ import {
   type NormalizedSnapshotPayload,
   normalizedSnapshotPayloadSchema,
 } from "@chat-exporter/shared";
-import { chromium } from "playwright";
-
+import { acquireContext, releaseContext } from "./browser-pool.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
 
 type StageCallback = (
@@ -38,13 +37,9 @@ export async function importChatGptSharePage(
     onStage?: StageCallback;
   },
 ): Promise<ImportResult> {
-  const browser = await chromium.launch({
-    headless: true,
-  });
+  const context = await acquireContext();
 
   try {
-    const context = await browser.newContext();
-
     await context.route("**/*", (route) => {
       const resourceType = route.request().resourceType();
 
@@ -566,6 +561,6 @@ export async function importChatGptSharePage(
       },
     };
   } finally {
-    await browser.close();
+    await releaseContext(context);
   }
 }
