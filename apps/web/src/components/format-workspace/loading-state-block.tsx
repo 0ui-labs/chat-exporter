@@ -1,5 +1,7 @@
 import { LoaderCircle } from "lucide-react";
 
+import { miscLabels } from "@/components/format-workspace/labels";
+
 type LoadingStateBlockProps = {
   stageDetail: string | undefined;
 };
@@ -10,7 +12,7 @@ export function LoadingStateBlock({ stageDetail }: LoadingStateBlockProps) {
       <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
           <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-          {stageDetail ?? "Transkript wird vorbereitet"}
+          {stageDetail ?? miscLabels.transcriptLoading}
         </div>
         <div className="space-y-3">
           <div className="h-3 w-40 animate-pulse rounded-full bg-primary/15" />

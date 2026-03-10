@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   getRuleKindLabel,
   getRuleLabel,
+  rulesLabels,
 } from "@/components/format-workspace/labels";
 import { describeSelectorScope } from "@/components/format-workspace/rule-scope";
 import type { ViewMode } from "@/components/format-workspace/types";
@@ -81,14 +82,14 @@ export function RulesListPopover({
         variant="outline"
         onClick={() => setOpen((prev) => !prev)}
       >
-        {activeCount > 0 ? `${activeCount} Regeln aktiv` : "Regeln"}
+        {rulesLabels.activeRulesCount(activeCount)}
       </Button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-2xl border border-border bg-card shadow-lg">
           {activeRules.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
-              Keine aktiven Regeln.
+              {rulesLabels.noActiveRules}
             </p>
           ) : (
             <ul className="list-none p-0 m-0">
@@ -129,11 +130,11 @@ export function RulesListPopover({
                           size="sm"
                           variant="ghost"
                           disabled={Boolean(promotingRuleById[rule.id])}
-                          title="Für alle Imports"
+                          title={rulesLabels.allImports}
                           onClick={() => onPromoteRule(rule.id)}
                         >
                           <Globe className="h-3.5 w-3.5" />
-                          Für alle Imports
+                          {rulesLabels.allImports}
                         </Button>
                       ) : rule.scope === "format_profile" ? (
                         <Button
@@ -141,11 +142,11 @@ export function RulesListPopover({
                           size="sm"
                           variant="ghost"
                           disabled={Boolean(promotingRuleById[rule.id])}
-                          title="Nur dieser Import"
+                          title={rulesLabels.thisImportOnly}
                           onClick={() => onDemoteRule(rule.id)}
                         >
                           <Globe className="h-3.5 w-3.5 text-primary" />
-                          Nur dieser Import
+                          {rulesLabels.thisImportOnly}
                         </Button>
                       ) : null}
                     </div>
@@ -154,7 +155,7 @@ export function RulesListPopover({
                       <div className="space-y-3 px-4 pb-3">
                         {isLoading ? (
                           <p className="text-sm text-muted-foreground">
-                            Wird geladen...
+                            {rulesLabels.loading}
                           </p>
                         ) : error ? (
                           <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-3 py-2 text-sm text-red-900">
@@ -167,19 +168,18 @@ export function RulesListPopover({
                               data-testid="rules-list-explanation"
                             >
                               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                                Begründung
+                                {rulesLabels.rationale}
                               </p>
                               <p className="mt-1 text-sm text-foreground">
                                 {detail.session.previewArtifact?.rationale ??
-                                  "Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt."}
+                                  rulesLabels.defaultRationale}
                               </p>
                             </div>
 
                             <div className="rounded-2xl border border-border/80 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
                               {describeSelectorScope({
                                 blockType: detail.session.selection.blockType,
-                                exactLabel:
-                                  "Diese Regel gilt nur für die ursprüngliche Auswahl.",
+                                exactLabel: rulesLabels.exactScopeNote,
                                 scope: rule.scope,
                                 selector:
                                   detail.session.previewArtifact?.draftRule
@@ -191,8 +191,8 @@ export function RulesListPopover({
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             {rule.scope === "format_profile"
-                              ? "Diese Regel gilt für alle Imports in diesem Format."
-                              : "Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt."}
+                              ? rulesLabels.globalScopeNote
+                              : rulesLabels.defaultRationale}
                           </p>
                         )}
 
@@ -204,8 +204,8 @@ export function RulesListPopover({
                           onClick={() => onDisableRule(rule.id)}
                         >
                           {disablingRuleById[rule.id]
-                            ? "Wird rückgängig gemacht..."
-                            : "Rückgängig"}
+                            ? rulesLabels.undoPending
+                            : rulesLabels.undo}
                         </Button>
                       </div>
                     )}

@@ -188,6 +188,39 @@ export function formatMessageBlockLabel(
   return `${getRoleLabel(role)}-Nachricht ${index} · ${getBlockTypeLabel(blockType)}`;
 }
 
+// ---------------------------------------------------------------------------
+// Rules Labels
+// ---------------------------------------------------------------------------
+
+export const rulesLabels = {
+  activeRulesCount: (count: number) =>
+    count > 0 ? `${count} Regeln aktiv` : "Regeln",
+  noActiveRules: "Keine aktiven Regeln.",
+  allImports: "Für alle Imports",
+  thisImportOnly: "Nur dieser Import",
+  loading: "Wird geladen...",
+  rationale: "Begründung",
+  defaultRationale:
+    "Diese Regel wurde aus einer früheren Anpassungssession für diesen Import erzeugt.",
+  exactScopeNote: "Diese Regel gilt nur für die ursprüngliche Auswahl.",
+  globalScopeNote: "Diese Regel gilt für alle Imports in diesem Format.",
+  undoPending: "Wird rückgängig gemacht...",
+  undo: "Rückgängig",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Loading & Misc Labels
+// ---------------------------------------------------------------------------
+
+export const miscLabels = {
+  transcriptLoading: "Transkript wird vorbereitet",
+  importFailed: "Import fehlgeschlagen",
+  errorInPhase: (phase: string) => `Fehler in Phase: ${phase}`,
+  viewLoadError: "Diese Ansicht konnte nicht geladen werden.",
+  retryButton: "Erneut versuchen",
+  adjustmentLoadError: "Anpassungen konnten nicht geladen werden.",
+} as const;
+
 export function getRuleLabel(rule: FormatRule) {
   const summary = rule.instruction.trim();
 

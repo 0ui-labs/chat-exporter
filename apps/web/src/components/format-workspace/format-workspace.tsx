@@ -1,4 +1,4 @@
-import type { ImportJob, ImportStage } from "@chat-exporter/shared";
+import type { ImportJob } from "@chat-exporter/shared";
 import { useCallback, useMemo } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -9,6 +9,8 @@ import { CompletedToolbar } from "@/components/format-workspace/completed-toolba
 import {
   formatMarkdownLinesLabel,
   formatMessageBlockLabel,
+  getImportStageLabel,
+  miscLabels,
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
@@ -38,16 +40,6 @@ type FormatWorkspaceProps = {
   job: ImportJob;
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
-};
-
-const stageLabels: Record<ImportStage, string> = {
-  validate: "Validierung",
-  fetch: "Seite laden",
-  extract: "Inhalte extrahieren",
-  normalize: "Normalisierung",
-  structure: "Strukturierung",
-  render: "Artefakte generieren",
-  done: "Abgeschlossen",
 };
 
 function _describeSelectionLabel(selection: AdjustmentSelection) {
@@ -147,13 +139,13 @@ export function FormatWorkspace({
 
   const viewErrorFallback = (_error: Error, reset: () => void) => (
     <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-      <p className="text-red-700">Diese Ansicht konnte nicht geladen werden.</p>
+      <p className="text-red-700">{miscLabels.viewLoadError}</p>
       <button
         className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-foreground/5"
         type="button"
         onClick={reset}
       >
-        Erneut versuchen
+        {miscLabels.retryButton}
       </button>
     </div>
   );
@@ -177,10 +169,10 @@ export function FormatWorkspace({
 
       {job.status === "failed" ? (
         <div className="rounded-2xl border border-red-300/40 bg-red-100/70 p-4 text-red-900">
-          <p className="font-medium">Import fehlgeschlagen</p>
+          <p className="font-medium">{miscLabels.importFailed}</p>
           {job.errorStage && job.errorStage !== "done" && (
             <p className="text-sm mt-1">
-              Fehler in Phase: {stageLabels[job.errorStage]}
+              {miscLabels.errorInPhase(getImportStageLabel(job.errorStage))}
             </p>
           )}
           {job.error && <p className="text-sm mt-1">{job.error}</p>}
@@ -247,7 +239,7 @@ export function FormatWorkspace({
             <ErrorBoundary
               fallback={
                 <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
-                  Anpassungen konnten nicht geladen werden.
+                  {miscLabels.adjustmentLoadError}
                 </div>
               }
             >
