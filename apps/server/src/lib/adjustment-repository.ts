@@ -2,11 +2,11 @@ import type {
   AdjustmentEventType,
   AdjustmentMessage,
   AdjustmentMetrics,
-  AdjustmentPreview,
   AdjustmentSelection,
   AdjustmentSession,
   AdjustmentSessionDetail,
   AdjustmentTargetFormat,
+  CustomStyleEffect,
   FormatRule,
   Role,
 } from "@chat-exporter/shared";
@@ -74,7 +74,6 @@ function deserializeAdjustmentSession(
     targetFormat: row.targetFormat,
     status: row.status,
     selection: parseJson<AdjustmentSelection>(row.selectionJson),
-    previewArtifact: parseJson<unknown>(row.previewArtifactJson),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -229,7 +228,7 @@ export function findReusableAdjustmentSession(
 ) {
   return listAdjustmentSessions(input.importId, input.targetFormat).find(
     (session) =>
-      (session.status === "open" || session.status === "preview_ready") &&
+      session.status === "open" &&
       selectionsMatch(session.selection, input.selection),
   );
 }
@@ -269,76 +268,37 @@ export function appendAdjustmentMessage(
   return row ? deserializeAdjustmentMessage(row) : undefined;
 }
 
-export function saveAdjustmentPreview(
-  sessionId: string,
-  preview: AdjustmentPreview,
-) {
+type CreateFormatRuleDirectInput = {
+  importId: string;
+  targetFormat: AdjustmentTargetFormat;
+  selector: Record<string, unknown>;
+  effect: CustomStyleEffect;
+  instruction: string;
+  sourceSessionId: string;
+};
+
+export function createFormatRuleDirect(
+  input: CreateFormatRuleDirectInput,
+): FormatRule {
   const timestamp = now();
+  const ruleId = crypto.randomUUID();
 
-  db.update(adjustmentSessions)
-    .set({
-      status: "preview_ready",
-      previewArtifactJson: JSON.stringify(preview),
-      updatedAt: timestamp,
-    })
-    .where(eq(adjustmentSessions.id, sessionId))
-    .run();
-}
-
-export function applyAdjustmentPreview(sessionId: string) {
-  const session = getAdjustmentSession(sessionId);
-
-  if (!session) {
-    throw new Error("Anpassungssession nicht gefunden.");
-  }
-
-  if (!session.previewArtifact) {
-    throw new Error(
-      "Erzeuge zuerst eine Vorschau, bevor du eine Regel anwendest.",
-    );
-  }
-
-  if (session.status === "applied") {
-    throw new Error("Diese Anpassungssession wurde bereits angewendet.");
-  }
-
-  const timestamp = now();
   const rule = formatRuleSchema.parse({
-    id: crypto.randomUUID(),
-    importId: session.importId,
-    targetFormat: session.targetFormat,
-    kind: session.previewArtifact.draftRule.kind,
-    scope: session.previewArtifact.draftRule.scope,
+    id: ruleId,
+    importId: input.importId,
+    targetFormat: input.targetFormat,
+    kind: "render",
+    scope: "import_local",
     status: "active",
-    selector: session.previewArtifact.draftRule.selector,
-    instruction: session.previewArtifact.summary,
-    compiledRule: session.previewArtifact.draftRule.effect,
-    sourceSessionId: session.id,
+    selector: input.selector,
+    instruction: input.instruction,
+    compiledRule: input.effect,
+    sourceSessionId: input.sourceSessionId,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
 
   db.transaction((tx) => {
-    const result = tx
-      .update(adjustmentSessions)
-      .set({
-        status: "applied",
-        updatedAt: timestamp,
-      })
-      .where(
-        and(
-          eq(adjustmentSessions.id, sessionId),
-          eq(adjustmentSessions.status, "preview_ready"),
-        ),
-      )
-      .run();
-
-    if (result.changes === 0) {
-      throw new Error(
-        "Status-Transition fehlgeschlagen: Session ist nicht mehr im erwarteten Zustand 'preview_ready'.",
-      );
-    }
-
     tx.insert(formatRules)
       .values({
         id: rule.id,
@@ -358,26 +318,49 @@ export function applyAdjustmentPreview(sessionId: string) {
 
     recordAdjustmentEvent(
       {
-        importId: session.importId,
+        importId: input.importId,
         ruleId: rule.id,
-        sessionId: session.id,
-        targetFormat: session.targetFormat,
+        sessionId: input.sourceSessionId,
+        targetFormat: input.targetFormat,
         type: "rule_applied",
       },
       tx,
     );
   });
 
-  const nextSession = getAdjustmentSession(sessionId);
+  return rule;
+}
 
-  if (!nextSession) {
-    throw new Error("Anpassungssession konnte nicht neu geladen werden.");
+export function updateFormatRuleEffect(
+  ruleId: string,
+  effect: CustomStyleEffect,
+  instruction?: string,
+): FormatRule {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
   }
 
-  return {
-    rule,
-    session: nextSession,
+  const timestamp = now();
+  const updates: Record<string, unknown> = {
+    compiledRuleJson: JSON.stringify(effect),
+    updatedAt: timestamp,
   };
+
+  if (instruction !== undefined) {
+    updates.instruction = instruction;
+  }
+
+  db.update(formatRules).set(updates).where(eq(formatRules.id, ruleId)).run();
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
 }
 
 export function discardAdjustmentSession(sessionId: string) {
@@ -409,7 +392,7 @@ export function discardAdjustmentSession(sessionId: string) {
       .where(
         and(
           eq(adjustmentSessions.id, sessionId),
-          inArray(adjustmentSessions.status, ["open", "preview_ready"]),
+          inArray(adjustmentSessions.status, ["open"]),
         ),
       )
       .run();
