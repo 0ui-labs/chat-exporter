@@ -498,7 +498,7 @@ describe("rules.disable", () => {
     const result = await client.rules.disable({ id: "rule-1" });
 
     expect(result.status).toBe("disabled");
-    expect(mockDisableFormatRule).toHaveBeenCalledWith("rule-1");
+    expect(mockDisableFormatRule).toHaveBeenCalledWith("rule-1", undefined);
   });
 
   test("throws BAD_REQUEST when disable fails", async () => {
