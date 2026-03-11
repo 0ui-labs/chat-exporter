@@ -21,7 +21,10 @@ function createRule(overrides?: Partial<FormatRule>): FormatRule {
     status: "active",
     selector: { strategy: "block_type", blockType: "paragraph" },
     instruction: "Bold prefix before colon",
-    compiledRule: { type: "bold_prefix_before_colon" },
+    compiledRule: {
+      type: "custom_style",
+      textTransform: "bold_prefix_before_colon",
+    },
     sourceSessionId: undefined,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -80,7 +83,9 @@ describe("buildReaderEffectsMap", () => {
     expect(result.has("msg-1:0")).toBe(true);
     const effects = result.get("msg-1:0");
     expect(effects).toBeDefined();
-    expect(effects).toEqual([{ type: "bold_prefix_before_colon" }]);
+    expect(effects).toEqual([
+      { type: "custom_style", textTransform: "bold_prefix_before_colon" },
+    ]);
   });
 
   test("filters only active rules, ignoring inactive ones", () => {
@@ -96,7 +101,9 @@ describe("buildReaderEffectsMap", () => {
     const effects = result.get("msg-1:0");
     expect(effects).toBeDefined();
     expect(effects).toHaveLength(1);
-    expect(effects).toEqual([{ type: "bold_prefix_before_colon" }]);
+    expect(effects).toEqual([
+      { type: "custom_style", textTransform: "bold_prefix_before_colon" },
+    ]);
   });
 
   test("handles conversation with multiple messages and blocks", () => {

@@ -19,20 +19,18 @@ vi.mock("../lib/adjustment-repository.js", () => ({
   getAdjustmentMetrics: vi.fn(),
   disableFormatRule: vi.fn(),
   appendAdjustmentMessage: vi.fn(),
-  saveAdjustmentPreview: vi.fn(),
-  applyAdjustmentPreview: vi.fn(),
+  createFormatRuleDirect: vi.fn(),
+  updateFormatRuleEffect: vi.fn(),
   discardAdjustmentSession: vi.fn(),
   recordAdjustmentEvent: vi.fn(),
   reopenAdjustmentSession: vi.fn(),
+  promoteRuleToProfile: vi.fn(),
+  demoteRuleToLocal: vi.fn(),
 }));
 
-vi.mock("../lib/adjustment-preview.js", () => ({
-  buildAdjustmentPreview: vi.fn(),
-}));
-
-vi.mock("../lib/adjustment-chat-orchestrator.js", () => ({
-  runAdjustmentChatTurn: vi.fn(),
-  AdjustmentChatUnavailableError: class AdjustmentChatUnavailableError extends Error {},
+vi.mock("../lib/adjustment-agent.js", () => ({
+  runAgentTurn: vi.fn(),
+  AgentUnavailableError: class AgentUnavailableError extends Error {},
 }));
 
 vi.mock("../lib/delete-repository.js", () => ({
@@ -50,11 +48,9 @@ vi.mock("../db/client.js", () => ({
 }));
 
 import { createRouterClient, ORPCError } from "@orpc/server";
-import { runAdjustmentChatTurn } from "../lib/adjustment-chat-orchestrator.js";
-import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
+import { runAgentTurn } from "../lib/adjustment-agent.js";
 import {
   appendAdjustmentMessage,
-  applyAdjustmentPreview,
   createAdjustmentSession,
   disableFormatRule,
   discardAdjustmentSession,
@@ -64,7 +60,6 @@ import {
   listFormatRules,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
-  saveAdjustmentPreview,
 } from "../lib/adjustment-repository.js";
 import {
   listDeletions,
@@ -107,21 +102,10 @@ const mockDisableFormatRule = disableFormatRule as ReturnType<typeof vi.fn>;
 const mockAppendAdjustmentMessage = appendAdjustmentMessage as ReturnType<
   typeof vi.fn
 >;
-const mockApplyAdjustmentPreview = applyAdjustmentPreview as ReturnType<
-  typeof vi.fn
->;
 const mockDiscardAdjustmentSession = discardAdjustmentSession as ReturnType<
   typeof vi.fn
 >;
-const mockBuildAdjustmentPreview = buildAdjustmentPreview as ReturnType<
-  typeof vi.fn
->;
-const mockRunAdjustmentChatTurn = runAdjustmentChatTurn as ReturnType<
-  typeof vi.fn
->;
-const mockSaveAdjustmentPreview = saveAdjustmentPreview as ReturnType<
-  typeof vi.fn
->;
+const mockRunAgentTurn = runAgentTurn as ReturnType<typeof vi.fn>;
 const mockRecordAdjustmentEvent = recordAdjustmentEvent as ReturnType<
   typeof vi.fn
 >;
@@ -202,7 +186,9 @@ describe("imports.list", () => {
 
     const result = await client.imports.list();
 
-    const { artifacts, ...expectedSummary } = jobs[0]!;
+    const firstJob = jobs[0];
+    if (!firstJob) throw new Error("Expected at least one job");
+    const { artifacts, ...expectedSummary } = firstJob;
     expect(result).toEqual([expectedSummary]);
     expect(mockListImportJobs).toHaveBeenCalledOnce();
   });
@@ -422,99 +408,6 @@ describe("adjustments.getSession", () => {
   });
 });
 
-describe("adjustments.generatePreview", () => {
-  test("builds and saves preview", async () => {
-    const detail = createSessionDetailFixture();
-    mockGetAdjustmentSessionDetail.mockReturnValue(detail);
-    mockGetImportJob.mockReturnValue(createImportJobFixture());
-    mockListFormatRules.mockReturnValue([]);
-    mockBuildAdjustmentPreview.mockResolvedValue({
-      targetFormat: "markdown",
-      summary: "Test preview",
-      rationale: "Test rationale",
-      limitations: [],
-      draftRule: {
-        kind: "render",
-        scope: "import_local",
-        selector: { strategy: "block_type", blockType: "paragraph" },
-        effect: {
-          type: "adjust_block_spacing",
-          direction: "after",
-          amount: "lg",
-        },
-      },
-    });
-
-    const updatedDetail = createSessionDetailFixture({
-      session: { ...detail.session, status: "preview_ready" },
-    });
-    mockGetAdjustmentSessionDetail
-      .mockReturnValueOnce(detail)
-      .mockReturnValueOnce(updatedDetail);
-
-    const result = await client.adjustments.generatePreview({
-      sessionId: "session-1",
-    });
-
-    expect(mockBuildAdjustmentPreview).toHaveBeenCalledOnce();
-    expect(mockSaveAdjustmentPreview).toHaveBeenCalledOnce();
-    expect(mockRecordAdjustmentEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "preview_generated" }),
-    );
-    expect(result.session.id).toBe("session-1");
-  });
-
-  test("throws NOT_FOUND when session does not exist", async () => {
-    mockGetAdjustmentSessionDetail.mockReturnValue(undefined);
-
-    await expect(
-      client.adjustments.generatePreview({ sessionId: "nonexistent" }),
-    ).rejects.toThrow(ORPCError);
-  });
-});
-
-describe("adjustments.apply", () => {
-  test("applies adjustment preview", async () => {
-    const applyResult = {
-      session: { ...createSessionDetailFixture().session, status: "applied" },
-      rule: {
-        id: "rule-1",
-        importId: "import-1",
-        targetFormat: "markdown",
-        kind: "render",
-        scope: "import_local",
-        status: "active",
-        selector: { strategy: "block_type", blockType: "paragraph" },
-        instruction: "Test",
-        compiledRule: {
-          type: "adjust_block_spacing",
-          direction: "after",
-          amount: "lg",
-        },
-        sourceSessionId: "session-1",
-        createdAt: "2026-03-08T12:00:00.000Z",
-        updatedAt: "2026-03-08T12:00:00.000Z",
-      },
-    };
-    mockApplyAdjustmentPreview.mockReturnValue(applyResult);
-
-    const result = await client.adjustments.apply({ sessionId: "session-1" });
-
-    expect(result.rule.id).toBe("rule-1");
-    expect(mockApplyAdjustmentPreview).toHaveBeenCalledWith("session-1");
-  });
-
-  test("throws BAD_REQUEST when apply fails", async () => {
-    mockApplyAdjustmentPreview.mockImplementation(() => {
-      throw new Error("Erzeuge zuerst eine Vorschau.");
-    });
-
-    await expect(
-      client.adjustments.apply({ sessionId: "session-1" }),
-    ).rejects.toThrow(ORPCError);
-  });
-});
-
 describe("adjustments.discard", () => {
   test("discards adjustment session", async () => {
     const detail = createSessionDetailFixture({
@@ -620,15 +513,14 @@ describe("rules.disable", () => {
 });
 
 describe("adjustments.appendMessage", () => {
-  test("appends user message and runs AI chat turn", async () => {
+  test("appends user message and runs agent turn", async () => {
     const detail = createSessionDetailFixture();
     mockGetAdjustmentSessionDetail.mockReturnValue(detail);
     mockGetImportJob.mockReturnValue(createImportJobFixture());
     mockListFormatRules.mockReturnValue([]);
-    mockRunAdjustmentChatTurn.mockResolvedValue({
+    mockRunAgentTurn.mockResolvedValue({
       assistantMessage: "AI response",
-      toolMessages: [],
-      didRequestClarification: false,
+      actions: [],
     });
 
     const updatedDetail = createSessionDetailFixture({
@@ -652,6 +544,7 @@ describe("adjustments.appendMessage", () => {
     mockGetAdjustmentSessionDetail
       .mockReturnValueOnce(detail)
       .mockReturnValueOnce(detail)
+      .mockReturnValueOnce(updatedDetail)
       .mockReturnValueOnce(updatedDetail);
 
     const result = await client.adjustments.appendMessage({
@@ -664,7 +557,7 @@ describe("adjustments.appendMessage", () => {
       "user",
       "Make headings bold",
     );
-    expect(mockRunAdjustmentChatTurn).toHaveBeenCalledOnce();
+    expect(mockRunAgentTurn).toHaveBeenCalledOnce();
     expect(result.messages).toHaveLength(2);
   });
 });

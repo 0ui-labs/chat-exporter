@@ -567,122 +567,12 @@ async function buildSharedPackage() {
   });
 }
 
-async function verifyRollbackBehavior() {
-  const [{ createAdjustmentSession, applyAdjustmentPreview }, { rawDb }] =
-    await Promise.all([
-      import("../lib/adjustment-repository.js"),
-      import("../db/client.js"),
-    ]);
-
-  const { session } = createAdjustmentSession({
-    importId: fixtureImportId,
-    targetFormat: "reader",
-    selection: {
-      blockIndex: 0,
-      blockType: "heading",
-      messageId: "assistant-1",
-      messageIndex: 1,
-      messageRole: "assistant",
-      selectedText: "Project plan",
-      textQuote: "Project plan",
-    },
-  });
-
-  // Inject a preview artifact directly while keeping status as 'open',
-  // so applyAdjustmentPreview reaches the transaction status-transition guard
-  // instead of failing on the missing-previewArtifact precondition.
-  const fakePreviewArtifact = JSON.stringify({
-    draftRule: {
-      effect: {
-        type: "adjust_block_spacing",
-        amount: "lg",
-        direction: "after",
-      },
-      kind: "render",
-      scope: "import_local",
-      selector: { blockType: "heading", strategy: "block_type" },
-    },
-    limitations: [],
-    rationale: "Smoke-test rollback verification artifact.",
-    summary: "Rollback-test spacing rule.",
-  });
-  rawDb
-    .prepare(
-      "UPDATE adjustment_sessions SET preview_artifact_json = ? WHERE id = ?",
-    )
-    .run(fakePreviewArtifact, session.id);
-
-  const baselineDb = new Database(dbPath, { readonly: true });
-  const baselineRules =
-    baselineDb
-      .prepare<[string], { count: number }>(
-        "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
-      )
-      .get(fixtureImportId)?.count ?? 0;
-  const baselineEvents =
-    baselineDb
-      .prepare<[string], { count: number }>(
-        "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
-      )
-      .get(fixtureImportId)?.count ?? 0;
-  baselineDb.close();
-
-  let caughtError: unknown;
-
-  try {
-    applyAdjustmentPreview(session.id);
-  } catch (error) {
-    caughtError = error;
-  }
-
-  if (!caughtError) {
-    throw new Error(
-      "applyAdjustmentPreview hätte werfen müssen, da die Session nicht im Status 'preview_ready' ist.",
-    );
-  }
-
-  const expectedMessage = "Status-Transition fehlgeschlagen";
-
-  if (
-    !(caughtError instanceof Error) ||
-    !caughtError.message.includes(expectedMessage)
-  ) {
-    const actual =
-      caughtError instanceof Error ? caughtError.message : String(caughtError);
-    throw new Error(
-      `Rollback-Verifikation: Erwarteter Fehler enthält "${expectedMessage}", erhalten: "${actual}"`,
-    );
-  }
-
-  const postDb = new Database(dbPath, { readonly: true });
-  const postRules =
-    postDb
-      .prepare<[string], { count: number }>(
-        "SELECT COUNT(*) AS count FROM format_rules WHERE import_id = ?",
-      )
-      .get(fixtureImportId)?.count ?? 0;
-  const postEvents =
-    postDb
-      .prepare<[string], { count: number }>(
-        "SELECT COUNT(*) AS count FROM adjustment_events WHERE import_id = ?",
-      )
-      .get(fixtureImportId)?.count ?? 0;
-  postDb.close();
-
-  if (postRules !== baselineRules || postEvents !== baselineEvents) {
-    throw new Error(
-      "Rollback-Verifikation fehlgeschlagen: applyAdjustmentPreview hat Writes hinterlassen obwohl die Session nicht im Status 'preview_ready' war.",
-    );
-  }
-
-  rawDb.close();
-  console.log("Rollback verification passed.");
-}
+// Rollback verification removed: applyAdjustmentPreview no longer exists
+// in the single-agent architecture.
 
 async function runSmokeFlow() {
   await buildSharedPackage();
   await resetSeededDatabase();
-  await verifyRollbackBehavior();
   const mockOpenAi = await startMockOpenAiServer();
 
   const children = [
@@ -787,7 +677,7 @@ async function runSmokeFlow() {
          FROM adjustment_sessions
          WHERE import_id = ?
            AND target_format = ?
-           AND status IN ('open', 'preview_ready')`,
+           AND status IN ('open', 'applied')`,
       )
       .get(fixtureImportId, "reader");
     const resumedReaderSessionCount = resumedReaderSessionRow?.count ?? 0;
