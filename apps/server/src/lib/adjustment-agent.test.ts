@@ -1,0 +1,522 @@
+import type {
+  AdjustmentSelection,
+  AdjustmentSessionDetail,
+  Role,
+} from "@chat-exporter/shared";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+import { AgentUnavailableError, runAgentTurn } from "./adjustment-agent.js";
+
+// --- Env setup ---
+
+const originalEnv = { ...process.env };
+const originalFetch = globalThis.fetch;
+
+function setTestEnv() {
+  process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED = "1";
+  process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER = "openai";
+  process.env.ADJUSTMENT_RULE_COMPILATION_MODEL = "gpt-5-mini";
+  process.env.OPENAI_API_BASE_URL = "https://example.test/v1";
+  process.env.OPENAI_API_KEY = "test-key";
+}
+
+// --- Factories ---
+
+function createSelection(
+  overrides: Partial<AdjustmentSelection> = {},
+): AdjustmentSelection {
+  return {
+    blockIndex: 0,
+    blockType: "paragraph",
+    messageId: "message-1",
+    messageIndex: 0,
+    messageRole: "assistant",
+    selectedText: "Example content",
+    textQuote: "Example content",
+    ...overrides,
+  };
+}
+
+function createSessionDetail(
+  userMessage = "Mach den Text größer",
+): AdjustmentSessionDetail {
+  return {
+    messages: [
+      {
+        content: "Wie kann ich helfen?",
+        createdAt: "2026-03-08T12:00:00.000Z",
+        id: "assistant-1",
+        role: "assistant" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: userMessage,
+        createdAt: "2026-03-08T12:01:00.000Z",
+        id: "user-1",
+        role: "user" satisfies Role,
+        sessionId: "session-1",
+      },
+    ],
+    session: {
+      createdAt: "2026-03-08T12:00:00.000Z",
+      id: "session-1",
+      importId: "import-1",
+      selection: createSelection(),
+      status: "open",
+      targetFormat: "reader",
+      updatedAt: "2026-03-08T12:01:00.000Z",
+    },
+  };
+}
+
+function createCallbacks() {
+  return {
+    onCreateRule: vi.fn().mockResolvedValue({ ruleId: "rule-new-1" }),
+    onUpdateRule: vi.fn().mockResolvedValue(undefined),
+    onDeleteRule: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+// --- OpenAI mock helper ---
+
+function mockResponsesApi(output: unknown[]) {
+  return vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: "resp-1", output, output_text: null }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+}
+
+function functionCallOutput(
+  name: string,
+  args: Record<string, unknown>,
+  callId = "call-1",
+) {
+  return {
+    type: "function_call",
+    call_id: callId,
+    name,
+    arguments: JSON.stringify(args),
+  };
+}
+
+function assistantMessageOutput(text: string) {
+  return {
+    type: "message",
+    role: "assistant",
+    content: [{ type: "output_text", text }],
+  };
+}
+
+describe("AdjustmentAgent", () => {
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    globalThis.fetch = originalFetch;
+  });
+
+  test("AI calls create_rule with CSS effect → callback receives validated effect", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createRuleArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem", fontWeight: "600" },
+      },
+      description: "Text größer und fetter machen",
+    };
+
+    // First call: AI returns function_call
+    // Second call: AI returns assistant message after tool output
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createRuleArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Der Text ist jetzt größer und fetter."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).toHaveBeenCalledOnce();
+    expect(callbacks.onCreateRule).toHaveBeenCalledWith({
+      selector: createRuleArgs.selector,
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem", fontWeight: "600" },
+      },
+      description: "Text größer und fetter machen",
+    });
+    expect(result.actions).toEqual([{ type: "created", ruleId: "rule-new-1" }]);
+    expect(result.assistantMessage).toBe(
+      "Der Text ist jetzt größer und fetter.",
+    );
+  });
+
+  test("AI calls update_rule → callback receives ruleId and effect", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const updateRuleArgs = {
+      ruleId: "rule-existing-1",
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.5rem" },
+      },
+      description: "Noch größer",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("update_rule", updateRuleArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [assistantMessageOutput("Schriftgröße wurde erhöht.")],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onUpdateRule).toHaveBeenCalledOnce();
+    expect(callbacks.onUpdateRule).toHaveBeenCalledWith({
+      ruleId: "rule-existing-1",
+      effect: { type: "custom_style", textStyle: { fontSize: "1.5rem" } },
+      description: "Noch größer",
+    });
+    expect(result.actions).toEqual([
+      { type: "updated", ruleId: "rule-existing-1" },
+    ]);
+  });
+
+  test("AI calls delete_rule → callback receives ruleId", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [
+              functionCallOutput("delete_rule", {
+                ruleId: "rule-to-delete",
+              }),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [assistantMessageOutput("Regel wurde entfernt.")],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onDeleteRule).toHaveBeenCalledOnce();
+    expect(callbacks.onDeleteRule).toHaveBeenCalledWith("rule-to-delete");
+    expect(result.actions).toEqual([
+      { type: "deleted", ruleId: "rule-to-delete" },
+    ]);
+  });
+
+  test("AI asks clarification question → no callbacks, only assistantMessage", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Möchtest du den Text größer oder fetter machen?"),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).not.toHaveBeenCalled();
+    expect(callbacks.onUpdateRule).not.toHaveBeenCalled();
+    expect(callbacks.onDeleteRule).not.toHaveBeenCalled();
+    expect(result.actions).toEqual([]);
+    expect(result.assistantMessage).toBe(
+      "Möchtest du den Text größer oder fetter machen?",
+    );
+  });
+
+  test("AI sends invalid effect → Zod validation catches it, error returned as tool result", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const invalidArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "not_a_valid_type",
+        textStyle: { fontSize: "1rem" },
+      },
+      description: "Invalid rule",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", invalidArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput(
+                "Es gab ein Problem mit der Regel. Bitte versuche es erneut.",
+              ),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    // Callback should NOT have been called because of validation failure
+    expect(callbacks.onCreateRule).not.toHaveBeenCalled();
+
+    // The second fetch call should have received error in tool output
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const secondCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondBody = JSON.parse(String(secondCall[1].body)) as {
+      input: Array<{ output?: string }>;
+    };
+    const toolOutput = secondBody.input[0]?.output;
+    expect(toolOutput).toBeDefined();
+    expect(toolOutput).toMatch(/error/i);
+
+    // Agent should still return a message
+    expect(result.assistantMessage).toBeTruthy();
+  });
+
+  test("AI calls multiple tools in one round → all are processed", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    const deleteArgs = {
+      ruleId: "old-rule-1",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [
+              functionCallOutput("create_rule", createArgs, "call-create"),
+              functionCallOutput("delete_rule", deleteArgs, "call-delete"),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Neue Regel erstellt und alte entfernt."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).toHaveBeenCalledOnce();
+    expect(callbacks.onDeleteRule).toHaveBeenCalledOnce();
+    expect(result.actions).toHaveLength(2);
+    expect(result.actions).toContainEqual({
+      type: "created",
+      ruleId: "rule-new-1",
+    });
+    expect(result.actions).toContainEqual({
+      type: "deleted",
+      ruleId: "old-rule-1",
+    });
+  });
+
+  test("throws AgentUnavailableError when AI is not configured", async () => {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.CEREBRAS_API_KEY;
+    delete process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED;
+    delete process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER;
+
+    await expect(
+      runAgentTurn({
+        sessionDetail: createSessionDetail(),
+        activeRules: [],
+        callbacks: createCallbacks(),
+      }),
+    ).rejects.toThrow(AgentUnavailableError);
+  });
+
+  test("callback error is returned as tool result without aborting the turn", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+    callbacks.onCreateRule.mockRejectedValueOnce(
+      new Error("Database constraint violation"),
+    );
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1rem" },
+      },
+      description: "Test rule",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Es gab ein Problem beim Erstellen."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    // The second fetch should have received the error as tool output
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const secondCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondBody = JSON.parse(String(secondCall[1].body)) as {
+      input: Array<{ output?: string }>;
+    };
+    const toolOutput = secondBody.input[0]?.output;
+    expect(toolOutput).toMatch(/Database constraint violation/);
+
+    // Agent should still return
+    expect(result.assistantMessage).toBeTruthy();
+  });
+});
