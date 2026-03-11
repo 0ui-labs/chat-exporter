@@ -1,5 +1,5 @@
 import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
@@ -91,7 +91,7 @@ export function FormatWorkspace({
     isRound: boolean;
     preview: string;
   } | null>(null);
-  const popover = useAdjustmentPopover(view, Boolean(session.activeSelection));
+  const popover = useAdjustmentPopover();
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
@@ -192,6 +192,36 @@ export function FormatWorkspace({
     session.adjustModeEnabled &&
     Boolean(session.activeSelection) &&
     Boolean(session.activeAnchor);
+
+  const popoverCallbacksRef = useRef({
+    handleDiscardSession: session.handleDiscardSession,
+    activeSessionDetail: session.activeSessionDetail,
+    handleRejectLastChange: rules.handleRejectLastChange,
+    setReplyVisible: session.setReplyVisible,
+  });
+  popoverCallbacksRef.current = {
+    handleDiscardSession: session.handleDiscardSession,
+    activeSessionDetail: session.activeSessionDetail,
+    handleRejectLastChange: rules.handleRejectLastChange,
+    setReplyVisible: session.setReplyVisible,
+  };
+
+  const handlePopoverClose = useCallback(() => {
+    popoverCallbacksRef.current.handleDiscardSession();
+  }, []);
+
+  const handleRejectLastChange = useCallback(() => {
+    const {
+      activeSessionDetail,
+      handleRejectLastChange: reject,
+      setReplyVisible,
+    } = popoverCallbacksRef.current;
+    if (activeSessionDetail) {
+      void reject(activeSessionDetail).then((success) => {
+        if (success) setReplyVisible(false);
+      });
+    }
+  }, []);
 
   const sessionError =
     session.activeSessionError ?? rules.disableError ?? rules.promoteError;
@@ -304,42 +334,34 @@ export function FormatWorkspace({
             />
           ) : null}
 
-          {showPopover && session.activeSelection && session.activeAnchor ? (
-            <ErrorBoundary
-              fallback={
-                <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
-                  {miscLabels.adjustmentLoadError}
-                </div>
+          <ErrorBoundary
+            fallback={
+              <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
+                {miscLabels.adjustmentLoadError}
+              </div>
+            }
+          >
+            <AdjustmentPopover
+              anchor={session.activeAnchor ?? null}
+              containerRef={session.sectionRef}
+              draftMessage={session.activeDraftMessage}
+              error={session.activeSessionError}
+              isLoading={session.activeSessionLoading || session.isDiscarding}
+              isSubmitting={session.isSubmitting}
+              open={
+                showPopover &&
+                Boolean(session.activeSelection) &&
+                Boolean(session.activeAnchor)
               }
-            >
-              <AdjustmentPopover
-                anchor={session.activeAnchor}
-                containerDimensions={popover.containerDimensions}
-                containerScrollTop={session.sectionRef.current?.scrollTop ?? 0}
-                draftMessage={session.activeDraftMessage}
-                error={session.activeSessionError}
-                isLoading={session.activeSessionLoading || session.isDiscarding}
-                isSubmitting={session.isSubmitting}
-                sessionDetail={session.activeSessionDetail}
-                showReply={session.replyVisible}
-                view={view}
-                onClose={() => {
-                  session.handleDiscardSession();
-                }}
-                onDraftMessageChange={session.handleDraftMessageChange}
-                onRejectLastChange={() => {
-                  if (session.activeSessionDetail) {
-                    void rules
-                      .handleRejectLastChange(session.activeSessionDetail)
-                      .then((success) => {
-                        if (success) session.setReplyVisible(false);
-                      });
-                  }
-                }}
-                onSubmitMessage={session.handleSubmitMessage}
-              />
-            </ErrorBoundary>
-          ) : null}
+              sessionDetail={session.activeSessionDetail}
+              showReply={session.replyVisible}
+              view={view}
+              onClose={handlePopoverClose}
+              onDraftMessageChange={session.handleDraftMessageChange}
+              onRejectLastChange={handleRejectLastChange}
+              onSubmitMessage={session.handleSubmitMessage}
+            />
+          </ErrorBoundary>
         </div>
       )}
 

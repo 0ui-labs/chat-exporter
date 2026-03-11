@@ -1,87 +1,19 @@
 import type { ImportSummary } from "@chat-exporter/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { orpc } from "@/lib/orpc";
-import { formatRelativeTime } from "@/lib/relative-time";
-import { cn } from "@/lib/utils";
 
 import { DeleteImportDialog } from "./delete-import-dialog";
 import { ImportHistoryFilters } from "./import-history-filters";
-
-type SortField = "createdAt" | "updatedAt" | "sourcePlatform" | "status";
-type SortOrder = "asc" | "desc";
-
-const platformLabels: Record<string, string> = {
-  chatgpt: "ChatGPT",
-  claude: "Claude",
-  gemini: "Gemini",
-  grok: "Grok",
-  deepseek: "DeepSeek",
-  notebooklm: "NotebookLM",
-  unknown: "Unbekannt",
-};
-
-const defaultStatusConfig = {
-  label: "Unbekannt",
-  className: "border-gray-300/40 bg-gray-100/60 text-gray-700",
-};
-
-const statusConfig: Record<string, { label: string; className: string }> = {
-  completed: {
-    label: "Abgeschlossen",
-    className: "border-green-300/40 bg-green-100/60 text-green-800",
-  },
-  failed: {
-    label: "Fehlgeschlagen",
-    className: "border-red-300/40 bg-red-100/60 text-red-800",
-  },
-  running: {
-    label: "Läuft",
-    className: "border-yellow-300/40 bg-yellow-100/60 text-yellow-800",
-  },
-  queued: {
-    label: "Warteschlange",
-    className: "border-gray-300/40 bg-gray-100/60 text-gray-700",
-  },
-};
-
-function formatTitle(imp: ImportSummary): string {
-  if (imp.pageTitle) return imp.pageTitle;
-  try {
-    const url = new URL(imp.sourceUrl);
-    return `${url.hostname}${url.pathname}`.replace(/\/$/, "");
-  } catch {
-    return imp.sourceUrl;
-  }
-}
-
-function SortIcon({
-  field,
-  activeField,
-  order,
-}: {
-  field: SortField;
-  activeField: SortField;
-  order: SortOrder;
-}) {
-  if (field !== activeField)
-    return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
-  return order === "asc" ? (
-    <ArrowUp className="h-3.5 w-3.5" />
-  ) : (
-    <ArrowDown className="h-3.5 w-3.5" />
-  );
-}
+import { ImportHistoryRow } from "./import-history-row";
+import type { SortField, SortOrder } from "./sort-icon";
+import { SortIcon } from "./sort-icon";
 
 export function ImportHistoryTable() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const sortBy = (searchParams.get("sort") as SortField) || "createdAt";
@@ -154,6 +86,7 @@ export function ImportHistoryTable() {
             <div className="space-y-1 p-4">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
                   key={`skeleton-${i}`}
                   className="h-14 animate-pulse rounded-lg bg-muted/50"
                 />
@@ -222,54 +155,13 @@ export function ImportHistoryTable() {
                   </tr>
                 </thead>
                 <tbody>
-                  {imports.map((imp) => {
-                    const statusInfo =
-                      statusConfig[imp.status] ?? defaultStatusConfig;
-                    return (
-                      <tr
-                        key={imp.id}
-                        className="group cursor-pointer border-b border-border/30 transition hover:bg-muted/30"
-                        onClick={() => navigate(`/?import=${imp.id}`)}
-                      >
-                        <td className="max-w-xs truncate px-4 py-3 font-medium">
-                          {formatTitle(imp)}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {platformLabels[imp.sourcePlatform] ??
-                            imp.sourcePlatform}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge
-                            className={cn(
-                              "text-[10px] uppercase",
-                              statusInfo.className,
-                            )}
-                          >
-                            {statusInfo.label}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                          {imp.summary?.messageCount ?? "–"}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                          {formatRelativeTime(imp.createdAt)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Button
-                            className="h-8 w-8 opacity-0 transition group-hover:opacity-100"
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(imp);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {imports.map((imp) => (
+                    <ImportHistoryRow
+                      key={imp.id}
+                      imp={imp}
+                      onDelete={setDeleteTarget}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>

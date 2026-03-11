@@ -1,5 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useReducer, useRef } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
 
 import {
   type AdjustmentSelection,
@@ -136,52 +142,102 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     view,
   ]);
 
-  function toggleAdjustMode() {
+  const toggleAdjustMode = useCallback(() => {
     if (!isAdjustableView) return;
     const nextEnabled = !state.adjustModeByView[view];
     dispatch({ type: "SET_ADJUST_MODE", view, enabled: nextEnabled });
     dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed: false });
     if (!nextEnabled) dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
-  }
+  }, [isAdjustableView, state.adjustModeByView, view]);
 
-  function handleSelectionChange(
-    selection: AdjustmentSelection,
-    anchor: ViewportAnchor,
-  ) {
-    const container = sectionRef.current;
-    const r = container?.getBoundingClientRect();
-    const adjusted = r
-      ? {
-          top: anchor.top - r.top,
-          bottom: anchor.bottom - r.top,
-          left: anchor.left - r.left,
-          width: anchor.width,
-          height: anchor.height,
-        }
-      : anchor;
-    dispatch({ type: "SELECTION_CHANGED", view, selection, anchor: adjusted });
-  }
+  const handleSelectionChange = useCallback(
+    (selection: AdjustmentSelection, anchor: ViewportAnchor) => {
+      const container = sectionRef.current;
+      const r = container?.getBoundingClientRect();
+      const scrollTop = container?.scrollTop ?? 0;
+      const adjusted = r
+        ? {
+            top: anchor.top - r.top + scrollTop,
+            bottom: anchor.bottom - r.top + scrollTop,
+            left: anchor.left - r.left,
+            width: anchor.width,
+            height: anchor.height,
+          }
+        : anchor;
+      dispatch({
+        type: "SELECTION_CHANGED",
+        view,
+        selection,
+        anchor: adjusted,
+      });
+    },
+    [view],
+  );
 
-  function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!state.activeSessionDetail) return;
-    const content = state.draftMessageByView[view].trim();
-    if (!content) return;
-    dispatch({ type: "SET_SESSION_ERROR", error: null });
-    appendMessage.mutate({
-      sessionId: state.activeSessionDetail.session.id,
-      content,
-    });
-  }
+  // Stable refs for values used in callbacks — prevents useCallback from
+  // getting new references when mutation objects or state change.
+  const latestRef = useRef({
+    activeSessionDetail: state.activeSessionDetail,
+    draftMessageByView: state.draftMessageByView,
+    appendMutate: appendMessage.mutate,
+    discardMutate: discardSession.mutate,
+  });
+  latestRef.current = {
+    activeSessionDetail: state.activeSessionDetail,
+    draftMessageByView: state.draftMessageByView,
+    appendMutate: appendMessage.mutate,
+    discardMutate: discardSession.mutate,
+  };
 
-  function handleDiscardSession() {
-    if (!state.activeSessionDetail) {
+  const handleSubmitMessage = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const { activeSessionDetail, draftMessageByView, appendMutate } =
+        latestRef.current;
+      if (!activeSessionDetail) return;
+      const content = draftMessageByView[view].trim();
+      if (!content) return;
+      dispatch({ type: "SET_SESSION_ERROR", error: null });
+      appendMutate({
+        sessionId: activeSessionDetail.session.id,
+        content,
+      });
+    },
+    [view],
+  );
+
+  const handleDiscardSession = useCallback(() => {
+    const { activeSessionDetail, discardMutate } = latestRef.current;
+    if (!activeSessionDetail) {
       dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
       return;
     }
     dispatch({ type: "SET_SESSION_ERROR", error: null });
-    discardSession.mutate({ sessionId: state.activeSessionDetail.session.id });
-  }
+    discardMutate({ sessionId: activeSessionDetail.session.id });
+  }, [view]);
+
+  const handleDraftMessageChange = useCallback(
+    (value: string) => dispatch({ type: "SET_DRAFT_MESSAGE", view, value }),
+    [view],
+  );
+
+  const setReplyVisible = useCallback(
+    (visible: boolean) =>
+      dispatch({ type: "SET_REPLY_VISIBLE", view, visible }),
+    [view],
+  );
+
+  const setGuideDismissed = useCallback(
+    (dismissed: boolean) =>
+      dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed }),
+    [view],
+  );
+
+  const clearCurrentAdjustmentState = useCallback(
+    (targetView: ViewMode) =>
+      dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view: targetView }),
+    [],
+  );
 
   return {
     sectionRef,
@@ -202,15 +258,11 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     guideDismissed: state.guideDismissedByView[view],
     toggleAdjustMode,
     handleSelectionChange,
-    handleDraftMessageChange: (value: string) =>
-      dispatch({ type: "SET_DRAFT_MESSAGE", view, value }),
+    handleDraftMessageChange,
     handleSubmitMessage,
     handleDiscardSession,
-    clearCurrentAdjustmentState: (targetView: ViewMode) =>
-      dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view: targetView }),
-    setReplyVisible: (visible: boolean) =>
-      dispatch({ type: "SET_REPLY_VISIBLE", view, visible }),
-    setGuideDismissed: (dismissed: boolean) =>
-      dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed }),
+    clearCurrentAdjustmentState,
+    setReplyVisible,
+    setGuideDismissed,
   };
 }

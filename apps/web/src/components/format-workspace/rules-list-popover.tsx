@@ -171,7 +171,7 @@ export function RulesListPopover({
                                 {rulesLabels.rationale}
                               </p>
                               <p className="mt-1 text-sm text-foreground">
-                                {detail.session.previewArtifact?.rationale ??
+                                {rule.instruction ??
                                   rulesLabels.defaultRationale}
                               </p>
                             </div>
@@ -181,9 +181,7 @@ export function RulesListPopover({
                                 blockType: detail.session.selection.blockType,
                                 exactLabel: rulesLabels.exactScopeNote,
                                 scope: rule.scope,
-                                selector:
-                                  detail.session.previewArtifact?.draftRule
-                                    .selector ?? rule.selector,
+                                selector: rule.selector,
                                 view,
                               })}
                             </div>

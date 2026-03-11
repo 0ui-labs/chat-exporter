@@ -133,6 +133,7 @@ export const adjustmentLabels = {
   defaultHint:
     "Die KI antwortet kurz und setzt klare Änderungen sofort direkt in dieser Ansicht um.",
   closeLabel: "Anpassung schließen",
+  createRuleLabel: "Regel erstellen",
   inputLabel: "Anpassungsanfrage",
 
   // Guide

@@ -4,15 +4,64 @@ import type {
   AdjustmentTargetFormat,
 } from "@chat-exporter/shared";
 
-import {
-  hasLabelStylePrefix,
-  hasMarkdownStrongMarkers,
-  mentionsInlineEmphasisRequest,
-  mentionsMarkdownStrongFormattingIssue,
-  mentionsStructuralRequest,
-  mentionsVisualStylingRequest,
-  wantsBroadRule,
-} from "./adjustment-heuristics.js";
+// ---------------------------------------------------------------------------
+// Inlined heuristics (previously in adjustment-heuristics.ts, now removed)
+// ---------------------------------------------------------------------------
+
+function mentions(input: string, pattern: RegExp) {
+  return pattern.test(input);
+}
+
+function wantsBroadRule(input: string) {
+  return mentions(
+    input,
+    /\b(always|whenever|every|all similar|same kind|all|immer|ueberall|überall|alle ähnlichen|aehnlichen|ähnlichen|ähnliche|aehnliche|ähnliche|generell|standardmäßig|standardmaessig|jeder|jede|jedes)\b/i,
+  );
+}
+
+function hasLabelStylePrefix(text: string) {
+  const firstLine = text.trim().split("\n")[0] ?? "";
+  const match = firstLine.match(/^([^:\n]{1,48}:)(\s|$)/);
+  if (!match) return false;
+  const matchedPrefix = match[1];
+  if (!matchedPrefix) return false;
+  const prefix = matchedPrefix.slice(0, -1).trim();
+  if (!prefix || /[.!?]/.test(prefix)) return false;
+  const words = prefix.split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 6;
+}
+
+function hasMarkdownStrongMarkers(text: string) {
+  return /(\*\*[^*\n][^*\n]*\*\*|__[^_\n][^_\n]*__)/.test(text);
+}
+
+function mentionsInlineEmphasisRequest(input: string) {
+  return mentions(
+    input,
+    /\b(bold|italic|emphasis|highlight|colon|label|fett|fettdruck|kursiv|hervorheben|doppelpunkt|label)\b/i,
+  );
+}
+
+function mentionsStructuralRequest(input: string) {
+  return mentions(
+    input,
+    /\b(heading|headline|title|list|bullet|table|code block|quote|paragraph|überschrift|ueberschrift|titel|liste|aufzählung|aufzaehlung|tabelle|codeblock|zitat|absatz)\b/i,
+  );
+}
+
+function mentionsVisualStylingRequest(input: string) {
+  return mentions(
+    input,
+    /\b(bigger|larger|smaller|spacing|space|gap|padding|margin|color|font|size|größer|groesser|kleiner|abstand|abstände|abstaende|farbe|schrift|schriftgröße|schriftgroesse|größe|groesse)\b/i,
+  );
+}
+
+function mentionsMarkdownStrongFormattingIssue(input: string) {
+  return mentions(
+    input,
+    /\b(bold|fett|fettdruck|markdown|asterisk|asterisks|sternchen|format|formatiert|formatierung|render|rendern|darstellung|darstellen)\b/i,
+  );
+}
 
 function getRoleLabel(role: string) {
   switch (role) {

@@ -3,15 +3,13 @@ import { implement, ORPCError } from "@orpc/server";
 
 import { databasePath, withTransaction } from "../db/client.js";
 import {
-  AdjustmentChatUnavailableError,
-  type ApplyAdjustmentRuleResult,
-  runAdjustmentChatTurn,
-} from "../lib/adjustment-chat-orchestrator.js";
-import { buildAdjustmentPreview } from "../lib/adjustment-preview.js";
+  AgentUnavailableError,
+  runAgentTurn,
+} from "../lib/adjustment-agent.js";
 import {
   appendAdjustmentMessage,
-  applyAdjustmentPreview,
   createAdjustmentSession,
+  createFormatRuleDirect,
   demoteRuleToLocal,
   disableFormatRule,
   discardAdjustmentSession,
@@ -22,7 +20,7 @@ import {
   promoteRuleToProfile,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
-  saveAdjustmentPreview,
+  updateFormatRuleEffect,
 } from "../lib/adjustment-repository.js";
 import {
   listDeletions,
@@ -249,83 +247,59 @@ export const router = os.router({
       // Phase 2 — no wrapper: async AI call
       try {
         const job = getImportJob(detail.session.importId);
-        const chatTurn = await runAdjustmentChatTurn({
-          activeRules,
-          executeApplyAdjustmentRule: async ({ instruction }) => {
-            const syntheticDetail = {
-              ...latestDetail,
-              messages: [
-                ...latestDetail.messages,
-                {
-                  content: instruction,
-                  createdAt: new Date().toISOString(),
-                  id: `${input.sessionId}:tool-instruction`,
-                  role: "user" as const,
-                  sessionId: input.sessionId,
-                },
-              ],
-            };
-
-            try {
-              const preview = await buildAdjustmentPreview({
-                activeRules,
-                job,
-                sessionDetail: syntheticDetail,
-              });
-
-              saveAdjustmentPreview(input.sessionId, preview);
-              recordAdjustmentEvent({
-                importId: latestDetail.session.importId,
-                sessionId: input.sessionId,
-                targetFormat: latestDetail.session.targetFormat,
-                type: "preview_generated",
-              });
-
-              const applied = applyAdjustmentPreview(input.sessionId);
-
-              return {
-                ok: true,
-                rationale: preview.rationale,
-                ruleId: applied.rule.id,
-                summary: preview.summary,
-              } satisfies ApplyAdjustmentRuleResult;
-            } catch (error) {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "Die Regel konnte nicht direkt angewendet werden.";
-
-              recordAdjustmentEvent({
-                importId: latestDetail.session.importId,
-                payload: { message },
-                sessionId: input.sessionId,
-                targetFormat: latestDetail.session.targetFormat,
-                type: "preview_failed",
-              });
-
-              return {
-                error: message,
-                ok: false,
-              } satisfies ApplyAdjustmentRuleResult;
-            }
-          },
-          job,
+        const result = await runAgentTurn({
           sessionDetail: latestDetail,
+          activeRules,
+          job,
+          callbacks: {
+            onCreateRule: async ({ selector, effect, description }) => {
+              const rule = createFormatRuleDirect({
+                importId: latestDetail.session.importId,
+                targetFormat: latestDetail.session.targetFormat,
+                selector,
+                effect: {
+                  type: "custom_style" as const,
+                  ...effect,
+                  description,
+                },
+                instruction: description,
+                sourceSessionId: input.sessionId,
+              });
+              return { ruleId: rule.id };
+            },
+            onUpdateRule: async ({ ruleId, effect, description }) => {
+              updateFormatRuleEffect(
+                ruleId,
+                { type: "custom_style" as const, ...effect, description },
+                description,
+              );
+            },
+            onDeleteRule: async (ruleId) => {
+              disableFormatRule(ruleId, latestDetail.session.importId);
+            },
+          },
         });
 
-        // Phase 3 — Transaction: persist tool messages + assistant message + event
+        // Phase 3 — persist assistant message + events
         withTransaction(() => {
-          for (const toolMessage of chatTurn.toolMessages) {
-            appendAdjustmentMessage(input.sessionId, "tool", toolMessage);
-          }
-
           appendAdjustmentMessage(
             input.sessionId,
             "assistant",
-            chatTurn.assistantMessage,
+            result.assistantMessage,
           );
 
-          if (chatTurn.didRequestClarification) {
+          for (const action of result.actions) {
+            recordAdjustmentEvent({
+              importId: latestDetail.session.importId,
+              ruleId: action.ruleId,
+              sessionId: input.sessionId,
+              targetFormat: latestDetail.session.targetFormat,
+              type:
+                action.type === "deleted" ? "rule_disabled" : "rule_applied",
+            });
+          }
+
+          if (result.actions.length === 0) {
             recordAdjustmentEvent({
               importId: latestDetail.session.importId,
               sessionId: input.sessionId,
@@ -335,7 +309,7 @@ export const router = os.router({
           }
         });
       } catch (error) {
-        if (error instanceof AdjustmentChatUnavailableError) {
+        if (error instanceof AgentUnavailableError) {
           throw new ORPCError("SERVICE_UNAVAILABLE", {
             message: error.message,
           });
@@ -357,85 +331,6 @@ export const router = os.router({
       }
 
       return nextDetail;
-    }),
-
-    generatePreview: os.adjustments.generatePreview.handler(
-      async ({ input }) => {
-        const detail = getAdjustmentSessionDetail(input.sessionId);
-
-        if (!detail) {
-          throw new ORPCError("NOT_FOUND", {
-            message: "Anpassungssession nicht gefunden.",
-          });
-        }
-
-        try {
-          const job = getImportJob(detail.session.importId);
-          const activeRules = listFormatRules(
-            detail.session.importId,
-            detail.session.targetFormat,
-          ).filter((rule: { status: string }) => rule.status === "active");
-          const preview = await buildAdjustmentPreview({
-            activeRules,
-            job,
-            sessionDetail: detail,
-          });
-          saveAdjustmentPreview(input.sessionId, preview);
-          recordAdjustmentEvent({
-            importId: detail.session.importId,
-            sessionId: input.sessionId,
-            targetFormat: detail.session.targetFormat,
-            type: "preview_generated",
-          });
-
-          const nextDetail = getAdjustmentSessionDetail(input.sessionId);
-
-          if (!nextDetail) {
-            throw new ORPCError("INTERNAL_SERVER_ERROR", {
-              message: "Anpassungssession konnte nicht neu geladen werden.",
-            });
-          }
-
-          return nextDetail;
-        } catch (error) {
-          if (error instanceof ORPCError) {
-            throw error;
-          }
-
-          recordAdjustmentEvent({
-            importId: detail.session.importId,
-            payload: {
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Anpassungsvorschau konnte nicht erzeugt werden.",
-            },
-            sessionId: input.sessionId,
-            targetFormat: detail.session.targetFormat,
-            type: "preview_failed",
-          });
-
-          throw new ORPCError("BAD_REQUEST", {
-            message:
-              error instanceof Error
-                ? error.message
-                : "Anpassungsvorschau konnte nicht erzeugt werden.",
-          });
-        }
-      },
-    ),
-
-    apply: os.adjustments.apply.handler(({ input }) => {
-      try {
-        return applyAdjustmentPreview(input.sessionId);
-      } catch (error) {
-        throw new ORPCError("BAD_REQUEST", {
-          message:
-            error instanceof Error
-              ? error.message
-              : "Anpassungsregel konnte nicht angewendet werden.",
-        });
-      }
     }),
 
     discard: os.adjustments.discard.handler(({ input }) => {

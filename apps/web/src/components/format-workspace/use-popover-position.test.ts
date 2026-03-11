@@ -23,77 +23,60 @@ describe("clamp", () => {
 describe("getPopoverPosition", () => {
   const container = { width: 800, height: 600 };
 
-  it("positions above the anchor with a gap", () => {
+  it("positions with bottom edge above the anchor (stable top for translateY(-100%))", () => {
     const anchor = { top: 300, left: 200 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
+    const result = getPopoverPosition(anchor, container, 0);
 
-    // preferredTop = 300 - 100 - 12 = 188
-    expect(result.top).toBe(188);
+    // top = anchor.top - gap = 300 - 12 = 288
+    expect(result.top).toBe(288);
     expect(result.left).toBe(200);
   });
 
   it("clamps left to the margin", () => {
     const anchor = { top: 300, left: 5 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
+    const result = getPopoverPosition(anchor, container, 0);
 
     expect(result.left).toBe(16); // margin
   });
 
   it("clamps left so popover stays within container", () => {
     const anchor = { top: 300, left: 750 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
+    const result = getPopoverPosition(anchor, container, 0);
 
-    // max left = 800 - 320 - 16 = 464
-    expect(result.left).toBe(464);
+    // maxWidth = min(448, 800-32) = 448, max left = 800 - 448 - 16 = 336
+    expect(result.left).toBe(336);
   });
 
-  it("clamps top to prevent going above container scroll area", () => {
-    const anchor = { top: 20, left: 200 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
+  it("provides maxHeight to prevent overflow above visible area", () => {
+    const anchor = { top: 100, left: 200 };
+    const result = getPopoverPosition(anchor, container, 0);
 
-    // preferredTop = 20 - 100 - 12 = -92, clamped to 0 + 16 = 16
-    expect(result.top).toBe(16);
+    // top = 100 - 12 = 88, maxHeight = max(200, 88 - 0 - 16) = max(200, 72) = 200
+    expect(result.maxHeight).toBe(200);
   });
 
-  it("accounts for containerScrollTop", () => {
-    const anchor = { top: 50, left: 200 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 200);
+  it("accounts for containerScrollTop in maxHeight", () => {
+    const anchor = { top: 500, left: 200 };
+    const result = getPopoverPosition(anchor, container, 200);
 
-    // preferredTop = 50 - 100 - 12 = -62
-    // min = 200 + 16 = 216
-    expect(result.top).toBe(216);
+    // top = 500 - 12 = 488, maxHeight = max(200, 488 - 200 - 16) = max(200, 272) = 272
+    expect(result.maxHeight).toBe(272);
   });
 
   it("computes maxWidth respecting container width", () => {
     const anchor = { top: 300, left: 200 };
-    const dimensions = { height: 100, width: 320 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
+    const result = getPopoverPosition(anchor, container, 0);
 
-    // min(352, 800 - 32) = 352
-    expect(result.maxWidth).toBe(352);
+    // min(448, 800 - 32) = 448
+    expect(result.maxWidth).toBe(448);
   });
 
   it("limits maxWidth for narrow containers", () => {
     const narrowContainer = { width: 300, height: 600 };
     const anchor = { top: 300, left: 100 };
-    const dimensions = { height: 100, width: 250 };
-    const result = getPopoverPosition(anchor, dimensions, narrowContainer, 0);
+    const result = getPopoverPosition(anchor, narrowContainer, 0);
 
-    // min(352, 300 - 32) = 268
+    // min(448, 300 - 32) = 268
     expect(result.maxWidth).toBe(268);
-  });
-
-  it("uses maxWidth when dimensions.width is 0", () => {
-    const anchor = { top: 300, left: 200 };
-    const dimensions = { height: 100, width: 0 };
-    const result = getPopoverPosition(anchor, dimensions, container, 0);
-
-    // width fallback = maxWidth = 352, left clamped to max = 800 - 352 - 16 = 432
-    expect(result.left).toBe(200); // 200 < 432 so no clamp
   });
 });
