@@ -4,7 +4,11 @@ import type {
   FormatRule,
   RuleEffect,
 } from "@chat-exporter/shared";
-import { ruleEffectSchema, ruleSelectorSchema } from "@chat-exporter/shared";
+import {
+  normalizeLegacyEffect,
+  ruleEffectSchema,
+  ruleSelectorSchema,
+} from "@chat-exporter/shared";
 
 import { blockToPlainText } from "./reader-block-render";
 import { matchesReaderRule } from "./rule-matching";
@@ -12,7 +16,9 @@ import { matchesReaderRule } from "./rule-matching";
 // Re-exports for backward compatibility
 export {
   blockToPlainText,
+  collectInserts,
   getReaderBlockClassName,
+  getReaderBlockStyle,
   renderReaderBlock,
 } from "./reader-block-render";
 export { getBlocksMatchingRule } from "./rule-matching";
@@ -31,7 +37,8 @@ export function resolveReaderBlockEffects(
         matchesReaderRule(rule, messageId, blockIndex, blockType, blockText),
     )
     .map((rule) => rule.compiledRule)
-    .filter((effect): effect is RuleEffect => effect !== undefined);
+    .filter((effect): effect is RuleEffect => effect !== undefined)
+    .map(normalizeLegacyEffect);
 }
 
 export function buildReaderEffectsMap(
@@ -64,7 +71,8 @@ export function buildReaderEffectsMap(
           ),
         )
         .map((rule) => rule.compiledRule)
-        .filter((effect): effect is RuleEffect => effect !== undefined);
+        .filter((effect): effect is RuleEffect => effect !== undefined)
+        .map(normalizeLegacyEffect);
 
       if (effects.length > 0) {
         effectsMap.set(`${message.id}:${blockIndex}`, effects);
@@ -92,94 +100,88 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
     }
 
     const selector = parsedSelector.data;
-    const effect = parsedEffect.data;
+    const effect = normalizeLegacyEffect(parsedEffect.data);
 
     const strategy = "strategy" in selector ? selector.strategy : undefined;
-    const effectType = effect.type;
 
-    if (
-      strategy === "prefix_before_colon" &&
-      effectType === "bold_prefix_before_colon"
-    ) {
-      for (let index = 0; index < nextLines.length; index += 1) {
-        const line = nextLines[index] ?? "";
-        nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
-      }
-      continue;
-    }
+    // All effects are now custom_style after normalization
+    {
+      const transform = effect.markdownTransform;
+      if (!transform) continue;
 
-    if (
-      strategy === "markdown_table" &&
-      effectType === "normalize_markdown_table"
-    ) {
-      for (let index = 0; index < nextLines.length; index += 1) {
-        const line = nextLines[index] ?? "";
-
-        if (!line.includes("|")) {
-          continue;
-        }
-
-        nextLines[index] = line
-          .split("|")
-          .map((cell) => cell.trim())
-          .join(" | ")
-          .trim();
-      }
-      continue;
-    }
-
-    const lineStart = "lineStart" in selector ? selector.lineStart : null;
-    const lineEnd = "lineEnd" in selector ? selector.lineEnd : lineStart;
-
-    if (!lineStart || !lineEnd) {
-      continue;
-    }
-
-    const startIndex = Math.max(0, lineStart - 1);
-    const endIndex = Math.min(nextLines.length - 1, lineEnd - 1);
-
-    switch (effectType) {
-      case "promote_to_heading":
-        nextLines[startIndex] =
-          `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
-        break;
-      case "bold_prefix_before_colon":
-        for (let index = startIndex; index <= endIndex; index += 1) {
+      if (
+        strategy === "prefix_before_colon" &&
+        transform === "bold_prefix_before_colon"
+      ) {
+        for (let index = 0; index < nextLines.length; index += 1) {
           const line = nextLines[index] ?? "";
           nextLines[index] = line.replace(/^([^:\n]{1,120}:)(?!\*)/, "**$1**");
         }
-        break;
-      case "normalize_list_structure":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          const line = nextLines[index] ?? "";
-          const trimmedLine = line.trim();
+        continue;
+      }
 
-          if (!trimmedLine) {
-            continue;
-          }
-
-          nextLines[index] = /^[-*]\s/.test(trimmedLine)
-            ? trimmedLine
-            : `- ${trimmedLine}`;
-        }
-        break;
-      case "normalize_markdown_table":
-        for (let index = startIndex; index <= endIndex; index += 1) {
+      if (
+        strategy === "markdown_table" &&
+        transform === "normalize_markdown_table"
+      ) {
+        for (let index = 0; index < nextLines.length; index += 1) {
           const line = nextLines[index] ?? "";
+          if (!line.includes("|")) continue;
           nextLines[index] = line
             .split("|")
             .map((cell) => cell.trim())
             .join(" | ")
             .trim();
         }
-        break;
-      case "reshape_markdown_block":
-        for (let index = startIndex; index <= endIndex; index += 1) {
-          nextLines[index] = (nextLines[index] ?? "").trimEnd();
-        }
-        break;
-      default:
-        break;
+        continue;
+      }
+
+      const lineStart = "lineStart" in selector ? selector.lineStart : null;
+      const lineEnd = "lineEnd" in selector ? selector.lineEnd : lineStart;
+      if (!lineStart || !lineEnd) continue;
+      const startIndex = Math.max(0, lineStart - 1);
+      const endIndex = Math.min(nextLines.length - 1, lineEnd - 1);
+
+      switch (transform) {
+        case "promote_to_heading":
+          nextLines[startIndex] =
+            `## ${nextLines[startIndex]?.replace(/^#+\s*/, "") ?? ""}`.trimEnd();
+          break;
+        case "bold_prefix_before_colon":
+          for (let index = startIndex; index <= endIndex; index += 1) {
+            const line = nextLines[index] ?? "";
+            nextLines[index] = line.replace(
+              /^([^:\n]{1,120}:)(?!\*)/,
+              "**$1**",
+            );
+          }
+          break;
+        case "normalize_list_structure":
+          for (let index = startIndex; index <= endIndex; index += 1) {
+            const line = nextLines[index] ?? "";
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+            nextLines[index] = /^[-*]\s/.test(trimmedLine)
+              ? trimmedLine
+              : `- ${trimmedLine}`;
+          }
+          break;
+        case "normalize_markdown_table":
+          for (let index = startIndex; index <= endIndex; index += 1) {
+            const line = nextLines[index] ?? "";
+            nextLines[index] = line
+              .split("|")
+              .map((cell) => cell.trim())
+              .join(" | ")
+              .trim();
+          }
+          break;
+        case "reshape_markdown_block":
+          for (let index = startIndex; index <= endIndex; index += 1) {
+            nextLines[index] = (nextLines[index] ?? "").trimEnd();
+          }
+          break;
+      }
     }
   }
 

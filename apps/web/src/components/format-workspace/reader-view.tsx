@@ -5,7 +5,7 @@ import type {
   Message,
   RuleEffect,
 } from "@chat-exporter/shared";
-import { memo, useMemo, useRef } from "react";
+import React, { memo, useMemo, useRef } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
@@ -13,8 +13,10 @@ import { getRoleLabel } from "@/components/format-workspace/labels";
 import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
 import {
   blockToPlainText,
+  collectInserts,
   getBlocksMatchingRule,
   getReaderBlockClassName,
+  getReaderBlockStyle,
   renderReaderBlock,
 } from "@/components/format-workspace/rule-engine";
 import type {
@@ -171,77 +173,92 @@ const ReaderMessage = memo(function ReaderMessage({
             );
           };
 
+          const inserts = collectInserts(blockEffects);
+
           return (
-            // biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design
-            // biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick
-            <div
-              key={`${message.id}-${block.type}-${blockText.slice(0, 32)}`}
-              data-testid={`reader-block-${message.id}-${blockIndex}`}
-              className={getReaderBlockClassName({
-                adjustModeEnabled,
-                effects: blockEffects,
-                isHighlighted,
-                isSelected,
-              })}
-              data-selected={isSelected ? "true" : "false"}
-              onPointerUp={(event) => {
-                if (!adjustModeEnabled) {
-                  return;
-                }
+            // biome-ignore lint/suspicious/noArrayIndexKey: block identity is message.id + blockIndex
+            <React.Fragment key={`${message.id}-${blockIndex}`}>
+              {inserts.insertBefore === "hr" && (
+                <hr className="border-border/40" />
+              )}
+              {inserts.insertBefore === "spacer" && <div className="h-6" />}
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+              <div
+                data-testid={`reader-block-${message.id}-${blockIndex}`}
+                className={getReaderBlockClassName({
+                  adjustModeEnabled,
+                  effects: blockEffects,
+                  isHighlighted,
+                  isSelected,
+                })}
+                style={getReaderBlockStyle(blockEffects)}
+                data-selected={isSelected ? "true" : "false"}
+                onPointerUp={(event) => {
+                  if (!adjustModeEnabled) {
+                    return;
+                  }
 
-                const selection = window.getSelection();
-                const range =
-                  selection && selection.rangeCount > 0
-                    ? selection.getRangeAt(0)
-                    : null;
-                const selectedText = selection?.toString().trim() ?? "";
-                const container = event.currentTarget;
-                const rangeStartContainer = range?.startContainer ?? null;
-                const rangeEndContainer = range?.endContainer ?? null;
-                const hasLocalTextSelection =
-                  Boolean(selectedText) &&
-                  Boolean(rangeStartContainer) &&
-                  Boolean(rangeEndContainer) &&
-                  container.contains(rangeStartContainer) &&
-                  container.contains(rangeEndContainer);
-                const anchorRect =
-                  hasLocalTextSelection && range
-                    ? range.getBoundingClientRect()
-                    : container.getBoundingClientRect();
+                  const selection = window.getSelection();
+                  const range =
+                    selection && selection.rangeCount > 0
+                      ? selection.getRangeAt(0)
+                      : null;
+                  const selectedText = selection?.toString().trim() ?? "";
+                  const container = event.currentTarget;
+                  const rangeStartContainer = range?.startContainer ?? null;
+                  const rangeEndContainer = range?.endContainer ?? null;
+                  const hasLocalTextSelection =
+                    Boolean(selectedText) &&
+                    Boolean(rangeStartContainer) &&
+                    Boolean(rangeEndContainer) &&
+                    container.contains(rangeStartContainer) &&
+                    container.contains(rangeEndContainer);
+                  const anchorRect =
+                    hasLocalTextSelection && range
+                      ? range.getBoundingClientRect()
+                      : container.getBoundingClientRect();
 
-                emitSelection(
-                  toViewportAnchor(anchorRect),
-                  hasLocalTextSelection ? selectedText : blockText,
-                );
+                  emitSelection(
+                    toViewportAnchor(anchorRect),
+                    hasLocalTextSelection ? selectedText : blockText,
+                  );
 
-                if (selection && hasLocalTextSelection) {
-                  selection.removeAllRanges();
-                }
-              }}
-              onClick={(event) => {
-                if (!adjustModeEnabled) {
-                  return;
-                }
+                  if (selection && hasLocalTextSelection) {
+                    selection.removeAllRanges();
+                  }
+                }}
+                onClick={(event) => {
+                  if (!adjustModeEnabled) {
+                    return;
+                  }
 
-                if (
-                  Date.now() - lastSelectionInteractionAt.current <
-                  SELECTION_DEBOUNCE_MS
-                ) {
-                  return;
-                }
+                  if (
+                    Date.now() - lastSelectionInteractionAt.current <
+                    SELECTION_DEBOUNCE_MS
+                  ) {
+                    return;
+                  }
 
-                emitSelection(
-                  toViewportAnchor(event.currentTarget.getBoundingClientRect()),
-                  blockText,
-                );
-              }}
-            >
-              <ErrorBoundary
-                fallback={<BlockErrorFallback blockType={block.type} />}
+                  emitSelection(
+                    toViewportAnchor(
+                      event.currentTarget.getBoundingClientRect(),
+                    ),
+                    blockText,
+                  );
+                }}
               >
-                <BlockRenderer block={block} effects={blockEffects} />
-              </ErrorBoundary>
-            </div>
+                <ErrorBoundary
+                  fallback={<BlockErrorFallback blockType={block.type} />}
+                >
+                  <BlockRenderer block={block} effects={blockEffects} />
+                </ErrorBoundary>
+              </div>
+              {inserts.insertAfter === "hr" && (
+                <hr className="border-border/40" />
+              )}
+              {inserts.insertAfter === "spacer" && <div className="h-6" />}
+            </React.Fragment>
           );
         })}
       </div>

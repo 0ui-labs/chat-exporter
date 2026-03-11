@@ -6,7 +6,6 @@ import {
   adjustmentSessionDetailSchema,
   adjustmentTargetFormatSchema,
   appendAdjustmentMessageRequestSchema,
-  applyAdjustmentSessionResponseSchema,
   createAdjustmentSessionRequestSchema,
   formatRuleSchema,
 } from "./adjustments.js";
@@ -83,14 +82,6 @@ export const contract = {
         }),
       )
       .output(adjustmentSessionDetailSchema),
-
-    generatePreview: oc
-      .input(z.object({ sessionId: z.string() }))
-      .output(adjustmentSessionDetailSchema),
-
-    apply: oc
-      .input(z.object({ sessionId: z.string() }))
-      .output(applyAdjustmentSessionResponseSchema),
 
     discard: oc
       .input(z.object({ sessionId: z.string() }))

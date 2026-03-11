@@ -14,7 +14,6 @@ export const adjustmentTargetFormatSchema = z.enum([
 
 export const adjustmentSessionStatusSchema = z.enum([
   "open",
-  "preview_ready",
   "applied",
   "discarded",
   "failed",
@@ -184,6 +183,38 @@ export const reshapeMarkdownBlockEffectSchema = z.object({
   type: z.literal("reshape_markdown_block"),
 });
 
+export const customStyleEffectSchema = z.object({
+  type: z.literal("custom_style"),
+  /** CSS properties applied to the block container element (React style object). */
+  containerStyle: z.record(z.string()).optional(),
+  /** CSS properties applied to child items (list items, table cells, etc.). */
+  itemStyle: z.record(z.string()).optional(),
+  /** CSS properties applied to text elements within the block. */
+  textStyle: z.record(z.string()).optional(),
+  /** Optional text rendering transformation. */
+  textTransform: z
+    .enum(["bold_prefix_before_colon", "render_markdown_strong"])
+    .nullish(),
+  /** For markdown view: structural text transformation to apply. */
+  markdownTransform: z
+    .enum([
+      "promote_to_heading",
+      "normalize_list_structure",
+      "normalize_markdown_table",
+      "reshape_markdown_block",
+      "bold_prefix_before_colon",
+    ])
+    .nullish(),
+  /** Human-readable description of the visual change. */
+  description: z.string().optional(),
+  /** Override heading level (1-6) for heading blocks. */
+  headingLevel: z.number().int().min(1).max(6).optional(),
+  /** Insert an element before the block. */
+  insertBefore: z.enum(["hr", "spacer"]).nullish(),
+  /** Insert an element after the block. */
+  insertAfter: z.enum(["hr", "spacer"]).nullish(),
+});
+
 export const ruleEffectSchema = z.discriminatedUnion("type", [
   adjustBlockSpacingEffectSchema,
   increaseHeadingEmphasisEffectSchema,
@@ -194,97 +225,10 @@ export const ruleEffectSchema = z.discriminatedUnion("type", [
   normalizeListStructureEffectSchema,
   normalizeMarkdownTableEffectSchema,
   reshapeMarkdownBlockEffectSchema,
+  customStyleEffectSchema,
 ]);
 
-// --- Format-specific draftRule schemas (semantic validation) ---
-
-export const readerDraftRuleSchema = z.union([
-  z.object({
-    effect: adjustBlockSpacingEffectSchema,
-    kind: z.literal("render"),
-    scope: formatRuleScopeSchema,
-    selector: z.union([exactReaderSelectorSchema, blockTypeSelectorSchema]),
-  }),
-  z.object({
-    effect: increaseHeadingEmphasisEffectSchema,
-    kind: z.literal("render"),
-    scope: formatRuleScopeSchema,
-    selector: z.union([exactReaderSelectorSchema, blockTypeSelectorSchema]),
-  }),
-  z.object({
-    effect: refineBlockPresentationEffectSchema,
-    kind: z.literal("render"),
-    scope: formatRuleScopeSchema,
-    selector: exactReaderSelectorSchema,
-  }),
-  z.object({
-    effect: boldPrefixEffectSchema,
-    kind: z.literal("inline_semantics"),
-    scope: formatRuleScopeSchema,
-    selector: z.union([exactReaderSelectorSchema, readerPrefixSelectorSchema]),
-  }),
-  z.object({
-    effect: renderMarkdownStrongEffectSchema,
-    kind: z.literal("inline_semantics"),
-    scope: formatRuleScopeSchema,
-    selector: exactReaderSelectorSchema,
-  }),
-]);
-
-export const markdownDraftRuleSchema = z.union([
-  z.object({
-    effect: promoteToHeadingEffectSchema,
-    kind: z.literal("structure"),
-    scope: formatRuleScopeSchema,
-    selector: exactMarkdownSelectorSchema,
-  }),
-  z.object({
-    effect: boldPrefixEffectSchema,
-    kind: z.literal("inline_semantics"),
-    scope: formatRuleScopeSchema,
-    selector: z.union([
-      exactMarkdownSelectorSchema,
-      markdownPrefixSelectorSchema,
-    ]),
-  }),
-  z.object({
-    effect: normalizeListStructureEffectSchema,
-    kind: z.literal("structure"),
-    scope: formatRuleScopeSchema,
-    selector: exactMarkdownSelectorSchema,
-  }),
-  z.object({
-    effect: normalizeMarkdownTableEffectSchema,
-    kind: z.literal("export_profile"),
-    scope: formatRuleScopeSchema,
-    selector: z.union([
-      exactMarkdownSelectorSchema,
-      markdownTableSelectorSchema,
-    ]),
-  }),
-  z.object({
-    effect: reshapeMarkdownBlockEffectSchema,
-    kind: z.literal("structure"),
-    scope: formatRuleScopeSchema,
-    selector: exactMarkdownSelectorSchema,
-  }),
-]);
-
-// --- Preview and rule schemas ---
-
-export const adjustmentPreviewSchema = z.object({
-  draftRule: z.object({
-    effect: ruleEffectSchema,
-    kind: formatRuleKindSchema,
-    scope: formatRuleScopeSchema,
-    selector: ruleSelectorSchema,
-  }),
-  limitations: z.array(z.string()),
-  rationale: z.string(),
-  sessionId: z.string(),
-  summary: z.string(),
-  targetFormat: adjustmentTargetFormatSchema,
-});
+// --- Session and rule schemas ---
 
 export const adjustmentSessionSchema = z.object({
   id: z.string(),
@@ -292,7 +236,6 @@ export const adjustmentSessionSchema = z.object({
   targetFormat: adjustmentTargetFormatSchema,
   status: adjustmentSessionStatusSchema,
   selection: adjustmentSelectionSchema,
-  previewArtifact: adjustmentPreviewSchema.optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -307,11 +250,6 @@ export const adjustmentMessageSchema = z.object({
 
 export const adjustmentSessionDetailSchema = z.object({
   messages: z.array(adjustmentMessageSchema),
-  session: adjustmentSessionSchema,
-});
-
-export const applyAdjustmentSessionResponseSchema = z.object({
-  rule: z.lazy(() => formatRuleSchema),
   session: adjustmentSessionSchema,
 });
 
@@ -362,16 +300,89 @@ export type CreateAdjustmentSessionRequest = z.infer<
 export type AppendAdjustmentMessageRequest = z.infer<
   typeof appendAdjustmentMessageRequestSchema
 >;
-export type AdjustmentPreview = z.infer<typeof adjustmentPreviewSchema>;
 export type AdjustmentSession = z.infer<typeof adjustmentSessionSchema>;
 export type AdjustmentMessage = z.infer<typeof adjustmentMessageSchema>;
 export type AdjustmentSessionDetail = z.infer<
   typeof adjustmentSessionDetailSchema
 >;
-export type ApplyAdjustmentSessionResponse = z.infer<
-  typeof applyAdjustmentSessionResponseSchema
->;
 export type FormatRule = z.infer<typeof formatRuleSchema>;
 export type AdjustmentMetrics = z.infer<typeof adjustmentMetricsSchema>;
 export type RuleSelector = z.infer<typeof ruleSelectorSchema>;
 export type RuleEffect = z.infer<typeof ruleEffectSchema>;
+export type CustomStyleEffect = z.infer<typeof customStyleEffectSchema>;
+
+/**
+ * Converts legacy effect types into a unified `custom_style` effect.
+ * Already-`custom_style` effects are returned as-is.
+ */
+export function normalizeLegacyEffect(effect: RuleEffect): CustomStyleEffect {
+  if (effect.type === "custom_style") {
+    return effect;
+  }
+
+  switch (effect.type) {
+    case "adjust_block_spacing":
+      return {
+        type: "custom_style",
+        containerStyle: {
+          marginBottom:
+            effect.amount === "lg"
+              ? "2rem"
+              : effect.amount === "md"
+                ? "1.5rem"
+                : "1rem",
+        },
+      };
+    case "increase_heading_emphasis":
+      return {
+        type: "custom_style",
+        textStyle: {
+          fontSize:
+            effect.amount === "lg"
+              ? "1.25rem"
+              : effect.amount === "md"
+                ? "1.125rem"
+                : "1rem",
+          fontWeight: "600",
+        },
+      };
+    case "refine_selected_block_presentation":
+      return {
+        type: "custom_style",
+        containerStyle: {
+          backgroundColor: "hsl(var(--accent) / 0.08)",
+          padding: "0.5rem",
+        },
+      };
+    case "bold_prefix_before_colon":
+      return {
+        type: "custom_style",
+        textTransform: "bold_prefix_before_colon",
+      };
+    case "render_markdown_strong":
+      return {
+        type: "custom_style",
+        textTransform: "render_markdown_strong",
+      };
+    case "promote_to_heading":
+      return {
+        type: "custom_style",
+        markdownTransform: "promote_to_heading",
+      };
+    case "normalize_list_structure":
+      return {
+        type: "custom_style",
+        markdownTransform: "normalize_list_structure",
+      };
+    case "normalize_markdown_table":
+      return {
+        type: "custom_style",
+        markdownTransform: "normalize_markdown_table",
+      };
+    case "reshape_markdown_block":
+      return {
+        type: "custom_style",
+        markdownTransform: "reshape_markdown_block",
+      };
+  }
+}
