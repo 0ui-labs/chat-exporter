@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "4130441328ad",
+  "session_id": "b8974397-e957-44c0-8f89-a7a2f29a8464",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T23:02:53.745431Z",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/reader-view.test.tsx",
+    "apps/web/src/components/format-workspace/reader-view.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0d0dfc3c9563",
+  "token_usage": {
+    "input_tokens": 3287,
+    "cache_creation_tokens": 90383,
+    "cache_read_tokens": 1798138,
+    "output_tokens": 18710,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T23:02:53.27073Z",
+    "agent_lines": 139,
+    "human_added": 0,
+    "human_modified": 18,
+    "human_removed": 10,
+    "total_committed": 157,
+    "agent_percentage": 88.53503184713377
+  }
+}
