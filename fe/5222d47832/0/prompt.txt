@@ -1,0 +1,156 @@
+Kannst du dir bitte folgende Claude.md genau anschauen, ich habe sie aus einem anderen Projekt kopiert weil ich damit gute Erfahrung gemacht habe, allerdings kommt sie aus einem Python Projekt, kannst du schauen in wie fern sie mit unserem Projekt hier kompatibel ist und sie entsprechend anpassen wenn nötig  '/Users/philippbriese/Documents/dev/chat exporter/CLAUDE Kopie.md'
+
+---
+
+Nein, in diesem Projket verwende ich kein Traycer mehr. bitte alles anpassen. und den Abschnitt aus der aktuellen Claude.md (entire) mit integrieren.
+
+---
+
+Kannst du unseren typischen Workflow in der Claude.md beschreiben. Schau dir diesen Text mal an:\
+Execute the implementation plan provided by the user. Follow it verbatim — trust the files and references in the plan. Do not re-verify what's written. Explore only when absolutely necessary.
+
+  ## Execution Strategy
+
+  1. Use the `superpowers:using-superpowers` skill first
+  2. Read TESTING.md before writing any tests
+  3. **Analyze the plan for parallelization** — identify which steps are independent (no shared files, no data dependency). Group them into waves.
+  4. **Dispatch subagents for each wave** of independent steps using `superpowers:dispatching-parallel-agents` or `superpowers:subagent-driven-development`
+  5. Only work sequentially on steps that have explicit dependencies on prior steps
+
+  ## Parallelization Rules (MANDATORY)
+
+  **You MUST delegate to subagents when:**
+  - 2 or more plan steps can run in parallel (different files, no data dependency)
+  - A plan step is self-contained (has clear inputs, outputs, and test criteria)
+  - You find yourself about to start a 3rd sequential plan step — stop and check if any upcoming steps could be parallelized
+
+  **Anti-pattern: Running 4+ plan steps sequentially when they touch different files.** This wastes your context window and slows execution. Your context window is finite — delegate to keep it
+  clean.
+
+  **Each subagent is autonomous:** Every subagent follows the full TDD cycle (RED → GREEN → REFACTOR) independently and commits its own work. You do not need to supervise their TDD — trust the
+  process.
+
+  ### How to delegate a plan step
+
+  When spawning a subagent for a plan step, include in the prompt:
+  1. The exact plan step text
+  2. "Follow strict TDD: write failing tests first, then implement, then refactor"
+  3. "Commit your changes atomically when tests pass (stage files by name, never `git add .`)"
+  4. "Read TESTING.md before writing tests"
+  5. Any context about files or interfaces the step depends on
+
+  ### Wave execution pattern
+
+  Wave 1 (parallel): Steps 1, 2, 3  → spawn 3 subagents
+    ↓ wait for completion
+  Wave 2 (parallel): Steps 4, 5     → spawn 2 subagents (depend on Wave 1)
+    ↓ wait for completion
+  Wave 3 (sequential): Step 6       → do yourself (integration, depends on all prior)
+
+  ## TDD Protocol
+
+  Every work unit — whether executed by you or a subagent — follows TDD independently:
+
+  1. RED: Write failing tests first
+  2. GREEN: Implement until tests pass
+  3. REFACTOR: Clean up while keeping tests green
+  4. COMMIT: Stage relevant files by name, commit with conventional message
+
+  Aim for 100% test coverage. Each subagent owns its own TDD cycle end-to-end.
+
+  ## Automatic Atomic Commits
+
+  You and your subagents MUST commit autonomously throughout execution. Do NOT wait until the end.
+
+  ### When to commit
+
+  Create a commit after each **logical unit of work** where all tests pass:
+
+  - After completing a TDD cycle for a plan step (RED → GREEN → REFACTOR = 1 commit)
+  - After completing a migration or schema change (before the code that uses it)
+  - After completing a pure test file (if tests are written separately from implementation)
+  - After a standalone config/chore change (new dependency, config file, etc.)
+
+  ### When NOT to commit
+
+  - Never commit broken code (tests must be green or the new RED tests must be the only failures)
+  - Never combine unrelated plan steps into one commit
+  - Never wait until "everything is done" — that defeats atomic commits
+
+  ### Commit format
+
+  1. Stage only relevant files by name — NEVER `git add .` or `git add -A`
+  2. English, Conventional Commits format:
+
+  (): <imperative summary, max 50 chars>
+
+  <body: explain WHY, max 72 chars/line>
+
+  Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`
+  Reference plan step number in body when applicable.
+
+  ## Skill Usage
+
+  ### Use these skills:
+  - `superpowers:using-superpowers` (always first)
+  - `superpowers:dispatching-parallel-agents` (for independent work streams — USE AGGRESSIVELY)
+  - `superpowers:subagent-driven-development` (for parallel plan steps — USE AGGRESSIVELY)
+  - `superpowers:test-driven-development` (for every implementation step, including in subagents)
+  - `superpowers:verification-before-completion` (before final commit)
+
+  ### Do NOT use these skills:
+  - `brainstorming` — we already have an optimized plan
+  - `executing-plans` — this preamble replaces it
+  - `using-git-worktrees` — single branch workflow
+  - `writing-plans` — plan is already provided
+  - `writing-skills` — not relevant
+  - `receiving-code-review` / `requesting-code-review` — post-implementation concern
+  - `systematic-debugging` — only if unexpected failures occur
+  - `finishing-a-development-branch` — use `/finish` after implementation
+
+  ## Completion
+
+  After all plan steps are implemented:
+  1. Run `superpowers:verification-before-completion`
+  2. Confirm all tests pass
+  3. Report a summary of all commits created with their messages
+  4. Ask the user if they want to run `/finish` to push and create a PR
+
+---
+
+Eine wichtige Regel ist das wir so gut wie nichts bauen ohne einen detailierten Implementierungsplan erstellen! die Planung besteht grundsätzlich aus 4 Schritten, das sollte mit 4 Subagents gemacht werden aber sequenziell, niemals alle 3 Schritte in einem Thread um maximalen Fokus auf EINE Aufgabe zu gewährleisten.\ \
+1. Bitte erstelle einen Plan für..., bitte teile den Plan in möglichst kleine aber noch sinnvoll testbare schritte auf. Schreibe den Plan als Markdown-Format in den docs Ordner.\
+2. Analysiere welche der Arbeitsschritte abslout sicher parallel durch subagents ausführbar sind ohne das sie sich in die quere kommen und gleichzeitig in die selben Dateien schreiben. erstelle eine optimale reihenfolge für sequenziell auszuführende Schritt. Bitte ergänze die Plan Datei.\
+3. Kannst du diesen Plan bittte mit Ref mcp und context7 mcp (2 facher Check) gegen die aktuellste dokumentation und best practices validieren und prüfen ob dieser Plan optimal und auf dem neuesten Stand der Technik ist und frei von AI Halluzinationen ist.\
+4. Kannst du mir einen optimalen Workflow schreiben mit dem man validieren kann ob der Plan exact und vor allem vollständig umgesezt worden ist. bitte nutze dazu dieses Template docs/templates/validierung-template.md\
+\
+Es ist extrem wichtig das du niemals eigenmächtig eine Entscheidung darüber triffst wie etwas konzeptionell umgesetzt wird. Hierführ brauchen wir noch Beispiele. Z.b. verfolge ich einen AI First Ansatz und erst wenn es absolut nicht sinnvoll ist und es einen klaren und logischen Grund gibt warum das keinen Sinn ergibt lösen wir ein Problem programmatisch. Hierzu gebe ich dir gleich noch einen Text. führe vor jeder Plan Erstellung ein ausführliches Interview mit dem User um alle Aspekte zu diskutieren. \
+Die Ausnahme zu plan first ist wenn etwas wirklich trivial ist. "bitte ändere die Überschritt"
+
+---
+
+ich hatte einen tollen Text dazu in einem Obsidian vault aber ich finde ihn nicht mehr. Lass uns das daher noch mal ausarbeiten. Das problem ist das LLMs vorwiegend auf alte Ansätze in der Software entwicklung trainiert sind die aus einer Zeit vor AI stammen und daher programmatische Motehoden bevorzugen. Sie versuchen mit regex oder Keywords zu arbeiten obwohl Ai viel besser evaluieren kann. Sie nutzen daher konzeptionell nicht die vollen stärken der AI und bevorzugen komplezierte alte methoden. Heute kann man Dinge mit Ai machen die vor 10 Jahren programmatisch unmöglich oder extrem aufwendig und komplex und fehleranfällig gewesen sind wie sentiment analysen mit Keywords usw. Mein Ansatz ist daher AI first. wenn es eine solide Lösung welche Ai nutzt um ein Ziel zu erreichen verwenden wir diese auch. Um diesen Bias in der Planugn zu minimieren brauchen wir diesen grundsatztext. Wir wollen Ai in einem sinvollen programmatischen Harness integrieren. Eine andere Gefahr ist zu viel AI also dinge die programmatisch deutlcih besser zuverlässiger und performanter und deterministischer sind versuchen mit AI zu bewerkstelligen. verstehst du das Problem
+
+---
+
+Ja, das hast du richtig erfasst. Wir hatte gerade eben in diesem Projekt ein gutes Beispiel dafür das ich leider nicht mehr ganz zusammenbekomme aber es gng darum wie der Chat zur regelerstellung konzipiert gewesen ist. Kein echter dialog, forgefertigte Antworten und fallback antworten die keinen Sinn ergeben.
+
+---
+
+Wobei templating nicht schlecht sein muss ein gutes beispiel ist der neue Trend genrative UI bei die AI UI componenten on the fly generieren soll was ich als ansatz noch vor unsinnig halte weil es nicht performant, robust, konsistent ist. Hier wäre der bessere ansatz die AI zur steuerung zu nutzen und fertige komponenten per tool calling aufzurufen. Generativ ist nicht immer gut.
+
+---
+
+Genau, AI sollte ein smarter Driver sein aber nicht das Auto selbst.
+
+---
+
+Schau dir noch einmal die gesamte Claude.md an und schaue was du verbessern würdest und warum
+
+---
+
+Ändere nichts inhaltlich aber gib dem Dokument eine bessere struktur und ordne neu an wie von dir vorgeschlagen. Bitte nutze den FAQ style über den Abschnitten (wie denken wir? usw.) Bitte alles auf Deutsch
+
+---
+
+Willst du oben noch ein Verzichnis einsetzen damit du dich schneller bei der Arbeit zurechtfindest oder ist es besser wenn du immer alles ließt?
