@@ -20,8 +20,10 @@ vi.mock("@/components/format-workspace/labels", () => ({
 
 vi.mock("@/components/format-workspace/rule-engine", () => ({
   blockToPlainText: (block: { text?: string }) => block.text ?? "",
+  collectInserts: () => ({ insertBefore: null, insertAfter: null }),
   getBlocksMatchingRule: () => [],
   getReaderBlockClassName: () => "mock-block-class",
+  getReaderBlockStyle: () => ({}),
   renderReaderBlock: vi.fn((block: { text?: string }) => (
     <span>{block.text ?? ""}</span>
   )),

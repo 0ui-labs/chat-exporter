@@ -64,8 +64,8 @@ vi.mock("@/components/format-workspace/adjustment-mode-guide", () => ({
   AdjustmentModeGuide: () => <div data-testid="adjustment-mode-guide" />,
 }));
 
-vi.mock("@/components/format-workspace/rules-list-popover", () => ({
-  RulesListPopover: () => <div data-testid="rules-list-popover" />,
+vi.mock("@/components/format-workspace/rules-list-modal", () => ({
+  RulesListModal: () => <div data-testid="rules-list-modal" />,
 }));
 
 vi.mock("@/components/format-workspace/use-message-deletion", () => ({

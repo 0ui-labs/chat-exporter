@@ -163,3 +163,65 @@ describe("buildReaderEffectsMap", () => {
     expect(result.size).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Legacy effect normalization in buildReaderEffectsMap
+// ---------------------------------------------------------------------------
+
+describe("buildReaderEffectsMap — legacy normalization", () => {
+  test("normalizes legacy adjust_block_spacing to custom_style", () => {
+    const rules = [
+      createRule({
+        compiledRule: {
+          type: "adjust_block_spacing",
+          amount: "lg",
+          direction: "after",
+        },
+      }),
+    ];
+    const conversation = createConversation();
+
+    const result = buildReaderEffectsMap(rules, conversation);
+    const effects = result.get("msg-1:0");
+
+    expect(effects).toBeDefined();
+    expect(effects?.[0]).toMatchObject({
+      type: "custom_style",
+      containerStyle: { marginBottom: "2rem" },
+    });
+  });
+
+  test("normalizes legacy bold_prefix_before_colon to custom_style", () => {
+    const rules = [
+      createRule({
+        compiledRule: { type: "bold_prefix_before_colon" },
+      }),
+    ];
+    const conversation = createConversation();
+
+    const result = buildReaderEffectsMap(rules, conversation);
+    const effects = result.get("msg-1:0");
+
+    expect(effects).toBeDefined();
+    expect(effects?.[0]).toMatchObject({
+      type: "custom_style",
+      textTransform: "bold_prefix_before_colon",
+    });
+  });
+
+  test("passes through custom_style effects unchanged", () => {
+    const customEffect = {
+      type: "custom_style" as const,
+      containerStyle: { color: "red" },
+      headingLevel: 2,
+    };
+    const rules = [createRule({ compiledRule: customEffect })];
+    const conversation = createConversation();
+
+    const result = buildReaderEffectsMap(rules, conversation);
+    const effects = result.get("msg-1:0");
+
+    expect(effects).toBeDefined();
+    expect(effects?.[0]).toMatchObject(customEffect);
+  });
+});
