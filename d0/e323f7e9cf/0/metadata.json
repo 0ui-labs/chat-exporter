@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d0e323f7e9cf",
+  "session_id": "e4fd2537-ad58-481d-9c86-1a7a954e8eea",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T11:56:34.779905Z",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/db/client.ts",
+    "apps/server/src/db/schema.ts",
+    "apps/server/src/index.ts",
+    "apps/server/src/lib/adjustment-agent.ts",
+    "apps/server/src/lib/browser-pool.ts",
+    "apps/server/src/lib/import-repository.ts",
+    "apps/server/src/rpc/router.ts",
+    "apps/web/src/components/format-workspace/labels.ts",
+    "apps/web/src/components/format-workspace/undo-toast.tsx",
+    "packages/shared/src/adjustments.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5489829eaaf1",
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 113304,
+    "cache_read_tokens": 2707165,
+    "output_tokens": 16907,
+    "api_call_count": 38
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T11:56:34.244906Z",
+    "agent_lines": 78,
+    "human_added": 2,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 82,
+    "agent_percentage": 95.1219512195122
+  }
+}

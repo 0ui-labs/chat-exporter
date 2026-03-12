@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "d0e323f7e9cf",
+  "strategy": "manual-commit",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/db/client.ts",
+    "apps/server/src/db/schema.ts",
+    "apps/server/src/index.ts",
+    "apps/server/src/lib/adjustment-agent.ts",
+    "apps/server/src/lib/browser-pool.ts",
+    "apps/server/src/lib/import-repository.ts",
+    "apps/server/src/rpc/router.ts",
+    "apps/web/src/components/format-workspace/labels.ts",
+    "apps/web/src/components/format-workspace/undo-toast.tsx",
+    "packages/shared/src/adjustments.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d0/e323f7e9cf/0/metadata.json",
+      "transcript": "/d0/e323f7e9cf/0/full.jsonl",
+      "content_hash": "/d0/e323f7e9cf/0/content_hash.txt",
+      "prompt": "/d0/e323f7e9cf/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 113304,
+    "cache_read_tokens": 2707165,
+    "output_tokens": 16907,
+    "api_call_count": 38
+  }
+}
