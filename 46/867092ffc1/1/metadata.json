@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "46867092ffc1",
+  "session_id": "94dcfc90-f894-4f30-9676-ebd8c62dabad",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T10:25:56.680704Z",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/format-workspace.test.tsx",
+    "apps/web/src/components/format-workspace/reader-view.test.tsx",
+    "apps/web/src/components/format-workspace/rule-engine.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e7649d523440",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 37300,
+    "cache_read_tokens": 545968,
+    "output_tokens": 7959,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T10:25:56.628813Z",
+    "agent_lines": 66,
+    "human_added": 191,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 257,
+    "agent_percentage": 25.680933852140075
+  }
+}
