@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a82ae1241f9a",
+  "strategy": "manual-commit",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/a8/2ae1241f9a/0/metadata.json",
+      "transcript": "/a8/2ae1241f9a/0/full.jsonl",
+      "content_hash": "/a8/2ae1241f9a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3287,
+    "cache_creation_tokens": 90383,
+    "cache_read_tokens": 1798138,
+    "output_tokens": 18710,
+    "api_call_count": 24
+  }
+}
