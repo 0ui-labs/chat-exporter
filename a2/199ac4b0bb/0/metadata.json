@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a2199ac4b0bb",
+  "session_id": "2f9db327-a2e4-4c35-8901-a21354826ef8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T10:25:39.591379Z",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/package.json",
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "pnpm-lock.yaml"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6",
+  "turn_id": "fea1e597f2f4",
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 85475,
+    "cache_read_tokens": 1644829,
+    "output_tokens": 23394,
+    "api_call_count": 32
+  },
+  "session_metrics": {
+    "turn_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T10:25:39.343883Z",
+    "agent_lines": 436,
+    "human_added": 610,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1046,
+    "agent_percentage": 41.68260038240918
+  }
+}

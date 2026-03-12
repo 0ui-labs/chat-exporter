@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a2199ac4b0bb",
+  "strategy": "manual-commit",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/package.json",
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "pnpm-lock.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a2/199ac4b0bb/0/metadata.json",
+      "transcript": "/a2/199ac4b0bb/0/full.jsonl",
+      "content_hash": "/a2/199ac4b0bb/0/content_hash.txt",
+      "prompt": "/a2/199ac4b0bb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 85475,
+    "cache_read_tokens": 1644829,
+    "output_tokens": 23394,
+    "api_call_count": 32
+  }
+}
