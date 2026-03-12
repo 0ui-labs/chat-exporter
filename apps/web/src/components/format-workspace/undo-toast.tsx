@@ -1,5 +1,5 @@
 import { Undo2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type UndoToastProps = {
   message: string;
@@ -15,14 +15,20 @@ export function UndoToast({
   duration = 8000,
 }: UndoToastProps) {
   const [visible, setVisible] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setVisible(false);
       onDismiss();
     }, duration);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [duration, onDismiss]);
 
   if (!visible) return null;
@@ -35,6 +41,10 @@ export function UndoToast({
           type="button"
           className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
           onClick={() => {
+            if (timerRef.current !== null) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
+            }
             onUndo();
             setVisible(false);
           }}
@@ -46,6 +56,10 @@ export function UndoToast({
           type="button"
           className="rounded-lg p-1 text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => {
+            if (timerRef.current !== null) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
+            }
             setVisible(false);
             onDismiss();
           }}

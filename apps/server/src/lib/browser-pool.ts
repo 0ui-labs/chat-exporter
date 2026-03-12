@@ -14,6 +14,7 @@ type QueueEntry = {
 };
 
 let browser: Browser | null = null;
+let launchPromise: Promise<Browser> | null = null;
 let activeContextCount = 0;
 let totalContextCount = 0;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -43,23 +44,30 @@ async function ensureBrowser(): Promise<Browser> {
     return browser;
   }
 
-  const instance = await chromium.launch({ headless: true });
+  if (launchPromise !== null) {
+    return launchPromise;
+  }
 
-  instance.on("disconnected", () => {
-    if (browser === instance) {
-      browser = null;
-      totalContextCount = 0;
-    }
-  });
+  launchPromise = (async () => {
+    const instance = await chromium.launch({ headless: true });
+    instance.on("disconnected", () => {
+      if (browser === instance) {
+        browser = null;
+        totalContextCount = 0;
+      }
+    });
+    browser = instance;
+    launchPromise = null;
+    return instance;
+  })();
 
-  browser = instance;
-  return instance;
+  return launchPromise;
 }
 
 async function createContext(): Promise<BrowserContext> {
   if (
     totalContextCount >= MAX_CONTEXTS_PER_BROWSER &&
-    activeContextCount <= 1 &&
+    activeContextCount === 0 &&
     browser !== null
   ) {
     const old = browser;
@@ -69,11 +77,12 @@ async function createContext(): Promise<BrowserContext> {
   }
 
   const instance = await ensureBrowser();
-  activeContextCount++;
-  totalContextCount++;
   clearIdleTimer();
 
-  return instance.newContext();
+  const ctx = await instance.newContext();
+  activeContextCount++;
+  totalContextCount++;
+  return ctx;
 }
 
 export async function acquireContext(): Promise<BrowserContext> {
@@ -117,6 +126,7 @@ export async function shutdownPool(): Promise<void> {
     await instance.close();
   }
 
+  launchPromise = null;
   activeContextCount = 0;
   totalContextCount = 0;
 }

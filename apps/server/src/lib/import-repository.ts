@@ -6,7 +6,7 @@ import type {
   ImportSummary,
 } from "@chat-exporter/shared";
 import { importJobSchema, importSummarySchema } from "@chat-exporter/shared";
-import { asc, desc, eq, like, or } from "drizzle-orm";
+import { and, asc, desc, eq, like, or } from "drizzle-orm";
 
 import { db } from "../db/client.js";
 import type { Import } from "../db/schema.js";
@@ -181,11 +181,7 @@ export function listImportSummaries(
   }
 
   if (conditions.length > 0) {
-    for (const condition of conditions) {
-      if (condition) {
-        query = query.where(condition);
-      }
-    }
+    query = query.where(and(...conditions));
   }
 
   return query.all().map((row) =>

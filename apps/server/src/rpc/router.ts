@@ -41,7 +41,12 @@ import {
 export const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
 function isSupportedChatGptShareLink(urlString: string) {
-  const url = new URL(urlString);
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    return false;
+  }
   return url.hostname === "chatgpt.com" && url.pathname.startsWith("/share/");
 }
 

@@ -33,8 +33,7 @@ export function withTransaction<T>(fn: () => T): T {
   return rawDb.transaction(fn)();
 }
 
-// Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
-// not Node.js child_process.exec(). This is safe - no shell invocation.
+// Note: sqlite.exec is the better-sqlite3 API for DDL — no shell invocation.
 sqlite.exec(`
   CREATE TABLE IF NOT EXISTS imports (
     id TEXT PRIMARY KEY,
@@ -143,7 +142,7 @@ sqlite.exec(`
 `);
 
 // Migration: make format_rules.import_id nullable (SQLite cannot ALTER COLUMN)
-// Uses a new temp table to avoid FK issues with rename-based approach.
+// Uses a table-rebuild approach because SQLite does not support DROP NOT NULL.
 const importIdColumn = sqlite
   .prepare(
     `SELECT "notnull" FROM pragma_table_info('format_rules') WHERE name = 'import_id'`,
@@ -151,11 +150,17 @@ const importIdColumn = sqlite
   .get() as { notnull: number } | undefined;
 
 if (importIdColumn && importIdColumn.notnull === 1) {
-  // Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
-  // not Node.js child_process.exec(). This is safe - no shell invocation.
+  // Per SQLite docs, PRAGMA foreign_keys is a no-op inside a transaction, so it
+  // must be issued outside one. We therefore split the migration into three
+  // separate sqlite.exec calls:
+  //   1. Pragma off  (outside transaction)
+  //   2. DDL block wrapped in BEGIN/COMMIT — crash-safe: a failure between
+  //      DROP TABLE and RENAME rolls back automatically, preserving all data.
+  //   3. Pragma on   (outside transaction)
+  sqlite.exec("PRAGMA foreign_keys = OFF;");
+
   sqlite.exec(`
-    -- Temporarily disable FK enforcement during migration
-    PRAGMA foreign_keys = OFF;
+    BEGIN;
 
     -- Create the new table with nullable import_id
     CREATE TABLE format_rules_new (
@@ -186,9 +191,10 @@ if (importIdColumn && importIdColumn.notnull === 1) {
     CREATE INDEX IF NOT EXISTS idx_format_rules_profile
       ON format_rules (target_format, status, created_at DESC);
 
-    -- Re-enable FK enforcement
-    PRAGMA foreign_keys = ON;
+    COMMIT;
   `);
+
+  sqlite.exec("PRAGMA foreign_keys = ON;");
 
   // Verify FK integrity after migration
   const fkErrors = sqlite.pragma("foreign_key_check") as unknown[];
@@ -200,8 +206,7 @@ if (importIdColumn && importIdColumn.notnull === 1) {
 }
 
 // Migration: add error_stage column to imports table
-// Note: sqlite.exec() here is the better-sqlite3 API for executing DDL statements,
-// not Node.js child_process.exec(). This is safe - no shell invocation.
+// Note: sqlite.exec is the better-sqlite3 DDL API — no shell invocation.
 const errorStageColumn = sqlite
   .prepare(
     `SELECT name FROM pragma_table_info('imports') WHERE name = 'error_stage'`,

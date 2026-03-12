@@ -594,7 +594,15 @@ async function executeToolCall(
   callbacks: RunAgentTurnInput["callbacks"],
   actions: ActionRecord[],
 ): Promise<string> {
-  const args = JSON.parse(call.arguments) as Record<string, unknown>;
+  let args: Record<string, unknown>;
+  try {
+    args = JSON.parse(call.arguments) as Record<string, unknown>;
+  } catch {
+    return JSON.stringify({
+      ok: false,
+      error: `Ungültige Tool-Argumente: ${call.arguments}`,
+    });
+  }
 
   if (call.name === "create_rule") {
     const effectValidation = validateEffect(args.effect);

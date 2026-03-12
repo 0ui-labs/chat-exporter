@@ -358,6 +358,7 @@ export function normalizeLegacyEffect(effect: RuleEffect): CustomStyleEffect {
       return {
         type: "custom_style",
         textTransform: "bold_prefix_before_colon",
+        markdownTransform: "bold_prefix_before_colon",
       };
     case "render_markdown_strong":
       return {
@@ -368,6 +369,7 @@ export function normalizeLegacyEffect(effect: RuleEffect): CustomStyleEffect {
       return {
         type: "custom_style",
         markdownTransform: "promote_to_heading",
+        headingLevel: effect.level,
       };
     case "normalize_list_structure":
       return {

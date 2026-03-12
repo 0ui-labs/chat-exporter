@@ -195,7 +195,7 @@ export function formatMessageBlockLabel(
 
 export const rulesLabels = {
   activeRulesCount: (count: number) =>
-    count > 0 ? `${count} Regeln aktiv` : "Regeln",
+    count > 0 ? `${count} ${count === 1 ? "Regel" : "Regeln"} aktiv` : "Regeln",
   noActiveRules: "Keine aktiven Regeln.",
   allImports: "Für alle Imports",
   thisImportOnly: "Nur dieser Import",

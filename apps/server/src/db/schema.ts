@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const imports = sqliteTable(
   "imports",
@@ -162,7 +162,7 @@ export const messageDeletions = sqliteTable(
     deletedAt: text("deleted_at").notNull(),
   },
   (table) => [
-    index("idx_message_deletions_import_message").on(
+    uniqueIndex("idx_message_deletions_import_message").on(
       table.importId,
       table.messageId,
     ),
