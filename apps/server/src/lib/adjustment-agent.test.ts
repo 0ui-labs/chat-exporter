@@ -440,6 +440,102 @@ describe("AdjustmentAgent", () => {
     });
   });
 
+  test("empty AI response triggers retry with nudge instead of generic fallback", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    // First call: AI returns no text and no function calls (empty output)
+    // Second call (retry with nudge): AI returns a concrete question
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput(
+                "Möchtest du die Einrückung nur für diese Liste oder für alle Listen ändern?",
+              ),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail("kannst du Listen weiter einrücken"),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).not.toHaveBeenCalled();
+    expect(result.actions).toEqual([]);
+    // Should get the concrete question from the retry, not the old generic fallback
+    expect(result.assistantMessage).toBe(
+      "Möchtest du die Einrückung nur für diese Liste oder für alle Listen ändern?",
+    );
+    // Should have made 2 fetch calls: original + retry
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+    // Verify the retry request has tool_choice: "none" to force text output
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const retryCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const retryBody = JSON.parse(String(retryCall[1].body)) as {
+      tool_choice?: string;
+    };
+    expect(retryBody.tool_choice).toBe("none");
+  });
+
+  test("empty AI response with failed retry uses helpful fallback message", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    // Both calls return empty output
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.assistantMessage).toBe(
+      "Ich konnte die Anfrage nicht verstehen. Kannst du bitte genauer beschreiben, was du ändern möchtest?",
+    );
+  });
+
   test("throws AgentUnavailableError when AI is not configured", async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.CEREBRAS_API_KEY;
