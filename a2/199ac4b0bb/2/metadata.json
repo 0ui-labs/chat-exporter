@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a2199ac4b0bb",
+  "session_id": "f81a283c-4f60-471f-9b15-3fcfcbc56c68",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T10:25:45.806711Z",
+  "branch": "feat/playwright-e2e-framework",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "apps/web/src/components/format-workspace/rules-list-modal.tsx",
+    "apps/web/src/components/format-workspace/rules-list-popover.tsx",
+    "apps/web/src/components/ui/dialog.tsx",
+    "pnpm-lock.yaml",
+    "apps/web/package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bfd2003417cb",
+  "checkpoint_transcript_start": 135,
+  "transcript_lines_at_start": 135,
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 8992,
+    "cache_read_tokens": 285532,
+    "output_tokens": 844,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T10:25:45.736922Z",
+    "agent_lines": 217,
+    "human_added": 391,
+    "human_modified": 219,
+    "human_removed": 0,
+    "total_committed": 827,
+    "agent_percentage": 26.23941958887545
+  }
+}

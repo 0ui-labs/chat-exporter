@@ -7,6 +7,9 @@
   "files_touched": [
     "apps/web/package.json",
     "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "apps/web/src/components/format-workspace/rules-list-modal.tsx",
+    "apps/web/src/components/format-workspace/rules-list-popover.tsx",
+    "apps/web/src/components/ui/dialog.tsx",
     "pnpm-lock.yaml"
   ],
   "sessions": [
@@ -21,13 +24,19 @@
       "transcript": "/a2/199ac4b0bb/1/full.jsonl",
       "content_hash": "/a2/199ac4b0bb/1/content_hash.txt",
       "prompt": "/a2/199ac4b0bb/1/prompt.txt"
+    },
+    {
+      "metadata": "/a2/199ac4b0bb/2/metadata.json",
+      "transcript": "/a2/199ac4b0bb/2/full.jsonl",
+      "content_hash": "/a2/199ac4b0bb/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 80,
-    "cache_creation_tokens": 122775,
-    "cache_read_tokens": 2190797,
-    "output_tokens": 31353,
-    "api_call_count": 46
+    "input_tokens": 84,
+    "cache_creation_tokens": 131767,
+    "cache_read_tokens": 2476329,
+    "output_tokens": 32197,
+    "api_call_count": 50
   }
 }
