@@ -1,0 +1,21 @@
+Wie sieht ein optimaler debugging workflow aus und warum, bitte Laienverständlich
+
+---
+
+Würdest du sagen das du das so zuverlässig von alleine schon so machst
+
+---
+
+ja bitte. Was hältst du von maximaler isolation?
+
+---
+
+hört sich gut an. macht ein Playwrite loop sinn
+
+---
+
+Ok, das machen wir so, bitte schreib den Workflow und referenziere ihn der Claude.md
+
+---
+
+ja bitte

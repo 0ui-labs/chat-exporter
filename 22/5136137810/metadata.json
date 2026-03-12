@@ -3,7 +3,7 @@
   "checkpoint_id": "225136137810",
   "strategy": "manual-commit",
   "branch": "feat/playwright-e2e-framework",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/server/src/lib/adjustment-repository.ts",
     "apps/server/src/rpc/router.ts"
@@ -14,13 +14,19 @@
       "transcript": "/22/5136137810/0/full.jsonl",
       "content_hash": "/22/5136137810/0/content_hash.txt",
       "prompt": "/22/5136137810/0/prompt.txt"
+    },
+    {
+      "metadata": "/22/5136137810/1/metadata.json",
+      "transcript": "/22/5136137810/1/full.jsonl",
+      "content_hash": "/22/5136137810/1/content_hash.txt",
+      "prompt": "/22/5136137810/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 54,
-    "cache_creation_tokens": 85475,
-    "cache_read_tokens": 1644829,
-    "output_tokens": 23394,
-    "api_call_count": 32
+    "input_tokens": 80,
+    "cache_creation_tokens": 122775,
+    "cache_read_tokens": 2190797,
+    "output_tokens": 31353,
+    "api_call_count": 46
   }
 }
