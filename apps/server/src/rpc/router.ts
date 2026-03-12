@@ -17,6 +17,7 @@ import {
   getAdjustmentSessionDetail,
   listAdjustmentSessions,
   listFormatRules,
+  markSessionApplied,
   promoteRuleToProfile,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
@@ -299,7 +300,9 @@ export const router = os.router({
             });
           }
 
-          if (result.actions.length === 0) {
+          if (result.actions.length > 0) {
+            markSessionApplied(input.sessionId);
+          } else {
             recordAdjustmentEvent({
               importId: latestDetail.session.importId,
               sessionId: input.sessionId,
@@ -312,6 +315,11 @@ export const router = os.router({
         if (error instanceof AgentUnavailableError) {
           throw new ORPCError("SERVICE_UNAVAILABLE", {
             message: error.message,
+          });
+        }
+        if (error instanceof DOMException && error.name === "TimeoutError") {
+          throw new ORPCError("GATEWAY_TIMEOUT", {
+            message: "Die KI hat zu lange gebraucht. Bitte versuche es erneut.",
           });
         }
         throw new ORPCError("BAD_REQUEST", {

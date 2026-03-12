@@ -423,6 +423,13 @@ export function discardAdjustmentSession(sessionId: string) {
   return nextDetail;
 }
 
+export function markSessionApplied(sessionId: string) {
+  db.update(adjustmentSessions)
+    .set({ status: "applied", updatedAt: now() })
+    .where(eq(adjustmentSessions.id, sessionId))
+    .run();
+}
+
 export function reopenAdjustmentSession(sessionId: string) {
   const session = getAdjustmentSession(sessionId);
 
