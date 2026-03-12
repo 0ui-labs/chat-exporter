@@ -6,7 +6,7 @@ import {
   getEndAdjustLabel,
   getViewLabel,
 } from "@/components/format-workspace/labels";
-import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
+import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
 import type { ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ export function CompletedToolbar({
 
         {isAdjustableView ? (
           <>
-            <RulesListPopover
+            <RulesListModal
               disablingRuleById={rules.disablingRuleById}
               expandedRuleId={rules.expandedRuleId}
               explanationErrorById={rules.explanationErrorById}
