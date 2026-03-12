@@ -14,6 +14,12 @@ export const router = createBrowserRouter([
         }),
       },
       {
+        path: "history",
+        lazy: async () => ({
+          Component: (await import("./routes/history-page")).HistoryPage,
+        }),
+      },
+      {
         path: "imports/:importId",
         lazy: async () => ({
           Component: (await import("./routes/import-detail-page"))

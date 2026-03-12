@@ -1,8 +1,25 @@
 import type {
-  AdjustmentPreview,
+  AdjustmentTargetFormat,
   Conversation,
   FormatRule,
+  RuleEffect,
+  RuleSelector,
 } from "@chat-exporter/shared";
+
+// Local type replacing the removed AdjustmentPreview from shared
+type AdjustmentPreview = {
+  sessionId: string;
+  targetFormat: AdjustmentTargetFormat;
+  summary: string;
+  rationale: string;
+  limitations: string[];
+  draftRule: {
+    kind: FormatRule["kind"];
+    scope: FormatRule["scope"];
+    selector: RuleSelector;
+    effect: RuleEffect;
+  };
+};
 
 import {
   applyMarkdownRules,

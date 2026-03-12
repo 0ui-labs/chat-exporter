@@ -186,8 +186,8 @@ async function resetSeededDatabase() {
 
   process.env.CHAT_EXPORTER_DB_PATH = dbPath;
 
-  const [{ db }, { insertImport, saveImportSnapshot }] = await Promise.all([
-    import("../lib/database.js"),
+  const [, { insertImport, saveImportSnapshot }] = await Promise.all([
+    import("../db/client.js"),
     import("../lib/import-repository.js"),
   ]);
   const conversation = createFixtureConversation();
@@ -209,7 +209,6 @@ async function resetSeededDatabase() {
     rawHtml: "<html><body>Format adjustments smoke fixture</body></html>",
     sourceUrl: job.sourceUrl,
   });
-  db.close();
 }
 
 function appendTail(tail: string[], chunk: string) {
@@ -568,6 +567,9 @@ async function buildSharedPackage() {
   });
 }
 
+// Rollback verification removed: applyAdjustmentPreview no longer exists
+// in the single-agent architecture.
+
 async function runSmokeFlow() {
   await buildSharedPackage();
   await resetSeededDatabase();
@@ -675,7 +677,7 @@ async function runSmokeFlow() {
          FROM adjustment_sessions
          WHERE import_id = ?
            AND target_format = ?
-           AND status IN ('open', 'preview_ready')`,
+           AND status IN ('open', 'applied')`,
       )
       .get(fixtureImportId, "reader");
     const resumedReaderSessionCount = resumedReaderSessionRow?.count ?? 0;
@@ -758,7 +760,7 @@ async function runSmokeFlow() {
 
       return (
         block.querySelector("strong") !== null &&
-        !block.textContent.includes("**")
+        !block.textContent?.includes("**")
       );
     });
 

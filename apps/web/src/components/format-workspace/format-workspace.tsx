@@ -1,44 +1,37 @@
-import type {
-  AdjustmentSessionDetail,
-  FormatRule,
-  ImportJob,
-} from "@chat-exporter/shared";
-import { Clock3, LoaderCircle, Settings2 } from "lucide-react";
-import {
-  type FormEvent,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import type { ImportJob } from "@chat-exporter/shared";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
+import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
+import { DeleteMessageDialog } from "@/components/format-workspace/delete-message-dialog";
 import {
-  getBlockTypeLabel,
-  getRoleLabel,
-  getViewLabel,
+  formatMarkdownLinesLabel,
+  formatMessageBlockLabel,
+  getImportStageLabel,
+  miscLabels,
 } from "@/components/format-workspace/labels";
+import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { ReaderView } from "@/components/format-workspace/reader-view";
-import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
-import { RulesListPopover } from "@/components/format-workspace/rules-list-popover";
-import type {
-  AdjustmentSelection,
-  FloatingAdjustmentAnchor,
-  ViewMode,
-  ViewportAnchor,
-} from "@/components/format-workspace/types";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  appendAdjustmentMessage,
-  createAdjustmentSession,
-  disableFormatRule,
-  discardAdjustmentSession,
-  getFormatRules,
-} from "@/lib/api";
+  applyMarkdownRules,
+  buildReaderEffectsMap,
+} from "@/components/format-workspace/rule-engine";
+import { StatusHeader } from "@/components/format-workspace/status-header";
+import {
+  type AdjustmentSelection,
+  adjustableViews,
+  type ViewMode,
+} from "@/components/format-workspace/types";
+import { UndoToast } from "@/components/format-workspace/undo-toast";
+import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
+import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
+import { useDeletionToast } from "@/components/format-workspace/use-deletion-toast";
+import { useFormatRules } from "@/components/format-workspace/use-format-rules";
+import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
 
 type ActiveStage = {
   detail: string;
@@ -53,37 +46,16 @@ type FormatWorkspaceProps = {
   onViewChange: (view: ViewMode) => void;
 };
 
-const outputViews: { value: ViewMode; label: string }[] = [
-  { value: "reader", label: getViewLabel("reader") },
-  { value: "markdown", label: getViewLabel("markdown") },
-  { value: "handover", label: getViewLabel("handover") },
-  { value: "json", label: getViewLabel("json") },
-];
-
-const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
-
 function _describeSelectionLabel(selection: AdjustmentSelection) {
   if (selection.lineStart !== undefined && selection.lineEnd !== undefined) {
-    return `Markdown-Zeilen ${selection.lineStart}-${selection.lineEnd}`;
+    return formatMarkdownLinesLabel(selection.lineStart, selection.lineEnd);
   }
 
-  return `${getRoleLabel(selection.messageRole)}-Nachricht ${selection.messageIndex + 1} · ${getBlockTypeLabel(selection.blockType)}`;
-}
-
-function getStatusLabel(job: ImportJob) {
-  if (job.status === "completed") {
-    return "Bereit";
-  }
-
-  if (job.status === "failed") {
-    return "Fehlgeschlagen";
-  }
-
-  if (job.status === "queued") {
-    return "Warteschlange";
-  }
-
-  return "Import läuft";
+  return formatMessageBlockLabel(
+    selection.messageRole,
+    selection.messageIndex + 1,
+    selection.blockType,
+  );
 }
 
 function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob) {
@@ -108,641 +80,175 @@ export function FormatWorkspace({
   view,
   onViewChange,
 }: FormatWorkspaceProps) {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const selectionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
+  const isAdjustableView = adjustableViews.has(view);
+
+  const session = useAdjustmentSession(view, job.id);
+  const rules = useFormatRules(view, job.id);
+  const deletion = useMessageDeletion(job.id);
+  const deletionToast = useDeletionToast();
+  const [deleteDialog, setDeleteDialog] = useState<{
+    messageId: string;
+    isRound: boolean;
+    preview: string;
+  } | null>(null);
+  const popover = useAdjustmentPopover();
+
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      const msg = job.conversation?.messages.find((m) => m.id === messageId);
+      const preview =
+        msg?.blocks
+          .map((b) => ("text" in b ? b.text : b.type))
+          .join(" ")
+          .slice(0, 200) ?? messageId;
+      setDeleteDialog({ messageId, isRound: false, preview });
+    },
+    [job.conversation?.messages],
   );
-  const [draftMessageByView, setDraftMessageByView] = useState<
-    Record<ViewMode, string>
-  >({
-    reader: "",
-    markdown: "",
-    handover: "",
-    json: "",
-  });
-  const [adjustModeByView, setAdjustModeByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [guideDismissedByView, setGuideDismissedByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [sessionDetailByView, setSessionDetailByView] = useState<
-    Record<ViewMode, AdjustmentSessionDetail | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [sessionErrorByView, setSessionErrorByView] = useState<
-    Record<ViewMode, string | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [sessionLoadingByView, setSessionLoadingByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [sessionSelectionKeyByView, setSessionSelectionKeyByView] = useState<
-    Record<ViewMode, string | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [submittingMessageByView, setSubmittingMessageByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [discardingByView, setDiscardingByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [replyVisibleByView, setReplyVisibleByView] = useState<
-    Record<ViewMode, boolean>
-  >({
-    reader: false,
-    markdown: false,
-    handover: false,
-    json: false,
-  });
-  const [hoveredRuleId, setHoveredRuleId] = useState<string | null>(null);
-  const [disablingRuleById, setDisablingRuleById] = useState<
-    Record<string, boolean>
-  >({});
-  const [rulesByView, setRulesByView] = useState<
-    Record<ViewMode, FormatRule[]>
-  >({
-    reader: [],
-    markdown: [],
-    handover: [],
-    json: [],
-  });
-  const [selectionByView, setSelectionByView] = useState<
-    Record<ViewMode, AdjustmentSelection | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [anchorByView, setAnchorByView] = useState<
-    Record<ViewMode, FloatingAdjustmentAnchor | null>
-  >({
-    reader: null,
-    markdown: null,
-    handover: null,
-    json: null,
-  });
-  const [containerDimensions, setContainerDimensions] = useState<{
-    width: number;
-    height: number;
-  }>({
-    width: 0,
-    height: 0,
-  });
 
-  useLayoutEffect(() => {
-    const node = sectionRef.current;
+  const handleDeleteRound = useCallback(
+    (messageId: string) => {
+      const msg = job.conversation?.messages.find((m) => m.id === messageId);
+      const preview =
+        msg?.blocks
+          .map((b) => ("text" in b ? b.text : b.type))
+          .join(" ")
+          .slice(0, 200) ?? messageId;
+      setDeleteDialog({ messageId, isRound: true, preview });
+    },
+    [job.conversation?.messages],
+  );
 
-    if (!node) {
-      return;
-    }
+  const handleConfirmDelete = useCallback(
+    async (reason?: string) => {
+      if (!deleteDialog) return;
+      const { messageId, isRound } = deleteDialog;
+      setDeleteDialog(null);
+      if (isRound) {
+        const result = await deletion.deleteRound(messageId, reason);
+        deletionToast.showDeletedToast(messageId, true, result.length);
+      } else {
+        await deletion.deleteMessage(messageId, reason);
+        deletionToast.showDeletedToast(messageId, false);
+      }
+    },
+    [deleteDialog, deletion, deletionToast],
+  );
 
-    const updateDimensions = () => {
-      setContainerDimensions((current) => {
-        const nextWidth = node.clientWidth;
-        const nextHeight = node.clientHeight;
+  const handleUndoDelete = useCallback(async () => {
+    if (!deletionToast.toast) return;
+    await deletion.restoreMessage(deletionToast.toast.messageId);
+    deletionToast.dismissToast();
+  }, [deletion, deletionToast]);
 
-        if (current.width === nextWidth && current.height === nextHeight) {
-          return current;
-        }
-
-        return { width: nextWidth, height: nextHeight };
-      });
-    };
-
-    updateDimensions();
-
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(updateDimensions);
-
-    resizeObserver?.observe(node);
-
-    return () => {
-      resizeObserver?.disconnect();
-    };
-  }, []);
+  const mergedRef = useCallback(
+    (node: HTMLElement | null) => {
+      (
+        session.sectionRef as React.MutableRefObject<HTMLElement | null>
+      ).current = node;
+      (
+        popover.containerRef as React.MutableRefObject<HTMLElement | null>
+      ).current = node;
+    },
+    [session.sectionRef, popover.containerRef],
+  );
 
   const artifact = view === "reader" ? "" : renderArtifact(view, job);
-  const isAdjustableView = adjustableViews.has(view);
-  const isAdjustModeEnabled = adjustModeByView[view];
-  const activeDraftMessage = draftMessageByView[view];
-  const activeSessionDetail = sessionDetailByView[view];
-  const activeSessionError = sessionErrorByView[view];
-  const activeSessionLoading = sessionLoadingByView[view];
-  const activeSelection = selectionByView[view];
-  const activeAnchor = anchorByView[view];
-  const activeSelectionKey = sessionSelectionKeyByView[view];
-  const activeRules = rulesByView[view];
-  const displayedMarkdown =
-    view === "markdown" ? applyMarkdownRules(artifact, activeRules) : artifact;
-  const isDiscarding = discardingByView[view];
-  const isSubmittingMessage = submittingMessageByView[view];
-  const showGuide =
-    isAdjustModeEnabled && !activeSelection && !guideDismissedByView[view];
-  const showPopover =
-    isAdjustModeEnabled && Boolean(activeSelection) && Boolean(activeAnchor);
-
-  async function refreshFormatRules(targetView: ViewMode) {
-    if (!adjustableViews.has(targetView)) {
-      return;
-    }
-
+  // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
+  // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
+  // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.
+  const displayedMarkdown = useMemo(() => {
+    if (view !== "markdown") return artifact;
     try {
-      const rules = await getFormatRules(job.id, targetView);
-      setRulesByView((current) => ({
-        ...current,
-        [targetView]: rules,
-      }));
+      return applyMarkdownRules(artifact, rules.activeRules);
     } catch {
-      setRulesByView((current) => ({
-        ...current,
-        [targetView]: [],
-      }));
+      return artifact;
     }
-  }
+  }, [artifact, rules.activeRules, view]);
 
-  function clearCurrentAdjustmentState(targetView: ViewMode) {
-    setDraftMessageByView((current) => ({
-      ...current,
-      [targetView]: "",
-    }));
-    setSelectionByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
-    setAnchorByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
-    setSessionDetailByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
-    setSessionSelectionKeyByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [targetView]: null,
-    }));
-    setReplyVisibleByView((current) => ({
-      ...current,
-      [targetView]: false,
-    }));
-  }
+  const readerEffectsMap = useMemo(
+    () =>
+      view === "reader" && job.conversation
+        ? buildReaderEffectsMap(rules.activeRules, job.conversation)
+        : new Map(),
+    [rules.activeRules, job.conversation, view],
+  );
 
-  useEffect(() => {
-    if (!isAdjustableView && isAdjustModeEnabled) {
-      setAdjustModeByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
-  }, [isAdjustModeEnabled, isAdjustableView, view]);
-
-  useEffect(() => {
-    if (!isAdjustableView) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void getFormatRules(job.id, view)
-      .then((rules) => {
-        if (cancelled) {
-          return;
-        }
-
-        setRulesByView((current) => ({
-          ...current,
-          [view]: rules,
-        }));
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-
-        setRulesByView((current) => ({
-          ...current,
-          [view]: [],
-        }));
-      });
-
+  const handleDownloadMarkdown = useMemo(() => {
+    if (view !== "markdown") return undefined;
     return () => {
-      cancelled = true;
+      const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export-${job.id}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     };
-  }, [isAdjustableView, job.id, view]);
+  }, [view, displayedMarkdown, job.id]);
+  const showPopover =
+    session.adjustModeEnabled &&
+    Boolean(session.activeSelection) &&
+    Boolean(session.activeAnchor);
 
-  useEffect(() => {
-    if (!isAdjustModeEnabled || !isAdjustableView || !activeSelection) {
-      return;
-    }
+  const popoverCallbacksRef = useRef({
+    handleDiscardSession: session.handleDiscardSession,
+    activeSessionDetail: session.activeSessionDetail,
+    handleRejectLastChange: rules.handleRejectLastChange,
+    setReplyVisible: session.setReplyVisible,
+  });
+  popoverCallbacksRef.current = {
+    handleDiscardSession: session.handleDiscardSession,
+    activeSessionDetail: session.activeSessionDetail,
+    handleRejectLastChange: rules.handleRejectLastChange,
+    setReplyVisible: session.setReplyVisible,
+  };
 
-    const nextSelectionKey = JSON.stringify(activeSelection);
+  const handlePopoverClose = useCallback(() => {
+    popoverCallbacksRef.current.handleDiscardSession();
+  }, []);
 
-    if (
-      activeSelectionKey === nextSelectionKey &&
-      activeSessionDetail &&
-      activeSessionDetail.session.importId === job.id
-    ) {
-      return;
-    }
-
-    if (selectionDebounceRef.current !== null) {
-      clearTimeout(selectionDebounceRef.current);
-    }
-
-    let cancelled = false;
-
-    selectionDebounceRef.current = setTimeout(() => {
-      setSessionLoadingByView((current) => ({
-        ...current,
-        [view]: true,
-      }));
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]: null,
-      }));
-
-      void createAdjustmentSession(job.id, {
-        selection: activeSelection,
-        targetFormat: view,
-      })
-        .then((detail) => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionDetailByView((current) => ({
-            ...current,
-            [view]: detail,
-          }));
-          setSessionSelectionKeyByView((current) => ({
-            ...current,
-            [view]: nextSelectionKey,
-          }));
-        })
-        .catch((error) => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionErrorByView((current) => ({
-            ...current,
-            [view]:
-              error instanceof Error
-                ? error.message
-                : "Anpassungssession konnte nicht erstellt werden.",
-          }));
-        })
-        .finally(() => {
-          if (cancelled) {
-            return;
-          }
-
-          setSessionLoadingByView((current) => ({
-            ...current,
-            [view]: false,
-          }));
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      if (selectionDebounceRef.current !== null) {
-        clearTimeout(selectionDebounceRef.current);
-      }
-    };
-  }, [
-    activeSelection,
-    activeSelectionKey,
-    activeSessionDetail,
-    isAdjustModeEnabled,
-    isAdjustableView,
-    job.id,
-    view,
-  ]);
-
-  function toggleAdjustMode() {
-    if (!isAdjustableView) {
-      return;
-    }
-
-    const nextEnabled = !adjustModeByView[view];
-
-    setAdjustModeByView((current) => ({
-      ...current,
-      [view]: nextEnabled,
-    }));
-    setGuideDismissedByView((current) => ({
-      ...current,
-      [view]: false,
-    }));
-
-    if (!nextEnabled) {
-      clearCurrentAdjustmentState(view);
-    }
-  }
-
-  function handleSelectionChange(
-    selection: AdjustmentSelection,
-    anchor: ViewportAnchor,
-  ) {
-    const container = sectionRef.current;
-    let containerAnchor = anchor;
-
-    if (container) {
-      const containerRect = container.getBoundingClientRect();
-      containerAnchor = {
-        top: anchor.top - containerRect.top + container.scrollTop,
-        bottom: anchor.bottom - containerRect.top + container.scrollTop,
-        left: anchor.left - containerRect.left,
-        width: anchor.width,
-        height: anchor.height,
-      };
-    }
-
-    setSelectionByView((current) => ({
-      ...current,
-      [view]: selection,
-    }));
-    setAnchorByView((current) => ({
-      ...current,
-      [view]: containerAnchor,
-    }));
-    setGuideDismissedByView((current) => ({
-      ...current,
-      [view]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
-    setReplyVisibleByView((current) => ({
-      ...current,
-      [view]: false,
-    }));
-  }
-
-  function handleDraftMessageChange(value: string) {
-    setDraftMessageByView((current) => ({
-      ...current,
-      [view]: value,
-    }));
-  }
-
-  async function handleSubmitMessage(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!activeSessionDetail) {
-      return;
-    }
-
-    const content = activeDraftMessage.trim();
-
-    if (!content) {
-      return;
-    }
-
-    setSubmittingMessageByView((current) => ({
-      ...current,
-      [view]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
-
-    try {
-      const nextDetail = await appendAdjustmentMessage(
-        activeSessionDetail.session.id,
-        {
-          content,
-        },
-      );
-
-      setSessionDetailByView((current) => ({
-        ...current,
-        [view]: nextDetail,
-      }));
-      setDraftMessageByView((current) => ({
-        ...current,
-        [view]: "",
-      }));
-      setReplyVisibleByView((current) => ({
-        ...current,
-        [view]: true,
-      }));
-
-      if (nextDetail.session.status === "applied") {
-        await refreshFormatRules(view);
-      }
-    } catch (error) {
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error
-            ? error.message
-            : "Anpassungsnachricht konnte nicht gespeichert werden.",
-      }));
-    } finally {
-      setSubmittingMessageByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
-  }
-
-  async function handleDiscardSession() {
-    if (!activeSessionDetail) {
-      clearCurrentAdjustmentState(view);
-      return;
-    }
-
-    setDiscardingByView((current) => ({
-      ...current,
-      [view]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
-
-    try {
-      await discardAdjustmentSession(activeSessionDetail.session.id);
-      clearCurrentAdjustmentState(view);
-    } catch (error) {
-      if (activeSessionDetail.session.status === "applied") {
-        clearCurrentAdjustmentState(view);
-      } else {
-        setSessionErrorByView((current) => ({
-          ...current,
-          [view]:
-            error instanceof Error
-              ? error.message
-              : "Anpassungssession konnte nicht verworfen werden.",
-        }));
-      }
-    } finally {
-      setDiscardingByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
-  }
-
-  async function handleRejectLastChange() {
-    if (!activeSessionDetail) {
-      return;
-    }
-
-    let matchingRule = activeRules.find(
-      (rule) =>
-        rule.sourceSessionId === activeSessionDetail.session.id &&
-        rule.status === "active",
-    );
-
-    if (!matchingRule) {
-      try {
-        const freshRules = await getFormatRules(job.id, view);
-        setRulesByView((current) => ({
-          ...current,
-          [view]: freshRules,
-        }));
-        matchingRule = freshRules.find(
-          (rule) =>
-            rule.sourceSessionId === activeSessionDetail.session.id &&
-            rule.status === "active",
-        );
-      } catch {
-        // Rules konnten nicht neu geladen werden – Reply bleibt sichtbar.
-        return;
-      }
-    }
-
-    if (!matchingRule) {
-      return;
-    }
-
-    const success = await handleDisableRule(matchingRule.id);
-
-    if (success) {
-      setReplyVisibleByView((current) => ({
-        ...current,
-        [view]: false,
-      }));
-    }
-  }
-
-  async function handleDisableRule(ruleId: string): Promise<boolean> {
-    setDisablingRuleById((current) => ({
-      ...current,
-      [ruleId]: true,
-    }));
-    setSessionErrorByView((current) => ({
-      ...current,
-      [view]: null,
-    }));
-
-    try {
-      const nextRule = await disableFormatRule(ruleId);
-
-      setRulesByView((current) => ({
-        ...current,
-        [view]: current[view].map((rule) =>
-          rule.id === nextRule.id ? nextRule : rule,
-        ),
-      }));
-      setHoveredRuleId((current) => (current === ruleId ? null : current));
-      return true;
-    } catch (error) {
-      setSessionErrorByView((current) => ({
-        ...current,
-        [view]:
-          error instanceof Error
-            ? error.message
-            : "Formatregel konnte nicht deaktiviert werden.",
-      }));
-      return false;
-    } finally {
-      setDisablingRuleById((current) => {
-        const nextState = { ...current };
-        delete nextState[ruleId];
-        return nextState;
+  const handleRejectLastChange = useCallback(() => {
+    const {
+      activeSessionDetail,
+      handleRejectLastChange: reject,
+      setReplyVisible,
+    } = popoverCallbacksRef.current;
+    if (activeSessionDetail) {
+      void reject(activeSessionDetail).then((success) => {
+        if (success) setReplyVisible(false);
       });
     }
-  }
+  }, []);
+
+  const sessionError =
+    session.activeSessionError ?? rules.disableError ?? rules.promoteError;
+
+  const viewErrorFallback = (_error: Error, reset: () => void) => (
+    <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-red-700">{miscLabels.viewLoadError}</p>
+      <button
+        className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-foreground/5"
+        type="button"
+        onClick={reset}
+      >
+        {miscLabels.retryButton}
+      </button>
+    </div>
+  );
 
   return (
     <section
-      ref={sectionRef}
+      ref={mergedRef}
       className="relative space-y-4 rounded-[1.9rem] border border-border/80 bg-background/70 p-4 sm:p-5"
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge variant={job.status === "completed" ? "default" : "outline"}>
-          {getStatusLabel(job)}
-        </Badge>
-        {job.summary ? (
-          <p className="text-sm text-muted-foreground">
-            {job.summary.messageCount} Nachrichten ·{" "}
-            {job.summary.transcriptWords} Wörter
-          </p>
-        ) : null}
-        {job.status !== "completed" && activeStage ? (
-          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-            {job.status === "queued" ? (
-              <Clock3 className="h-4 w-4" />
-            ) : (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            )}
-            <span>{activeStage.label}</span>
-            <span>·</span>
-            <span>{elapsedTime}</span>
-          </div>
-        ) : null}
-      </div>
+      <StatusHeader
+        activeStage={activeStage}
+        elapsedTime={elapsedTime}
+        job={job}
+      />
 
       {job.warnings.length > 0 ? (
         <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 px-4 py-3 text-sm text-amber-950">
@@ -750,132 +256,134 @@ export function FormatWorkspace({
         </div>
       ) : null}
 
-      {job.status === "failed" ? null : job.status === "queued" ||
-        job.status === "running" ? (
-        <div className="space-y-3">
-          <div className="rounded-[1.6rem] border border-border/80 bg-card/75 p-5">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
-              {activeStage?.detail ?? "Transkript wird vorbereitet"}
-            </div>
-            <div className="space-y-3">
-              <div className="h-3 w-40 animate-pulse rounded-full bg-primary/15" />
-              <div className="h-4 animate-pulse rounded-full bg-border/80" />
-              <div className="h-4 w-11/12 animate-pulse rounded-full bg-border/70" />
-              <div className="h-4 w-4/5 animate-pulse rounded-full bg-border/60" />
-              <div className="h-24 animate-pulse rounded-[1.4rem] border border-border/70 bg-background/80" />
-            </div>
-          </div>
+      {job.status === "failed" ? (
+        <div className="rounded-2xl border border-red-300/40 bg-red-100/70 p-4 text-red-900">
+          <p className="font-medium">{miscLabels.importFailed}</p>
+          {job.errorStage && job.errorStage !== "done" && (
+            <p className="text-sm mt-1">
+              {miscLabels.errorInPhase(getImportStageLabel(job.errorStage))}
+            </p>
+          )}
+          {job.error && <p className="text-sm mt-1">{job.error}</p>}
         </div>
+      ) : job.status === "queued" || job.status === "running" ? (
+        <LoadingStateBlock stageDetail={activeStage?.detail} />
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              {outputViews.map((outputView) => (
-                <Button
-                  key={outputView.value}
-                  data-testid={`format-view-${outputView.value}`}
-                  type="button"
-                  size="sm"
-                  variant={view === outputView.value ? "default" : "outline"}
-                  onClick={() => onViewChange(outputView.value)}
-                >
-                  {outputView.label}
-                </Button>
-              ))}
-            </div>
+          <CompletedToolbar
+            adjustModeEnabled={session.adjustModeEnabled}
+            isAdjustableView={isAdjustableView}
+            rules={rules}
+            view={view}
+            onDownloadMarkdown={handleDownloadMarkdown}
+            onToggleAdjustMode={session.toggleAdjustMode}
+            onViewChange={onViewChange}
+            deletionsCount={deletion.deletionsCount}
+            showDeleted={deletion.showDeleted}
+            onToggleShowDeleted={() =>
+              deletion.setShowDeleted(!deletion.showDeleted)
+            }
+          />
 
-            {isAdjustableView ? (
-              <div className="flex items-center gap-2">
-                <RulesListPopover
-                  disablingRuleById={disablingRuleById}
-                  rules={activeRules}
-                  view={view}
-                  onDisableRule={(ruleId) => {
-                    void handleDisableRule(ruleId);
-                  }}
-                  onHoverRule={(ruleId) => setHoveredRuleId(ruleId)}
-                  onLeaveRule={() => setHoveredRuleId(null)}
-                />
-                <Button
-                  data-testid={`toggle-adjust-mode-${view}`}
-                  type="button"
-                  size="sm"
-                  variant={isAdjustModeEnabled ? "default" : "outline"}
-                  onClick={toggleAdjustMode}
-                >
-                  <Settings2 className="mr-2 h-4 w-4" />
-                  {isAdjustModeEnabled
-                    ? "Anpassungsmodus beenden"
-                    : `${getViewLabel(view)} anpassen`}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-
-          {activeSessionError && !isAdjustModeEnabled ? (
+          {sessionError && !session.adjustModeEnabled ? (
             <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
-              {activeSessionError}
+              {sessionError}
             </div>
           ) : null}
 
           {view === "reader" ? (
-            <ReaderView
-              activeRules={activeRules}
-              conversation={job.conversation}
-              adjustModeEnabled={isAdjustModeEnabled}
-              highlightedRuleId={hoveredRuleId}
-              selectedBlock={view === "reader" ? activeSelection : null}
-              onSelectBlock={handleSelectionChange}
-            />
+            <ErrorBoundary fallback={viewErrorFallback}>
+              <ReaderView
+                activeRules={rules.activeRules}
+                conversation={job.conversation}
+                adjustModeEnabled={session.adjustModeEnabled}
+                effectsMap={readerEffectsMap}
+                highlightedRuleId={rules.hoveredRuleId}
+                selectedBlock={
+                  view === "reader" ? session.activeSelection : null
+                }
+                onSelectBlock={session.handleSelectionChange}
+                deletedMessageIds={deletion.deletedMessageIds}
+                showDeleted={deletion.showDeleted}
+                onDeleteMessage={handleDeleteMessage}
+                onDeleteRound={handleDeleteRound}
+                onRestoreMessage={deletion.restoreMessage}
+              />
+            </ErrorBoundary>
           ) : view === "markdown" ? (
-            <MarkdownView
-              activeRules={activeRules}
-              content={displayedMarkdown}
-              adjustModeEnabled={isAdjustModeEnabled}
-              highlightedRuleId={hoveredRuleId}
-              selectedRange={activeSelection}
-              onSelectLines={handleSelectionChange}
-            />
+            <ErrorBoundary fallback={viewErrorFallback}>
+              <MarkdownView
+                activeRules={rules.activeRules}
+                content={displayedMarkdown}
+                adjustModeEnabled={session.adjustModeEnabled}
+                highlightedRuleId={rules.hoveredRuleId}
+                selectedRange={session.activeSelection}
+                onSelectLines={session.handleSelectionChange}
+              />
+            </ErrorBoundary>
           ) : (
-            <ArtifactView content={artifact} />
+            <ErrorBoundary fallback={viewErrorFallback}>
+              <ArtifactView content={artifact} />
+            </ErrorBoundary>
           )}
 
-          {showGuide ? (
+          {session.showGuide ? (
             <AdjustmentModeGuide
               view={view}
-              onDismiss={() => {
-                setGuideDismissedByView((current) => ({
-                  ...current,
-                  [view]: true,
-                }));
-              }}
+              onDismiss={() => session.setGuideDismissed(true)}
             />
           ) : null}
 
-          {showPopover && activeSelection && activeAnchor ? (
+          <ErrorBoundary
+            fallback={
+              <div className="rounded-2xl border border-red-300/40 bg-red-100/70 px-4 py-3 text-sm text-red-900">
+                {miscLabels.adjustmentLoadError}
+              </div>
+            }
+          >
             <AdjustmentPopover
-              anchor={activeAnchor}
-              containerDimensions={containerDimensions}
-              containerScrollTop={sectionRef.current?.scrollTop ?? 0}
-              draftMessage={activeDraftMessage}
-              error={activeSessionError}
-              isLoading={activeSessionLoading || isDiscarding}
-              isSubmitting={isSubmittingMessage}
-              sessionDetail={activeSessionDetail}
-              showReply={replyVisibleByView[view]}
+              anchor={session.activeAnchor ?? null}
+              containerRef={session.sectionRef}
+              draftMessage={session.activeDraftMessage}
+              error={session.activeSessionError}
+              isLoading={session.activeSessionLoading || session.isDiscarding}
+              isSubmitting={session.isSubmitting}
+              open={
+                showPopover &&
+                Boolean(session.activeSelection) &&
+                Boolean(session.activeAnchor)
+              }
+              sessionDetail={session.activeSessionDetail}
+              showReply={session.replyVisible}
               view={view}
-              onClose={() => {
-                void handleDiscardSession();
-              }}
-              onDraftMessageChange={handleDraftMessageChange}
-              onRejectLastChange={() => {
-                void handleRejectLastChange();
-              }}
-              onSubmitMessage={handleSubmitMessage}
+              onClose={handlePopoverClose}
+              onDraftMessageChange={session.handleDraftMessageChange}
+              onRejectLastChange={handleRejectLastChange}
+              onSubmitMessage={session.handleSubmitMessage}
             />
-          ) : null}
+          </ErrorBoundary>
         </div>
+      )}
+
+      {deleteDialog && (
+        <DeleteMessageDialog
+          messagePreview={deleteDialog.preview}
+          isRound={deleteDialog.isRound}
+          onConfirm={(reason) => {
+            void handleConfirmDelete(reason);
+          }}
+          onCancel={() => setDeleteDialog(null)}
+        />
+      )}
+
+      {deletionToast.toast && (
+        <UndoToast
+          message={deletionToast.toast.message}
+          onUndo={() => {
+            void handleUndoDelete();
+          }}
+          onDismiss={deletionToast.dismissToast}
+        />
       )}
     </section>
   );

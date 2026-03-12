@@ -1,13 +1,23 @@
-import type { Conversation, FormatRule } from "@chat-exporter/shared";
-import { useMemo, useRef } from "react";
+import type {
+  Block,
+  Conversation,
+  FormatRule,
+  Message,
+  RuleEffect,
+} from "@chat-exporter/shared";
+import React, { memo, useMemo, useRef } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
+import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
 import { getRoleLabel } from "@/components/format-workspace/labels";
+import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
 import {
   blockToPlainText,
+  collectInserts,
   getBlocksMatchingRule,
   getReaderBlockClassName,
+  getReaderBlockStyle,
   renderReaderBlock,
-  resolveReaderBlockEffects,
 } from "@/components/format-workspace/rule-engine";
 import type {
   AdjustmentSelection,
@@ -15,20 +25,45 @@ import type {
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
 
+import {
+  SELECTION_DEBOUNCE_MS,
+  TEXT_PREVIEW_LIMIT,
+  TEXT_TRUNCATION_LIMIT,
+} from "./constants";
+
+/** Thin wrapper so that errors thrown by renderReaderBlock are caught by ErrorBoundary. */
+function BlockRenderer({
+  block,
+  effects,
+}: {
+  block: Block;
+  effects: RuleEffect[];
+}) {
+  return <>{renderReaderBlock(block, effects)}</>;
+}
+
 type ReaderViewProps = {
   activeRules: FormatRule[];
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
+  deletedMessageIds?: Set<string>;
+  effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onDeleteMessage?: (messageId: string) => void;
+  onDeleteRound?: (messageId: string) => void;
+  onRestoreMessage?: (messageId: string) => Promise<{ restored: boolean }>;
   onSelectBlock: (
     selection: AdjustmentSelection,
     anchor: ViewportAnchor,
   ) => void;
   selectedBlock: AdjustmentSelection | null;
+  showDeleted?: boolean;
 };
 
 function truncateSelectionText(value: string) {
-  return value.length > 180 ? `${value.slice(0, 177).trimEnd()}...` : value;
+  return value.length > TEXT_TRUNCATION_LIMIT
+    ? `${value.slice(0, TEXT_PREVIEW_LIMIT).trimEnd()}...`
+    : value;
 }
 
 function toViewportAnchor(rect: DOMRect): ViewportAnchor {
@@ -41,15 +76,216 @@ function toViewportAnchor(rect: DOMRect): ViewportAnchor {
   };
 }
 
+type ReaderMessageProps = {
+  adjustModeEnabled: boolean;
+  effectsMap: Map<string, RuleEffect[]>;
+  highlightedBlocks: Set<string>;
+  isDeleted?: boolean;
+  message: Message;
+  messageIndex: number;
+  onDeleteMessage?: () => void;
+  onDeleteRound?: () => void;
+  onRestore?: () => void;
+  onSelectBlock: ReaderViewProps["onSelectBlock"];
+  selectedBlock: AdjustmentSelection | null;
+};
+
+const ReaderMessage = memo(function ReaderMessage({
+  adjustModeEnabled,
+  effectsMap,
+  highlightedBlocks,
+  isDeleted,
+  message,
+  messageIndex,
+  onDeleteMessage,
+  onDeleteRound,
+  onRestore,
+  onSelectBlock,
+  selectedBlock,
+}: ReaderMessageProps) {
+  const lastSelectionInteractionAt = useRef(0);
+
+  return (
+    <article
+      className={cn(
+        "rounded-[1.55rem] border border-border/80 px-4 py-5 sm:px-5",
+        message.role === "assistant" ? "bg-card/92" : "bg-secondary/30",
+        isDeleted && "opacity-50",
+      )}
+    >
+      {isDeleted && (
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-red-50 border border-red-200/60 px-3 py-2 text-xs text-red-700">
+          <span>Gelöscht</span>
+          {onRestore && (
+            <button
+              type="button"
+              className="text-red-600 hover:text-red-800 underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore();
+              }}
+            >
+              Wiederherstellen
+            </button>
+          )}
+        </div>
+      )}
+      <div className="group/header mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <span>{getRoleLabel(message.role)}</span>
+        <span>{messageIndex + 1}</span>
+        {!isDeleted && onDeleteMessage && onDeleteRound && (
+          <span className="ml-auto opacity-0 group-hover/header:opacity-100 transition-opacity">
+            <MessageDeleteMenu
+              onDeleteMessage={onDeleteMessage}
+              onDeleteRound={onDeleteRound}
+            />
+          </span>
+        )}
+      </div>
+      <div className="space-y-4">
+        {message.blocks.map((block, blockIndex) => {
+          const blockText = blockToPlainText(block);
+          const blockEffects =
+            effectsMap.get(`${message.id}:${blockIndex}`) ?? [];
+          const isSelected =
+            selectedBlock?.messageId === message.id &&
+            selectedBlock.blockIndex === blockIndex;
+          const isHighlighted = highlightedBlocks.has(
+            `${message.id}:${blockIndex}`,
+          );
+          const emitSelection = (
+            anchor: ViewportAnchor,
+            selectedText: string,
+          ) => {
+            lastSelectionInteractionAt.current = Date.now();
+
+            onSelectBlock(
+              {
+                blockIndex,
+                blockType: block.type,
+                messageId: message.id,
+                messageIndex,
+                messageRole: message.role,
+                selectedText,
+                textQuote: truncateSelectionText(selectedText),
+              },
+              anchor,
+            );
+          };
+
+          const inserts = collectInserts(blockEffects);
+
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: block identity is message.id + blockIndex
+            <React.Fragment key={`${message.id}-${blockIndex}`}>
+              {inserts.insertBefore === "hr" && (
+                <hr className="border-border/40" />
+              )}
+              {inserts.insertBefore === "spacer" && <div className="h-6" />}
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+              <div
+                data-testid={`reader-block-${message.id}-${blockIndex}`}
+                className={getReaderBlockClassName({
+                  adjustModeEnabled,
+                  effects: blockEffects,
+                  isHighlighted,
+                  isSelected,
+                })}
+                style={getReaderBlockStyle(blockEffects)}
+                data-selected={isSelected ? "true" : "false"}
+                onPointerUp={(event) => {
+                  if (!adjustModeEnabled) {
+                    return;
+                  }
+
+                  const selection = window.getSelection();
+                  const range =
+                    selection && selection.rangeCount > 0
+                      ? selection.getRangeAt(0)
+                      : null;
+                  const selectedText = selection?.toString().trim() ?? "";
+                  const container = event.currentTarget;
+                  const rangeStartContainer = range?.startContainer ?? null;
+                  const rangeEndContainer = range?.endContainer ?? null;
+                  const hasLocalTextSelection =
+                    Boolean(selectedText) &&
+                    Boolean(rangeStartContainer) &&
+                    Boolean(rangeEndContainer) &&
+                    container.contains(rangeStartContainer) &&
+                    container.contains(rangeEndContainer);
+                  const anchorRect =
+                    hasLocalTextSelection && range
+                      ? range.getBoundingClientRect()
+                      : container.getBoundingClientRect();
+
+                  emitSelection(
+                    toViewportAnchor(anchorRect),
+                    hasLocalTextSelection ? selectedText : blockText,
+                  );
+
+                  if (selection && hasLocalTextSelection) {
+                    selection.removeAllRanges();
+                  }
+                }}
+                onClick={(event) => {
+                  if (!adjustModeEnabled) {
+                    return;
+                  }
+
+                  if (
+                    Date.now() - lastSelectionInteractionAt.current <
+                    SELECTION_DEBOUNCE_MS
+                  ) {
+                    return;
+                  }
+
+                  emitSelection(
+                    toViewportAnchor(
+                      event.currentTarget.getBoundingClientRect(),
+                    ),
+                    blockText,
+                  );
+                }}
+              >
+                <ErrorBoundary
+                  fallback={<BlockErrorFallback blockType={block.type} />}
+                >
+                  <BlockRenderer block={block} effects={blockEffects} />
+                </ErrorBoundary>
+              </div>
+              {inserts.insertAfter === "hr" && (
+                <hr className="border-border/40" />
+              )}
+              {inserts.insertAfter === "spacer" && <div className="h-6" />}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </article>
+  );
+});
+
 export function ReaderView({
   activeRules,
   adjustModeEnabled,
   conversation,
+  deletedMessageIds,
+  effectsMap,
   highlightedRuleId,
+  onDeleteMessage,
+  onDeleteRound,
+  onRestoreMessage,
   onSelectBlock,
   selectedBlock,
+  showDeleted,
 }: ReaderViewProps) {
-  const lastSelectionInteractionAt = useRef(0);
+  const visibleMessages = useMemo(() => {
+    if (!conversation?.messages) return [];
+    if (!deletedMessageIds?.size) return conversation.messages;
+    if (showDeleted) return conversation.messages;
+    return conversation.messages.filter((m) => !deletedMessageIds.has(m.id));
+  }, [conversation?.messages, deletedMessageIds, showDeleted]);
 
   const highlightedBlocks = useMemo(() => {
     if (!highlightedRuleId || !conversation) {
@@ -78,122 +314,31 @@ export function ReaderView({
 
   return (
     <div className="space-y-3">
-      {conversation.messages.map((message, index) => (
-        <article
+      {visibleMessages.map((message, index) => (
+        <ReaderMessage
           key={message.id}
-          className={cn(
-            "rounded-[1.55rem] border border-border/80 px-4 py-5 sm:px-5",
-            message.role === "assistant" ? "bg-card/92" : "bg-secondary/30",
-          )}
-        >
-          <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            <span>{getRoleLabel(message.role)}</span>
-            <span>{index + 1}</span>
-          </div>
-          <div className="space-y-4">
-            {message.blocks.map((block, blockIndex) => {
-              const blockText = blockToPlainText(block);
-              const blockEffects = resolveReaderBlockEffects(
-                activeRules,
-                message.id,
-                blockIndex,
-                block.type,
-                blockText,
-              );
-              const isSelected =
-                selectedBlock?.messageId === message.id &&
-                selectedBlock.blockIndex === blockIndex;
-              const isHighlighted = highlightedBlocks.has(
-                `${message.id}:${blockIndex}`,
-              );
-              const emitSelection = (
-                anchor: ViewportAnchor,
-                selectedText: string,
-              ) => {
-                lastSelectionInteractionAt.current = Date.now();
-
-                onSelectBlock(
-                  {
-                    blockIndex,
-                    blockType: block.type,
-                    messageId: message.id,
-                    messageIndex: index,
-                    messageRole: message.role,
-                    selectedText,
-                    textQuote: truncateSelectionText(selectedText),
-                  },
-                  anchor,
-                );
-              };
-
-              return (
-                <div
-                  key={`${message.id}-${block.type}-${blockIndex}`}
-                  data-testid={`reader-block-${message.id}-${blockIndex}`}
-                  className={getReaderBlockClassName({
-                    adjustModeEnabled,
-                    effects: blockEffects,
-                    isHighlighted,
-                    isSelected,
-                  })}
-                  data-selected={isSelected ? "true" : "false"}
-                  onPointerUp={(event) => {
-                    if (!adjustModeEnabled) {
-                      return;
-                    }
-
-                    const selection = window.getSelection();
-                    const range =
-                      selection && selection.rangeCount > 0
-                        ? selection.getRangeAt(0)
-                        : null;
-                    const selectedText = selection?.toString().trim() ?? "";
-                    const container = event.currentTarget;
-                    const rangeStartContainer = range?.startContainer ?? null;
-                    const rangeEndContainer = range?.endContainer ?? null;
-                    const hasLocalTextSelection =
-                      Boolean(selectedText) &&
-                      Boolean(rangeStartContainer) &&
-                      Boolean(rangeEndContainer) &&
-                      container.contains(rangeStartContainer) &&
-                      container.contains(rangeEndContainer);
-                    const anchorRect =
-                      hasLocalTextSelection && range
-                        ? range.getBoundingClientRect()
-                        : container.getBoundingClientRect();
-
-                    emitSelection(
-                      toViewportAnchor(anchorRect),
-                      hasLocalTextSelection ? selectedText : blockText,
-                    );
-
-                    if (selection && hasLocalTextSelection) {
-                      selection.removeAllRanges();
-                    }
-                  }}
-                  onClick={(event) => {
-                    if (!adjustModeEnabled) {
-                      return;
-                    }
-
-                    if (Date.now() - lastSelectionInteractionAt.current < 250) {
-                      return;
-                    }
-
-                    emitSelection(
-                      toViewportAnchor(
-                        event.currentTarget.getBoundingClientRect(),
-                      ),
-                      blockText,
-                    );
-                  }}
-                >
-                  {renderReaderBlock(block, blockEffects)}
-                </div>
-              );
-            })}
-          </div>
-        </article>
+          adjustModeEnabled={adjustModeEnabled}
+          effectsMap={effectsMap}
+          highlightedBlocks={highlightedBlocks}
+          message={message}
+          messageIndex={index}
+          onSelectBlock={onSelectBlock}
+          selectedBlock={selectedBlock}
+          isDeleted={deletedMessageIds?.has(message.id)}
+          onDeleteMessage={
+            onDeleteMessage ? () => onDeleteMessage(message.id) : undefined
+          }
+          onDeleteRound={
+            onDeleteRound ? () => onDeleteRound(message.id) : undefined
+          }
+          onRestore={
+            onRestoreMessage
+              ? () => {
+                  void onRestoreMessage(message.id);
+                }
+              : undefined
+          }
+        />
       ))}
     </div>
   );

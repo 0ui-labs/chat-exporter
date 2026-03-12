@@ -1,17 +1,22 @@
 import type {
   ImportArtifacts,
   ImportJob,
+  ImportListRequest,
   ImportRequest,
+  ImportSummary,
 } from "@chat-exporter/shared";
-
+import { withTransaction } from "../db/client.js";
+import { IMPORT_TIMEOUT_MS } from "./constants.js";
 import {
   conversationToHandover,
   conversationToMarkdown,
   conversationWordCount,
 } from "./conversation-artifacts.js";
 import {
+  deleteImport,
   getPersistedImport,
   insertImport,
+  listImportSummaries,
   listPersistedImports,
   replaceImport,
   saveImportSnapshot,
@@ -54,12 +59,18 @@ function patchJob(id: string, patch: Partial<ImportJob>) {
   });
 }
 
-export function listImportJobs() {
-  return listPersistedImports();
+export function listImportJobs(
+  params?: Partial<ImportListRequest>,
+): ImportSummary[] {
+  return listImportSummaries(params);
 }
 
 export function getImportJob(id: string) {
   return getPersistedImport(id);
+}
+
+export function deleteImportJob(id: string): boolean {
+  return deleteImport(id);
 }
 
 export function createImportJob(input: ImportRequest) {
@@ -93,54 +104,77 @@ export async function runImportJob(id: string) {
   });
 
   try {
-    const imported = await importSharePage(job.sourceUrl, {
-      sourcePlatform: job.sourcePlatform,
-      onStage: (stage) => {
-        patchJob(id, {
-          currentStage: stage,
-        });
-      },
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_resolve, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(
+          new Error(
+            `Import timed out after ${IMPORT_TIMEOUT_MS / 1_000}s waiting for the share page to load.`,
+          ),
+        );
+      }, IMPORT_TIMEOUT_MS);
     });
 
-    patchJob(id, {
-      currentStage: "render",
-      conversation: imported.conversation,
-      summary: {
-        messageCount: imported.conversation.messages.length,
-        transcriptWords: conversationWordCount(imported.conversation),
-      },
-      warnings: imported.warnings,
-    });
-
-    saveImportSnapshot({
-      importId: id,
-      sourceUrl: job.sourceUrl,
-      finalUrl: imported.snapshot.finalUrl,
-      fetchedAt: imported.snapshot.fetchedAt,
-      pageTitle: imported.snapshot.pageTitle,
-      rawHtml: imported.snapshot.rawHtml,
-      normalizedPayload: imported.snapshot.normalizedPayload,
-      fetchMetadata: imported.snapshot.fetchMetadata,
-    });
-
-    const rendered = getImportJob(id);
-    if (!rendered) {
-      return;
+    let imported: Awaited<ReturnType<typeof importSharePage>> | undefined;
+    try {
+      imported = await Promise.race([
+        importSharePage(job.sourceUrl, {
+          sourcePlatform: job.sourcePlatform,
+          onStage: (stage) => {
+            patchJob(id, {
+              currentStage: stage,
+            });
+          },
+        }),
+        timeoutPromise,
+      ]);
+    } finally {
+      clearTimeout(timeoutHandle);
     }
 
-    patchJob(id, {
-      status: "completed",
-      currentStage: "done",
-      artifacts: buildArtifacts(rendered),
+    withTransaction(() => {
+      patchJob(id, {
+        currentStage: "render",
+        conversation: imported.conversation,
+        summary: {
+          messageCount: imported.conversation.messages.length,
+          transcriptWords: conversationWordCount(imported.conversation),
+        },
+        warnings: imported.warnings,
+      });
+
+      saveImportSnapshot({
+        importId: id,
+        sourceUrl: job.sourceUrl,
+        finalUrl: imported.snapshot.finalUrl,
+        fetchedAt: imported.snapshot.fetchedAt,
+        pageTitle: imported.snapshot.pageTitle,
+        rawHtml: imported.snapshot.rawHtml,
+        normalizedPayload: imported.snapshot.normalizedPayload,
+        fetchMetadata: imported.snapshot.fetchMetadata,
+      });
+
+      const rendered = getImportJob(id);
+      if (!rendered) {
+        return;
+      }
+
+      patchJob(id, {
+        status: "completed",
+        currentStage: "done",
+        artifacts: buildArtifacts(rendered),
+      });
     });
   } catch (error) {
+    const currentJob = getPersistedImport(id);
     patchJob(id, {
       status: "failed",
+      errorStage: currentJob?.currentStage,
       currentStage: "done",
       error:
         error instanceof Error
           ? error.message
-          : "The import pipeline failed before a conversation could be extracted.",
+          : "Die Import-Pipeline ist fehlgeschlagen.",
     });
   }
 }

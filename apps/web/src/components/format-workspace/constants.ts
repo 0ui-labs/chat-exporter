@@ -1,0 +1,3 @@
+export const TEXT_TRUNCATION_LIMIT = 180;
+export const TEXT_PREVIEW_LIMIT = 177;
+export const SELECTION_DEBOUNCE_MS = 250;

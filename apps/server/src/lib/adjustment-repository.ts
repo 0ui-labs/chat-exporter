@@ -2,11 +2,11 @@ import type {
   AdjustmentEventType,
   AdjustmentMessage,
   AdjustmentMetrics,
-  AdjustmentPreview,
   AdjustmentSelection,
   AdjustmentSession,
   AdjustmentSessionDetail,
   AdjustmentTargetFormat,
+  CustomStyleEffect,
   FormatRule,
   Role,
 } from "@chat-exporter/shared";
@@ -17,53 +17,26 @@ import {
   adjustmentSessionSchema,
   formatRuleSchema,
 } from "@chat-exporter/shared";
+import type { RunResult } from "better-sqlite3";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
-import { db, withTransaction } from "./database.js";
+import { db, withTransaction } from "../db/client.js";
+import type * as schema from "../db/schema.js";
+import {
+  adjustmentEvents,
+  adjustmentMessages,
+  adjustmentSessions,
+  formatRules,
+} from "../db/schema.js";
 
-type AdjustmentSessionRow = {
-  id: string;
-  import_id: string;
-  target_format: string;
-  status: string;
-  selection_json: string;
-  preview_artifact_json: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type AdjustmentMessageRow = {
-  id: string;
-  session_id: string;
-  role: string;
-  content: string;
-  created_at: string;
-};
-
-type FormatRuleRow = {
-  id: string;
-  import_id: string;
-  target_format: string;
-  kind: string;
-  scope: string;
-  status: string;
-  selector_json: string;
-  instruction: string;
-  compiled_rule_json: string | null;
-  source_session_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type AdjustmentMetricsRow = {
-  clarifications: number | null;
-  preview_failures: number | null;
-  previews_generated: number | null;
-  rules_applied: number | null;
-  rules_disabled: number | null;
-  sessions_created: number | null;
-  sessions_discarded: number | null;
-  updated_at: string | null;
-};
+type DbOrTx = BaseSQLiteDatabase<
+  "sync",
+  RunResult,
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>;
 
 type CreateAdjustmentSessionInput = {
   importId: string;
@@ -80,198 +53,6 @@ type RecordAdjustmentEventInput = {
   type: AdjustmentEventType;
 };
 
-const insertAdjustmentSessionStatement = db.prepare(`
-  INSERT INTO adjustment_sessions (
-    id,
-    import_id,
-    target_format,
-    status,
-    selection_json,
-    preview_artifact_json,
-    created_at,
-    updated_at
-  ) VALUES (
-    @id,
-    @import_id,
-    @target_format,
-    @status,
-    @selection_json,
-    @preview_artifact_json,
-    @created_at,
-    @updated_at
-  )
-`);
-
-const selectAdjustmentSessionStatement = db.prepare<
-  unknown[],
-  AdjustmentSessionRow
->(`SELECT * FROM adjustment_sessions WHERE id = ?`);
-
-const listAdjustmentSessionsStatement = db.prepare<
-  unknown[],
-  AdjustmentSessionRow
->(
-  `SELECT * FROM adjustment_sessions WHERE import_id = ? ORDER BY created_at DESC`,
-);
-
-const listAdjustmentSessionsByFormatStatement = db.prepare<
-  unknown[],
-  AdjustmentSessionRow
->(
-  `SELECT * FROM adjustment_sessions WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`,
-);
-
-const insertAdjustmentMessageStatement = db.prepare(`
-  INSERT INTO adjustment_messages (
-    id,
-    session_id,
-    role,
-    content,
-    created_at
-  ) VALUES (
-    @id,
-    @session_id,
-    @role,
-    @content,
-    @created_at
-  )
-`);
-
-const listAdjustmentMessagesStatement = db.prepare<
-  unknown[],
-  AdjustmentMessageRow
->(
-  `SELECT * FROM adjustment_messages WHERE session_id = ? ORDER BY created_at ASC`,
-);
-
-const updateAdjustmentSessionTimestampStatement = db.prepare(`
-  UPDATE adjustment_sessions
-  SET updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const updateAdjustmentSessionPreviewStatement = db.prepare(`
-  UPDATE adjustment_sessions
-  SET
-    status = @status,
-    preview_artifact_json = @preview_artifact_json,
-    updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const _updateAdjustmentSessionStatusStatement = db.prepare(`
-  UPDATE adjustment_sessions
-  SET
-    status = @status,
-    updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const conditionalUpdateAdjustmentSessionStatusStatement = db.prepare(`
-  UPDATE adjustment_sessions
-  SET
-    status = @new_status,
-    updated_at = @updated_at
-  WHERE id = @id AND status = @expected_status
-`);
-
-const conditionalDiscardAdjustmentSessionStatement = db.prepare(`
-  UPDATE adjustment_sessions
-  SET
-    status = 'discarded',
-    updated_at = @updated_at
-  WHERE id = @id AND status IN ('open', 'preview_ready')
-`);
-
-const insertFormatRuleStatement = db.prepare(`
-  INSERT INTO format_rules (
-    id,
-    import_id,
-    target_format,
-    kind,
-    scope,
-    status,
-    selector_json,
-    instruction,
-    compiled_rule_json,
-    source_session_id,
-    created_at,
-    updated_at
-  ) VALUES (
-    @id,
-    @import_id,
-    @target_format,
-    @kind,
-    @scope,
-    @status,
-    @selector_json,
-    @instruction,
-    @compiled_rule_json,
-    @source_session_id,
-    @created_at,
-    @updated_at
-  )
-`);
-
-const insertAdjustmentEventStatement = db.prepare(`
-  INSERT INTO adjustment_events (
-    id,
-    import_id,
-    session_id,
-    rule_id,
-    target_format,
-    event_type,
-    payload_json,
-    created_at
-  ) VALUES (
-    @id,
-    @import_id,
-    @session_id,
-    @rule_id,
-    @target_format,
-    @event_type,
-    @payload_json,
-    @created_at
-  )
-`);
-
-const selectFormatRuleStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE id = ?`,
-);
-
-const updateFormatRuleStatusStatement = db.prepare(`
-  UPDATE format_rules
-  SET
-    status = @status,
-    updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const listFormatRulesStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE import_id = ? ORDER BY created_at DESC`,
-);
-
-const listFormatRulesByFormatStatement = db.prepare<unknown[], FormatRuleRow>(
-  `SELECT * FROM format_rules WHERE import_id = ? AND target_format = ? ORDER BY created_at DESC`,
-);
-
-const summarizeAdjustmentMetricsStatement = db.prepare<
-  [string, string],
-  AdjustmentMetricsRow
->(`
-  SELECT
-    SUM(CASE WHEN event_type = 'session_created' THEN 1 ELSE 0 END) AS sessions_created,
-    SUM(CASE WHEN event_type = 'clarification_requested' THEN 1 ELSE 0 END) AS clarifications,
-    SUM(CASE WHEN event_type = 'preview_generated' THEN 1 ELSE 0 END) AS previews_generated,
-    SUM(CASE WHEN event_type = 'preview_failed' THEN 1 ELSE 0 END) AS preview_failures,
-    SUM(CASE WHEN event_type = 'rule_applied' THEN 1 ELSE 0 END) AS rules_applied,
-    SUM(CASE WHEN event_type = 'rule_disabled' THEN 1 ELSE 0 END) AS rules_disabled,
-    SUM(CASE WHEN event_type = 'session_discarded' THEN 1 ELSE 0 END) AS sessions_discarded,
-    MAX(created_at) AS updated_at
-  FROM adjustment_events
-  WHERE import_id = ? AND target_format = ?
-`);
-
 function now() {
   return new Date().toISOString();
 }
@@ -285,46 +66,47 @@ function parseJson<T>(value: string | null): T | undefined {
 }
 
 function deserializeAdjustmentSession(
-  row: AdjustmentSessionRow,
+  row: typeof adjustmentSessions.$inferSelect,
 ): AdjustmentSession {
   return adjustmentSessionSchema.parse({
     id: row.id,
-    importId: row.import_id,
-    targetFormat: row.target_format,
+    importId: row.importId,
+    targetFormat: row.targetFormat,
     status: row.status,
-    selection: parseJson<AdjustmentSelection>(row.selection_json),
-    previewArtifact: parseJson<unknown>(row.preview_artifact_json),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    selection: parseJson<AdjustmentSelection>(row.selectionJson),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   });
 }
 
 function deserializeAdjustmentMessage(
-  row: AdjustmentMessageRow,
+  row: typeof adjustmentMessages.$inferSelect,
 ): AdjustmentMessage {
   return adjustmentMessageSchema.parse({
     id: row.id,
-    sessionId: row.session_id,
+    sessionId: row.sessionId,
     role: row.role,
     content: row.content,
-    createdAt: row.created_at,
+    createdAt: row.createdAt,
   });
 }
 
-function deserializeFormatRule(row: FormatRuleRow): FormatRule {
+function deserializeFormatRule(
+  row: typeof formatRules.$inferSelect,
+): FormatRule {
   return formatRuleSchema.parse({
     id: row.id,
-    importId: row.import_id,
-    targetFormat: row.target_format,
+    importId: row.importId,
+    targetFormat: row.targetFormat,
     kind: row.kind,
     scope: row.scope,
     status: row.status,
-    selector: parseJson<unknown>(row.selector_json),
+    selector: parseJson<unknown>(row.selectorJson),
     instruction: row.instruction,
-    compiledRule: parseJson<unknown>(row.compiled_rule_json),
-    sourceSessionId: row.source_session_id ?? undefined,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    compiledRule: parseJson<unknown>(row.compiledRuleJson),
+    sourceSessionId: row.sourceSessionId ?? undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   });
 }
 
@@ -339,20 +121,27 @@ function selectionsMatch(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function recordAdjustmentEvent(input: RecordAdjustmentEventInput) {
+export function recordAdjustmentEvent(
+  input: RecordAdjustmentEventInput,
+  tx?: DbOrTx,
+) {
   const timestamp = now();
+  const target = tx ?? db;
 
-  insertAdjustmentEventStatement.run({
-    id: crypto.randomUUID(),
-    import_id: input.importId,
-    session_id: input.sessionId ?? null,
-    rule_id: input.ruleId ?? null,
-    target_format: input.targetFormat,
-    event_type: input.type,
-    payload_json:
-      input.payload === undefined ? null : JSON.stringify(input.payload),
-    created_at: timestamp,
-  });
+  target
+    .insert(adjustmentEvents)
+    .values({
+      id: crypto.randomUUID(),
+      importId: input.importId,
+      sessionId: input.sessionId ?? null,
+      ruleId: input.ruleId ?? null,
+      targetFormat: input.targetFormat,
+      eventType: input.type,
+      payloadJson:
+        input.payload === undefined ? null : JSON.stringify(input.payload),
+      createdAt: timestamp,
+    })
+    .run();
 }
 
 export function createAdjustmentSession(input: CreateAdjustmentSessionInput): {
@@ -376,31 +165,41 @@ export function createAdjustmentSession(input: CreateAdjustmentSessionInput): {
     updatedAt: timestamp,
   });
 
-  withTransaction(() => {
-    insertAdjustmentSessionStatement.run({
-      id: session.id,
-      import_id: session.importId,
-      target_format: session.targetFormat,
-      status: session.status,
-      selection_json: JSON.stringify(session.selection),
-      preview_artifact_json: null,
-      created_at: session.createdAt,
-      updated_at: session.updatedAt,
-    });
+  db.transaction((tx) => {
+    tx.insert(adjustmentSessions)
+      .values({
+        id: session.id,
+        importId: session.importId,
+        targetFormat: session.targetFormat,
+        status: session.status,
+        selectionJson: JSON.stringify(session.selection),
+        previewArtifactJson: null,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+      })
+      .run();
 
-    recordAdjustmentEvent({
-      importId: session.importId,
-      sessionId: session.id,
-      targetFormat: session.targetFormat,
-      type: "session_created",
-    });
+    recordAdjustmentEvent(
+      {
+        importId: session.importId,
+        sessionId: session.id,
+        targetFormat: session.targetFormat,
+        type: "session_created",
+      },
+      tx,
+    );
   });
 
   return { session, reused: false };
 }
 
 export function getAdjustmentSession(sessionId: string) {
-  const row = selectAdjustmentSessionStatement.get(sessionId);
+  const row = db
+    .select()
+    .from(adjustmentSessions)
+    .where(eq(adjustmentSessions.id, sessionId))
+    .get();
+
   return row ? deserializeAdjustmentSession(row) : undefined;
 }
 
@@ -408,9 +207,18 @@ export function listAdjustmentSessions(
   importId: string,
   targetFormat?: AdjustmentTargetFormat,
 ) {
-  const rows = targetFormat
-    ? listAdjustmentSessionsByFormatStatement.all(importId, targetFormat)
-    : listAdjustmentSessionsStatement.all(importId);
+  const conditions = [eq(adjustmentSessions.importId, importId)];
+
+  if (targetFormat) {
+    conditions.push(eq(adjustmentSessions.targetFormat, targetFormat));
+  }
+
+  const rows = db
+    .select()
+    .from(adjustmentSessions)
+    .where(and(...conditions))
+    .orderBy(desc(adjustmentSessions.createdAt))
+    .all();
 
   return rows.map(deserializeAdjustmentSession);
 }
@@ -420,7 +228,7 @@ export function findReusableAdjustmentSession(
 ) {
   return listAdjustmentSessions(input.importId, input.targetFormat).find(
     (session) =>
-      (session.status === "open" || session.status === "preview_ready") &&
+      session.status === "open" &&
       selectionsMatch(session.selection, input.selection),
   );
 }
@@ -432,118 +240,127 @@ export function appendAdjustmentMessage(
 ) {
   const timestamp = now();
 
-  insertAdjustmentMessageStatement.run({
-    id: crypto.randomUUID(),
-    session_id: sessionId,
-    role,
-    content,
-    created_at: timestamp,
+  withTransaction(() => {
+    db.insert(adjustmentMessages)
+      .values({
+        id: crypto.randomUUID(),
+        sessionId,
+        role,
+        content,
+        createdAt: timestamp,
+      })
+      .run();
+
+    db.update(adjustmentSessions)
+      .set({ updatedAt: timestamp })
+      .where(eq(adjustmentSessions.id, sessionId))
+      .run();
   });
 
-  updateAdjustmentSessionTimestampStatement.run({
-    id: sessionId,
-    updated_at: timestamp,
-  });
+  const rows = db
+    .select()
+    .from(adjustmentMessages)
+    .where(eq(adjustmentMessages.sessionId, sessionId))
+    .orderBy(asc(adjustmentMessages.createdAt))
+    .all();
 
-  const row = listAdjustmentMessagesStatement.all(sessionId).at(-1);
+  const row = rows.at(-1);
   return row ? deserializeAdjustmentMessage(row) : undefined;
 }
 
-export function saveAdjustmentPreview(
-  sessionId: string,
-  preview: AdjustmentPreview,
-) {
+type CreateFormatRuleDirectInput = {
+  importId: string;
+  targetFormat: AdjustmentTargetFormat;
+  selector: Record<string, unknown>;
+  effect: CustomStyleEffect;
+  instruction: string;
+  sourceSessionId: string;
+};
+
+export function createFormatRuleDirect(
+  input: CreateFormatRuleDirectInput,
+): FormatRule {
   const timestamp = now();
+  const ruleId = crypto.randomUUID();
 
-  updateAdjustmentSessionPreviewStatement.run({
-    id: sessionId,
-    status: "preview_ready",
-    preview_artifact_json: JSON.stringify(preview),
-    updated_at: timestamp,
-  });
-}
-
-export function applyAdjustmentPreview(sessionId: string) {
-  const session = getAdjustmentSession(sessionId);
-
-  if (!session) {
-    throw new Error("Anpassungssession nicht gefunden.");
-  }
-
-  if (!session.previewArtifact) {
-    throw new Error(
-      "Erzeuge zuerst eine Vorschau, bevor du eine Regel anwendest.",
-    );
-  }
-
-  if (session.status === "applied") {
-    throw new Error("Diese Anpassungssession wurde bereits angewendet.");
-  }
-
-  const timestamp = now();
   const rule = formatRuleSchema.parse({
-    id: crypto.randomUUID(),
-    importId: session.importId,
-    targetFormat: session.targetFormat,
-    kind: session.previewArtifact.draftRule.kind,
-    scope: session.previewArtifact.draftRule.scope,
+    id: ruleId,
+    importId: input.importId,
+    targetFormat: input.targetFormat,
+    kind: "render",
+    scope: "import_local",
     status: "active",
-    selector: session.previewArtifact.draftRule.selector,
-    instruction: session.previewArtifact.summary,
-    compiledRule: session.previewArtifact.draftRule.effect,
-    sourceSessionId: session.id,
+    selector: input.selector,
+    instruction: input.instruction,
+    compiledRule: input.effect,
+    sourceSessionId: input.sourceSessionId,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
 
-  withTransaction(() => {
-    const result = conditionalUpdateAdjustmentSessionStatusStatement.run({
-      id: sessionId,
-      expected_status: "preview_ready",
-      new_status: "applied",
-      updated_at: timestamp,
-    });
+  db.transaction((tx) => {
+    tx.insert(formatRules)
+      .values({
+        id: rule.id,
+        importId: rule.importId,
+        targetFormat: rule.targetFormat,
+        kind: rule.kind,
+        scope: rule.scope,
+        status: rule.status,
+        selectorJson: JSON.stringify(rule.selector),
+        instruction: rule.instruction,
+        compiledRuleJson: JSON.stringify(rule.compiledRule),
+        sourceSessionId: rule.sourceSessionId ?? null,
+        createdAt: rule.createdAt,
+        updatedAt: rule.updatedAt,
+      })
+      .run();
 
-    if (result.changes === 0) {
-      throw new Error(
-        "Status-Transition fehlgeschlagen: Session ist nicht mehr im erwarteten Zustand 'preview_ready'.",
-      );
-    }
-
-    insertFormatRuleStatement.run({
-      id: rule.id,
-      import_id: rule.importId,
-      target_format: rule.targetFormat,
-      kind: rule.kind,
-      scope: rule.scope,
-      status: rule.status,
-      selector_json: JSON.stringify(rule.selector),
-      instruction: rule.instruction,
-      compiled_rule_json: JSON.stringify(rule.compiledRule),
-      source_session_id: rule.sourceSessionId ?? null,
-      created_at: rule.createdAt,
-      updated_at: rule.updatedAt,
-    });
-
-    recordAdjustmentEvent({
-      importId: session.importId,
-      ruleId: rule.id,
-      sessionId: session.id,
-      targetFormat: session.targetFormat,
-      type: "rule_applied",
-    });
+    recordAdjustmentEvent(
+      {
+        importId: input.importId,
+        ruleId: rule.id,
+        sessionId: input.sourceSessionId,
+        targetFormat: input.targetFormat,
+        type: "rule_applied",
+      },
+      tx,
+    );
   });
 
-  const nextSession = getAdjustmentSession(sessionId);
+  return rule;
+}
 
-  if (!nextSession) {
-    throw new Error("Anpassungssession konnte nicht neu geladen werden.");
+export function updateFormatRuleEffect(
+  ruleId: string,
+  effect: CustomStyleEffect,
+  instruction?: string,
+): FormatRule {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
   }
 
-  return {
-    rule,
-    session: nextSession,
+  const timestamp = now();
+  const updates: Record<string, unknown> = {
+    compiledRuleJson: JSON.stringify(effect),
+    updatedAt: timestamp,
   };
+
+  if (instruction !== undefined) {
+    updates.instruction = instruction;
+  }
+
+  db.update(formatRules).set(updates).where(eq(formatRules.id, ruleId)).run();
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
 }
 
 export function discardAdjustmentSession(sessionId: string) {
@@ -565,11 +382,20 @@ export function discardAdjustmentSession(sessionId: string) {
 
   const timestamp = now();
 
-  withTransaction(() => {
-    const result = conditionalDiscardAdjustmentSessionStatement.run({
-      id: sessionId,
-      updated_at: timestamp,
-    });
+  db.transaction((tx) => {
+    const result = tx
+      .update(adjustmentSessions)
+      .set({
+        status: "discarded",
+        updatedAt: timestamp,
+      })
+      .where(
+        and(
+          eq(adjustmentSessions.id, sessionId),
+          inArray(adjustmentSessions.status, ["open"]),
+        ),
+      )
+      .run();
 
     if (result.changes === 0) {
       throw new Error(
@@ -577,12 +403,15 @@ export function discardAdjustmentSession(sessionId: string) {
       );
     }
 
-    recordAdjustmentEvent({
-      importId: session.importId,
-      sessionId: session.id,
-      targetFormat: session.targetFormat,
-      type: "session_discarded",
-    });
+    recordAdjustmentEvent(
+      {
+        importId: session.importId,
+        sessionId: session.id,
+        targetFormat: session.targetFormat,
+        type: "session_discarded",
+      },
+      tx,
+    );
   });
 
   const nextDetail = getAdjustmentSessionDetail(sessionId);
@@ -594,6 +423,13 @@ export function discardAdjustmentSession(sessionId: string) {
   return nextDetail;
 }
 
+export function markSessionApplied(sessionId: string) {
+  db.update(adjustmentSessions)
+    .set({ status: "applied", updatedAt: now() })
+    .where(eq(adjustmentSessions.id, sessionId))
+    .run();
+}
+
 export function reopenAdjustmentSession(sessionId: string) {
   const session = getAdjustmentSession(sessionId);
 
@@ -601,12 +437,14 @@ export function reopenAdjustmentSession(sessionId: string) {
     throw new Error("Anpassungssession nicht gefunden.");
   }
 
-  updateAdjustmentSessionPreviewStatement.run({
-    id: sessionId,
-    status: "open",
-    preview_artifact_json: null,
-    updated_at: now(),
-  });
+  db.update(adjustmentSessions)
+    .set({
+      status: "open",
+      previewArtifactJson: null,
+      updatedAt: now(),
+    })
+    .where(eq(adjustmentSessions.id, sessionId))
+    .run();
 
   const updated = getAdjustmentSession(sessionId);
 
@@ -618,13 +456,22 @@ export function reopenAdjustmentSession(sessionId: string) {
 }
 
 export function listAdjustmentMessages(sessionId: string) {
-  return listAdjustmentMessagesStatement
-    .all(sessionId)
+  return db
+    .select()
+    .from(adjustmentMessages)
+    .where(eq(adjustmentMessages.sessionId, sessionId))
+    .orderBy(asc(adjustmentMessages.createdAt))
+    .all()
     .map(deserializeAdjustmentMessage);
 }
 
 export function getFormatRule(ruleId: string) {
-  const row = selectFormatRuleStatement.get(ruleId);
+  const row = db
+    .select()
+    .from(formatRules)
+    .where(eq(formatRules.id, ruleId))
+    .get();
+
   return row ? deserializeFormatRule(row) : undefined;
 }
 
@@ -647,18 +494,61 @@ export function listFormatRules(
   importId: string,
   targetFormat?: AdjustmentTargetFormat,
 ) {
-  const rows = targetFormat
-    ? listFormatRulesByFormatStatement.all(importId, targetFormat)
-    : listFormatRulesStatement.all(importId);
+  const localConditions = [eq(formatRules.importId, importId)];
+  const profileConditions = [
+    isNull(formatRules.importId),
+    eq(formatRules.scope, "format_profile"),
+  ];
 
-  return rows.map(deserializeFormatRule);
+  if (targetFormat) {
+    localConditions.push(eq(formatRules.targetFormat, targetFormat));
+    profileConditions.push(eq(formatRules.targetFormat, targetFormat));
+  }
+
+  const profileRows = db
+    .select()
+    .from(formatRules)
+    .where(and(...profileConditions))
+    .orderBy(desc(formatRules.createdAt))
+    .all();
+
+  const localRows = db
+    .select()
+    .from(formatRules)
+    .where(and(...localConditions))
+    .orderBy(desc(formatRules.createdAt))
+    .all();
+
+  return [...profileRows, ...localRows].map(deserializeFormatRule);
 }
 
 export function getAdjustmentMetrics(
   importId: string,
   targetFormat: AdjustmentTargetFormat,
 ): AdjustmentMetrics {
-  const row = summarizeAdjustmentMetricsStatement.get(importId, targetFormat);
+  const row = db.get<{
+    sessions_created: number | null;
+    clarifications: number | null;
+    previews_generated: number | null;
+    preview_failures: number | null;
+    rules_applied: number | null;
+    rules_disabled: number | null;
+    sessions_discarded: number | null;
+    updated_at: string | null;
+  }>(sql`
+    SELECT
+      SUM(CASE WHEN event_type = 'session_created' THEN 1 ELSE 0 END) AS sessions_created,
+      SUM(CASE WHEN event_type = 'clarification_requested' THEN 1 ELSE 0 END) AS clarifications,
+      SUM(CASE WHEN event_type = 'preview_generated' THEN 1 ELSE 0 END) AS previews_generated,
+      SUM(CASE WHEN event_type = 'preview_failed' THEN 1 ELSE 0 END) AS preview_failures,
+      SUM(CASE WHEN event_type = 'rule_applied' THEN 1 ELSE 0 END) AS rules_applied,
+      SUM(CASE WHEN event_type = 'rule_disabled' THEN 1 ELSE 0 END) AS rules_disabled,
+      SUM(CASE WHEN event_type = 'session_discarded' THEN 1 ELSE 0 END) AS sessions_discarded,
+      MAX(created_at) AS updated_at
+    FROM ${adjustmentEvents}
+    WHERE ${adjustmentEvents.importId} = ${importId}
+      AND ${adjustmentEvents.targetFormat} = ${targetFormat}
+  `);
 
   return adjustmentMetricsSchema.parse({
     counts: {
@@ -688,10 +578,63 @@ export function updateFormatRuleStatus(
 
   const timestamp = now();
 
-  updateFormatRuleStatusStatement.run({
-    id: ruleId,
-    status,
-    updated_at: timestamp,
+  db.update(formatRules)
+    .set({
+      status,
+      updatedAt: timestamp,
+    })
+    .where(eq(formatRules.id, ruleId))
+    .run();
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
+}
+
+export function promoteRuleToProfile(ruleId: string) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
+  }
+
+  if (existingRule.scope === "format_profile") {
+    throw new Error("Regel ist bereits eine Profil-Regel.");
+  }
+
+  const originalImportId = existingRule.importId;
+  const timestamp = now();
+
+  db.transaction((tx) => {
+    tx.update(formatRules)
+      .set({
+        scope: "format_profile",
+        importId: null,
+        updatedAt: timestamp,
+      })
+      .where(eq(formatRules.id, ruleId))
+      .run();
+
+    if (!originalImportId) {
+      throw new Error(
+        "Regel hat keine gültige importId – Promote nicht möglich.",
+      );
+    }
+
+    recordAdjustmentEvent(
+      {
+        importId: originalImportId,
+        ruleId: existingRule.id,
+        sessionId: existingRule.sourceSessionId,
+        targetFormat: existingRule.targetFormat,
+        type: "rule_promoted",
+      },
+      tx,
+    );
   });
 
   const nextRule = getFormatRule(ruleId);
@@ -703,7 +646,40 @@ export function updateFormatRuleStatus(
   return nextRule;
 }
 
-export function disableFormatRule(ruleId: string) {
+export function demoteRuleToLocal(ruleId: string, importId: string) {
+  const existingRule = getFormatRule(ruleId);
+
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
+  }
+
+  if (existingRule.scope !== "format_profile") {
+    throw new Error("Regel ist bereits lokal.");
+  }
+
+  const timestamp = now();
+
+  db.transaction((tx) => {
+    tx.update(formatRules)
+      .set({
+        scope: "import_local",
+        importId,
+        updatedAt: timestamp,
+      })
+      .where(eq(formatRules.id, ruleId))
+      .run();
+  });
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+
+  return nextRule;
+}
+
+export function disableFormatRule(ruleId: string, importId?: string) {
   const existingRule = getFormatRule(ruleId);
 
   if (!existingRule) {
@@ -714,19 +690,42 @@ export function disableFormatRule(ruleId: string) {
     throw new Error("Nur aktive Regeln können deaktiviert werden.");
   }
 
-  const nextRule = withTransaction(() => {
-    const rule = updateFormatRuleStatus(ruleId, "disabled");
+  const resolvedImportId = existingRule.importId ?? importId;
 
-    recordAdjustmentEvent({
-      importId: rule.importId,
-      ruleId: rule.id,
-      sessionId: rule.sourceSessionId,
-      targetFormat: rule.targetFormat,
-      type: "rule_disabled",
-    });
+  if (!resolvedImportId) {
+    throw new Error(
+      "Für Profil-Regeln muss eine gültige importId angegeben werden.",
+    );
+  }
 
-    return rule;
+  db.transaction((tx) => {
+    const timestamp = now();
+
+    tx.update(formatRules)
+      .set({
+        status: "disabled",
+        updatedAt: timestamp,
+      })
+      .where(eq(formatRules.id, ruleId))
+      .run();
+
+    recordAdjustmentEvent(
+      {
+        importId: resolvedImportId,
+        ruleId: existingRule.id,
+        sessionId: existingRule.sourceSessionId,
+        targetFormat: existingRule.targetFormat,
+        type: "rule_disabled",
+      },
+      tx,
+    );
   });
+
+  const nextRule = getFormatRule(ruleId);
+
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
 
   return nextRule;
 }

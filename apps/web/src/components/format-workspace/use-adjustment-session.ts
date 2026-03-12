@@ -1,0 +1,268 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
+
+import {
+  type AdjustmentSelection,
+  adjustableViews,
+  type ViewMode,
+  type ViewportAnchor,
+} from "@/components/format-workspace/types";
+import { orpc } from "@/lib/orpc";
+
+import {
+  createInitialState,
+  sessionReducer,
+} from "./adjustment-session-reducer";
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+export function useAdjustmentSession(view: ViewMode, jobId: string) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [state, dispatch] = useReducer(
+    sessionReducer,
+    undefined,
+    createInitialState,
+  );
+  const queryClient = useQueryClient();
+
+  const createSession = useMutation(
+    orpc.adjustments.createSession.mutationOptions(),
+  );
+
+  const appendMessage = useMutation(
+    orpc.adjustments.appendMessage.mutationOptions({
+      onSuccess: (nextDetail) => {
+        dispatch({ type: "APPEND_MESSAGE_SUCCESS", view, detail: nextDetail });
+        if (nextDetail.session.status === "applied")
+          queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+      },
+      onError: (error) => {
+        dispatch({
+          type: "SET_SESSION_ERROR",
+          error: extractErrorMessage(
+            error,
+            "Anpassungsnachricht konnte nicht gespeichert werden.",
+          ),
+        });
+      },
+    }),
+  );
+
+  const discardSession = useMutation(
+    orpc.adjustments.discard.mutationOptions({
+      onSuccess: () => dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view }),
+      onError: (error) => {
+        if (state.activeSessionDetail?.session.status === "applied") {
+          dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
+        } else {
+          dispatch({
+            type: "SET_SESSION_ERROR",
+            error: extractErrorMessage(
+              error,
+              "Anpassungssession konnte nicht verworfen werden.",
+            ),
+          });
+        }
+      },
+    }),
+  );
+
+  // Derived values
+  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustModeEnabled = state.adjustModeByView[view];
+  const activeSelection = state.selectionByView[view];
+
+  // Disable adjust mode when switching to a non-adjustable view
+  useEffect(() => {
+    if (!isAdjustableView && isAdjustModeEnabled)
+      dispatch({ type: "SET_ADJUST_MODE", view, enabled: false });
+  }, [isAdjustModeEnabled, isAdjustableView, view]);
+
+  // Debounced session creation on selection change
+  useEffect(() => {
+    const currentSelection = state.selectionByView[view];
+    const activeSelectionKey = state.sessionSelectionKeyByView[view];
+    if (!isAdjustModeEnabled || !isAdjustableView || !currentSelection) return;
+
+    const nextSelectionKey = JSON.stringify(currentSelection);
+    if (
+      activeSelectionKey === nextSelectionKey &&
+      state.activeSessionDetail?.session.importId === jobId
+    )
+      return;
+
+    if (debounceRef.current !== null) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      dispatch({ type: "SET_SESSION_ERROR", error: null });
+      createSession.mutate(
+        { importId: jobId, selection: currentSelection, targetFormat: view },
+        {
+          onSuccess: (detail) => {
+            dispatch({ type: "SET_ACTIVE_SESSION_DETAIL", detail });
+            dispatch({
+              type: "SET_SESSION_SELECTION_KEY",
+              view,
+              key: nextSelectionKey,
+            });
+          },
+          onError: (error) => {
+            dispatch({
+              type: "SET_SESSION_ERROR",
+              error: extractErrorMessage(
+                error,
+                "Anpassungssession konnte nicht erstellt werden.",
+              ),
+            });
+          },
+        },
+      );
+    }, 250);
+
+    return () => {
+      if (debounceRef.current !== null) clearTimeout(debounceRef.current);
+    };
+  }, [
+    state.selectionByView[view],
+    state.sessionSelectionKeyByView[view],
+    state.activeSessionDetail,
+    createSession.mutate,
+    isAdjustModeEnabled,
+    isAdjustableView,
+    jobId,
+    view,
+  ]);
+
+  const toggleAdjustMode = useCallback(() => {
+    if (!isAdjustableView) return;
+    const nextEnabled = !state.adjustModeByView[view];
+    dispatch({ type: "SET_ADJUST_MODE", view, enabled: nextEnabled });
+    dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed: false });
+    if (!nextEnabled) dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
+  }, [isAdjustableView, state.adjustModeByView, view]);
+
+  const handleSelectionChange = useCallback(
+    (selection: AdjustmentSelection, anchor: ViewportAnchor) => {
+      const container = sectionRef.current;
+      const r = container?.getBoundingClientRect();
+      const scrollTop = container?.scrollTop ?? 0;
+      const adjusted = r
+        ? {
+            top: anchor.top - r.top + scrollTop,
+            bottom: anchor.bottom - r.top + scrollTop,
+            left: anchor.left - r.left,
+            width: anchor.width,
+            height: anchor.height,
+          }
+        : anchor;
+      dispatch({
+        type: "SELECTION_CHANGED",
+        view,
+        selection,
+        anchor: adjusted,
+      });
+    },
+    [view],
+  );
+
+  // Stable refs for values used in callbacks — prevents useCallback from
+  // getting new references when mutation objects or state change.
+  const latestRef = useRef({
+    activeSessionDetail: state.activeSessionDetail,
+    draftMessageByView: state.draftMessageByView,
+    appendMutate: appendMessage.mutate,
+    discardMutate: discardSession.mutate,
+  });
+  latestRef.current = {
+    activeSessionDetail: state.activeSessionDetail,
+    draftMessageByView: state.draftMessageByView,
+    appendMutate: appendMessage.mutate,
+    discardMutate: discardSession.mutate,
+  };
+
+  const handleSubmitMessage = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const { activeSessionDetail, draftMessageByView, appendMutate } =
+        latestRef.current;
+      if (!activeSessionDetail) return;
+      const content = draftMessageByView[view].trim();
+      if (!content) return;
+      dispatch({ type: "SET_SESSION_ERROR", error: null });
+      appendMutate({
+        sessionId: activeSessionDetail.session.id,
+        content,
+      });
+    },
+    [view],
+  );
+
+  const handleDiscardSession = useCallback(() => {
+    const { activeSessionDetail, discardMutate } = latestRef.current;
+    if (!activeSessionDetail) {
+      dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
+      return;
+    }
+    dispatch({ type: "SET_SESSION_ERROR", error: null });
+    discardMutate({ sessionId: activeSessionDetail.session.id });
+  }, [view]);
+
+  const handleDraftMessageChange = useCallback(
+    (value: string) => dispatch({ type: "SET_DRAFT_MESSAGE", view, value }),
+    [view],
+  );
+
+  const setReplyVisible = useCallback(
+    (visible: boolean) =>
+      dispatch({ type: "SET_REPLY_VISIBLE", view, visible }),
+    [view],
+  );
+
+  const setGuideDismissed = useCallback(
+    (dismissed: boolean) =>
+      dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed }),
+    [view],
+  );
+
+  const clearCurrentAdjustmentState = useCallback(
+    (targetView: ViewMode) =>
+      dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view: targetView }),
+    [],
+  );
+
+  return {
+    sectionRef,
+    adjustModeEnabled: isAdjustModeEnabled,
+    activeSessionDetail: state.activeSessionDetail,
+    activeSelection,
+    activeAnchor: state.anchorByView[view],
+    activeDraftMessage: state.draftMessageByView[view],
+    activeSessionError: state.sessionError,
+    activeSessionLoading: createSession.isPending,
+    isSubmitting: appendMessage.isPending,
+    isDiscarding: discardSession.isPending,
+    showGuide:
+      isAdjustModeEnabled &&
+      !activeSelection &&
+      !state.guideDismissedByView[view],
+    replyVisible: state.replyVisibleByView[view],
+    guideDismissed: state.guideDismissedByView[view],
+    toggleAdjustMode,
+    handleSelectionChange,
+    handleDraftMessageChange,
+    handleSubmitMessage,
+    handleDiscardSession,
+    clearCurrentAdjustmentState,
+    setReplyVisible,
+    setGuideDismissed,
+  };
+}

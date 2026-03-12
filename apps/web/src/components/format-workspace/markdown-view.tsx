@@ -1,11 +1,14 @@
 import type { FormatRule } from "@chat-exporter/shared";
 import { useMemo } from "react";
 
+import { ErrorBoundary } from "@/components/error-boundary";
 import type {
   AdjustmentSelection,
   ViewportAnchor,
 } from "@/components/format-workspace/types";
 import { cn } from "@/lib/utils";
+
+import { TEXT_PREVIEW_LIMIT, TEXT_TRUNCATION_LIMIT } from "./constants";
 
 type MarkdownViewProps = {
   activeRules: FormatRule[];
@@ -21,6 +24,25 @@ type MarkdownViewProps = {
 
 function formatLineNumber(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function LineContent({
+  line,
+  lineNumber,
+}: {
+  line: string;
+  lineNumber: number;
+}) {
+  return (
+    <>
+      <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
+        {formatLineNumber(lineNumber)}
+      </span>
+      <span className="min-w-0 whitespace-pre-wrap break-words font-mono">
+        {line.length > 0 ? line : " "}
+      </span>
+    </>
+  );
 }
 
 function toViewportAnchor(rect: DOMRect): ViewportAnchor {
@@ -151,20 +173,28 @@ export function MarkdownView({
                     messageRole: "markdown",
                     selectedText: selectedLines,
                     textQuote:
-                      selectedLines.length > 180
-                        ? `${selectedLines.slice(0, 177).trimEnd()}...`
+                      selectedLines.length > TEXT_TRUNCATION_LIMIT
+                        ? `${selectedLines.slice(0, TEXT_PREVIEW_LIMIT).trimEnd()}...`
                         : selectedLines,
                   },
                   toViewportAnchor(event.currentTarget.getBoundingClientRect()),
                 );
               }}
             >
-              <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
-                {formatLineNumber(lineNumber)}
-              </span>
-              <span className="min-w-0 whitespace-pre-wrap break-words font-mono">
-                {line.length > 0 ? line : " "}
-              </span>
+              <ErrorBoundary
+                fallback={
+                  <>
+                    <span className="select-none pt-0.5 font-mono text-xs text-zinc-500">
+                      {"\u00A0"}
+                    </span>
+                    <span className="text-xs text-red-500">
+                      Zeile konnte nicht dargestellt werden.
+                    </span>
+                  </>
+                }
+              >
+                <LineContent line={line} lineNumber={lineNumber} />
+              </ErrorBoundary>
             </button>
           );
         })}

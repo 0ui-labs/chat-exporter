@@ -5,9 +5,25 @@ import {
   type NormalizedSnapshotPayload,
   normalizedSnapshotPayloadSchema,
 } from "@chat-exporter/shared";
-import { chromium } from "playwright";
-
+import { acquireContext, releaseContext } from "./browser-pool.js";
+import { MAX_MESSAGE_COUNT, MAX_RAW_HTML_BYTES } from "./constants.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
+
+/* ── ChatGPT share-import constants ─────────────────────────── */
+
+/** Timeout for the initial page.goto() navigation. */
+export const PAGE_LOAD_TIMEOUT_MS = 30_000;
+
+/** Timeout for waiting until message elements appear in the DOM. */
+export const MESSAGE_WAIT_TIMEOUT_MS = 20_000;
+
+/** Extra delay after messages appear to let the page stabilize. */
+export const PAGE_STABILIZATION_MS = 800;
+
+/** CSS selector that identifies ChatGPT share-page message elements. */
+export const CHATGPT_SHARE_SELECTOR = "article [data-message-author-role]";
+
+/* ─────────────────────────────────────────────────────────── */
 
 type StageCallback = (
   stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
@@ -30,21 +46,15 @@ type ImportResult = {
   };
 };
 
-const CHATGPT_SHARE_SELECTOR = "article [data-message-author-role]";
-
 export async function importChatGptSharePage(
   url: string,
   options?: {
     onStage?: StageCallback;
   },
 ): Promise<ImportResult> {
-  const browser = await chromium.launch({
-    headless: true,
-  });
+  const context = await acquireContext();
 
   try {
-    const context = await browser.newContext();
-
     await context.route("**/*", (route) => {
       const resourceType = route.request().resourceType();
 
@@ -67,16 +77,16 @@ export async function importChatGptSharePage(
     options?.onStage?.("fetch");
     await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: 30_000,
+      timeout: PAGE_LOAD_TIMEOUT_MS,
     });
     await page.waitForFunction(
       (selector) => document.querySelectorAll(selector).length > 0,
       CHATGPT_SHARE_SELECTOR,
       {
-        timeout: 20_000,
+        timeout: MESSAGE_WAIT_TIMEOUT_MS,
       },
     );
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(PAGE_STABILIZATION_MS);
 
     options?.onStage?.("extract");
     const extracted = await page.evaluate(() => {
@@ -528,6 +538,17 @@ export async function importChatGptSharePage(
 
     options?.onStage?.("normalize");
     const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
+
+    if (normalizedPayload.messages.length > MAX_MESSAGE_COUNT) {
+      const originalCount = normalizedPayload.messages.length;
+      normalizedPayload.messages = normalizedPayload.messages.slice(
+        -MAX_MESSAGE_COUNT,
+      );
+      normalizedPayload.warnings.push(
+        `Nachrichtenlimit überschritten: ${originalCount} Nachrichten gefunden, auf die letzten ${MAX_MESSAGE_COUNT} gekürzt.`,
+      );
+    }
+
     options?.onStage?.("structure");
     const structured = await applyOpenAiStructuring(normalizedPayload.messages);
     const finalPayload = normalizedSnapshotPayloadSchema.parse({
@@ -537,6 +558,14 @@ export async function importChatGptSharePage(
       structuring: structured.structuring,
     });
     const rawHtml = await page.content();
+    const rawHtmlBytes = Buffer.byteLength(rawHtml, "utf8");
+    if (rawHtmlBytes > MAX_RAW_HTML_BYTES) {
+      const sizeMb = (rawHtmlBytes / (1024 * 1024)).toFixed(1);
+      const limitMb = (MAX_RAW_HTML_BYTES / (1024 * 1024)).toFixed(1);
+      throw new Error(
+        `HTML-Größe überschritten: ${sizeMb} MB (Limit: ${limitMb} MB).`,
+      );
+    }
     const fetchedAt = new Date().toISOString();
 
     const conversation = conversationSchema.parse({
@@ -566,6 +595,6 @@ export async function importChatGptSharePage(
       },
     };
   } finally {
-    await browser.close();
+    await releaseContext(context);
   }
 }

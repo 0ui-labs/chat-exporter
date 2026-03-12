@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@orpc/contract": "^1.13.6",
     "zod": "^3.24.1"
   },
   "devDependencies": {
