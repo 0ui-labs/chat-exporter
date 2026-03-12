@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "368995cdccac",
+  "strategy": "manual-commit",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/tiptap/serializer.test.ts",
+    "apps/web/src/components/format-workspace/tiptap/serializer.ts",
+    "apps/web/src/components/format-workspace/tiptap/turn-editor.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/36/8995cdccac/0/metadata.json",
+      "transcript": "/36/8995cdccac/0/full.jsonl",
+      "content_hash": "/36/8995cdccac/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3652,
+    "cache_creation_tokens": 117018,
+    "cache_read_tokens": 2749475,
+    "output_tokens": 26601,
+    "api_call_count": 32
+  }
+}

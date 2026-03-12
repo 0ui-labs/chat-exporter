@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "368995cdccac",
+  "session_id": "b8974397-e957-44c0-8f89-a7a2f29a8464",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T23:17:19.203712Z",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/tiptap/serializer.test.ts",
+    "apps/web/src/components/format-workspace/tiptap/serializer.ts",
+    "apps/web/src/components/format-workspace/tiptap/turn-editor.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0d0dfc3c9563",
+  "token_usage": {
+    "input_tokens": 3652,
+    "cache_creation_tokens": 117018,
+    "cache_read_tokens": 2749475,
+    "output_tokens": 26601,
+    "api_call_count": 32
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T23:17:18.597263Z",
+    "agent_lines": 178,
+    "human_added": 0,
+    "human_modified": 3,
+    "human_removed": 5,
+    "total_committed": 181,
+    "agent_percentage": 98.34254143646409
+  }
+}
