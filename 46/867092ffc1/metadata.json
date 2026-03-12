@@ -7,7 +7,8 @@
   "files_touched": [
     "apps/web/src/components/format-workspace/format-workspace.test.tsx",
     "apps/web/src/components/format-workspace/reader-view.test.tsx",
-    "apps/web/src/components/format-workspace/rule-engine.test.ts"
+    "apps/web/src/components/format-workspace/rule-engine.test.ts",
+    "packages/shared/src/adjustments.test.ts"
   ],
   "sessions": [
     {
@@ -21,13 +22,19 @@
       "transcript": "/46/867092ffc1/1/full.jsonl",
       "content_hash": "/46/867092ffc1/1/content_hash.txt",
       "prompt": "/46/867092ffc1/1/prompt.txt"
+    },
+    {
+      "metadata": "/46/867092ffc1/2/metadata.json",
+      "transcript": "/46/867092ffc1/2/full.jsonl",
+      "content_hash": "/46/867092ffc1/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 80,
-    "cache_creation_tokens": 122775,
-    "cache_read_tokens": 2190797,
-    "output_tokens": 31353,
-    "api_call_count": 46
+    "input_tokens": 81,
+    "cache_creation_tokens": 124463,
+    "cache_read_tokens": 2268127,
+    "output_tokens": 31648,
+    "api_call_count": 47
   }
 }
