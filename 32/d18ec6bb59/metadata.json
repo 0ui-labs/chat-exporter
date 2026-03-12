@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "32d18ec6bb59",
+  "strategy": "manual-commit",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/db/client.ts",
+    "apps/server/src/db/schema.test.ts",
+    "apps/server/src/db/schema.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/32/d18ec6bb59/0/metadata.json",
+      "transcript": "/32/d18ec6bb59/0/full.jsonl",
+      "content_hash": "/32/d18ec6bb59/0/content_hash.txt",
+      "prompt": "/32/d18ec6bb59/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2560,
+    "cache_creation_tokens": 55638,
+    "cache_read_tokens": 408266,
+    "output_tokens": 5916,
+    "api_call_count": 8
+  }
+}
