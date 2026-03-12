@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "fee32463dfda",
+  "strategy": "manual-commit",
+  "branch": "feature/tiptap-editor",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/fe/e32463dfda/0/metadata.json",
+      "transcript": "/fe/e32463dfda/0/full.jsonl",
+      "content_hash": "/fe/e32463dfda/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2959,
+    "cache_creation_tokens": 77696,
+    "cache_read_tokens": 1395571,
+    "output_tokens": 15062,
+    "api_call_count": 20
+  }
+}
