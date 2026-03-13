@@ -7,9 +7,9 @@ import type {
 } from "@chat-exporter/shared";
 import { ClipboardCopy } from "lucide-react";
 import React, { memo, useCallback, useMemo, useRef } from "react";
-
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
+import { BlockInserter } from "@/components/format-workspace/block-inserter";
 import { EditableBlock } from "@/components/format-workspace/editable-block";
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
@@ -94,6 +94,7 @@ type ReaderMessageProps = {
     blockIndex: number,
     newBlock: Block,
   ) => void;
+  onBlocksChange?: (messageId: string, blocks: Block[]) => void;
   onCopyMessage?: () => void;
   onDeleteMessage?: () => void;
   onDeleteRound?: () => void;
@@ -111,6 +112,7 @@ const ReaderMessage = memo(function ReaderMessage({
   message,
   messageIndex,
   onBlockChange,
+  onBlocksChange,
   onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
@@ -119,6 +121,16 @@ const ReaderMessage = memo(function ReaderMessage({
   selectedBlock,
 }: ReaderMessageProps) {
   const lastSelectionInteractionAt = useRef(0);
+
+  const handleInsertBlock = useCallback(
+    (blockIndex: number, block: Block) => {
+      if (!onBlocksChange) return;
+      const updatedBlocks = [...message.blocks];
+      updatedBlocks.splice(blockIndex, 0, block);
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
 
   return (
     <article
@@ -174,6 +186,9 @@ const ReaderMessage = memo(function ReaderMessage({
         )}
       </div>
       <div className="space-y-4">
+        {editMode && onBlocksChange && (
+          <BlockInserter blockIndex={0} onInsertBlock={handleInsertBlock} />
+        )}
         {message.blocks.map((block, blockIndex) => {
           const blockText = blockToPlainText(block);
           const blockEffects =
@@ -300,6 +315,12 @@ const ReaderMessage = memo(function ReaderMessage({
                 <hr className="border-border/40" />
               )}
               {inserts.insertAfter === "spacer" && <div className="h-6" />}
+              {editMode && onBlocksChange && (
+                <BlockInserter
+                  blockIndex={blockIndex + 1}
+                  onInsertBlock={handleInsertBlock}
+                />
+              )}
             </React.Fragment>
           );
         })}
@@ -382,6 +403,7 @@ export function ReaderView({
           message={message}
           messageIndex={index}
           onBlockChange={editMode ? handleBlockChange : undefined}
+          onBlocksChange={editMode ? onBlocksChange : undefined}
           onCopyMessage={
             onCopyMessage ? () => onCopyMessage(message.id) : undefined
           }
