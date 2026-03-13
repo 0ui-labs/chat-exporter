@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "712bec7ae726",
+  "session_id": "df2602a7-7fdf-4f36-a219-d2c9086db39d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:42:09.18954Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/lib/edit-repository.test.ts",
+    "apps/server/src/lib/edit-repository.ts",
+    "apps/server/src/lib/snapshot-repository.test.ts",
+    "apps/server/src/lib/snapshot-repository.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f093c9f4a769",
+  "checkpoint_transcript_start": 274,
+  "transcript_lines_at_start": 274,
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 3160,
+    "cache_read_tokens": 69829,
+    "output_tokens": 2639,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:42:08.960544Z",
+    "agent_lines": 787,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 787,
+    "agent_percentage": 100
+  }
+}
