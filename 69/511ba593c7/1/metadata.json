@@ -1,0 +1,19 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "69511ba593c7",
+  "session_id": "df2602a7-7fdf-4f36-a219-d2c9086db39d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T14:23:09.300041Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "turn_id": "f093c9f4a769",
+  "token_usage": {
+    "input_tokens": 3521,
+    "cache_creation_tokens": 89864,
+    "cache_read_tokens": 879971,
+    "output_tokens": 16585,
+    "api_call_count": 14
+  }
+}
