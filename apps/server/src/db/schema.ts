@@ -1,4 +1,10 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const imports = sqliteTable(
   "imports",
@@ -169,6 +175,45 @@ export const messageDeletions = sqliteTable(
   ],
 );
 
+export const conversationSnapshots = sqliteTable(
+  "conversation_snapshots",
+  {
+    id: text("id").primaryKey(),
+    importId: text("import_id")
+      .notNull()
+      .references(() => imports.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    isActive: integer("is_active").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [index("idx_conversation_snapshots_import_id").on(table.importId)],
+);
+
+export const messageEdits = sqliteTable(
+  "message_edits",
+  {
+    id: text("id").primaryKey(),
+    importId: text("import_id")
+      .notNull()
+      .references(() => imports.id, { onDelete: "cascade" }),
+    snapshotId: text("snapshot_id")
+      .notNull()
+      .references(() => conversationSnapshots.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(),
+    editedBlocksJson: text("edited_blocks_json").notNull(),
+    annotation: text("annotation"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_message_edits_snapshot_message").on(
+      table.snapshotId,
+      table.messageId,
+    ),
+  ],
+);
+
 export type Import = typeof imports.$inferSelect;
 export type NewImport = typeof imports.$inferInsert;
 export type ImportSnapshot = typeof importSnapshots.$inferSelect;
@@ -178,3 +223,8 @@ export type AdjustmentMessageRecord = typeof adjustmentMessages.$inferSelect;
 export type FormatRuleRecord = typeof formatRules.$inferSelect;
 export type AdjustmentEventRecord = typeof adjustmentEvents.$inferSelect;
 export type MessageDeletionRecord = typeof messageDeletions.$inferSelect;
+export type ConversationSnapshotRecord =
+  typeof conversationSnapshots.$inferSelect;
+export type NewConversationSnapshot = typeof conversationSnapshots.$inferInsert;
+export type MessageEditRecord = typeof messageEdits.$inferSelect;
+export type NewMessageEdit = typeof messageEdits.$inferInsert;
