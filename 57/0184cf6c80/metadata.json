@@ -3,21 +3,30 @@
   "checkpoint_id": "570184cf6c80",
   "strategy": "manual-commit",
   "branch": "feat/kontext-editor",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/editable-block.test.tsx",
+    "apps/web/src/components/format-workspace/editable-block.tsx"
+  ],
   "sessions": [
     {
       "metadata": "/57/0184cf6c80/0/metadata.json",
       "transcript": "/57/0184cf6c80/0/full.jsonl",
       "content_hash": "/57/0184cf6c80/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/57/0184cf6c80/1/metadata.json",
+      "transcript": "/57/0184cf6c80/1/full.jsonl",
+      "content_hash": "/57/0184cf6c80/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 3522,
-    "cache_creation_tokens": 92228,
-    "cache_read_tokens": 969835,
-    "output_tokens": 17629,
-    "api_call_count": 15
+    "input_tokens": 3523,
+    "cache_creation_tokens": 95895,
+    "cache_read_tokens": 1001334,
+    "output_tokens": 18351,
+    "api_call_count": 16
   }
 }
