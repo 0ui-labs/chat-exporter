@@ -29,6 +29,11 @@ import {
   softDeleteMessage,
   softDeleteRound,
 } from "../lib/delete-repository.js";
+import {
+  deleteMessageEdit,
+  listMessageEdits,
+  saveMessageEdit,
+} from "../lib/edit-repository.js";
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
   createImportJob,
@@ -37,6 +42,14 @@ import {
   listImportJobs,
   runImportJob,
 } from "../lib/import-store.js";
+import {
+  activateSnapshot,
+  createSnapshot,
+  deactivateAllSnapshots,
+  deleteSnapshot,
+  listSnapshots,
+  renameSnapshot,
+} from "../lib/snapshot-repository.js";
 
 export const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
@@ -491,6 +504,92 @@ export const router = os.router({
               : "Message konnte nicht wiederhergestellt werden.",
         });
       }
+    }),
+  },
+
+  edits: {
+    save: os.edits.save.handler(({ input }) => {
+      const job = getImportJob(input.importId);
+
+      if (!job) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Import nicht gefunden.",
+        });
+      }
+
+      const record = saveMessageEdit(
+        input.importId,
+        input.snapshotId,
+        input.messageId,
+        JSON.stringify(input.editedBlocks),
+        input.annotation,
+      );
+
+      return {
+        id: record.id,
+        importId: record.importId,
+        snapshotId: record.snapshotId,
+        messageId: record.messageId,
+        annotation: record.annotation ?? undefined,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      };
+    }),
+
+    delete: os.edits.delete.handler(({ input }) => {
+      const result = deleteMessageEdit(input.snapshotId, input.messageId);
+      return { deleted: result };
+    }),
+
+    listForSnapshot: os.edits.listForSnapshot.handler(({ input }) => {
+      const records = listMessageEdits(input.snapshotId);
+
+      return records.map((record) => ({
+        id: record.id,
+        importId: record.importId,
+        snapshotId: record.snapshotId,
+        messageId: record.messageId,
+        editedBlocks: JSON.parse(record.editedBlocksJson),
+        annotation: record.annotation ?? undefined,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      }));
+    }),
+  },
+
+  snapshots: {
+    list: os.snapshots.list.handler(({ input }) => {
+      return listSnapshots(input.importId);
+    }),
+
+    create: os.snapshots.create.handler(({ input }) => {
+      const job = getImportJob(input.importId);
+
+      if (!job) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Import nicht gefunden.",
+        });
+      }
+
+      return createSnapshot(input.importId, input.label);
+    }),
+
+    activate: os.snapshots.activate.handler(({ input }) => {
+      return activateSnapshot(input.snapshotId);
+    }),
+
+    deactivate: os.snapshots.deactivate.handler(({ input }) => {
+      deactivateAllSnapshots(input.importId);
+      return { deactivated: true };
+    }),
+
+    delete: os.snapshots.delete.handler(({ input }) => {
+      const result = deleteSnapshot(input.snapshotId);
+      return { deleted: result };
+    }),
+
+    rename: os.snapshots.rename.handler(({ input }) => {
+      return renameSnapshot(input.snapshotId, input.label);
     }),
   },
 
