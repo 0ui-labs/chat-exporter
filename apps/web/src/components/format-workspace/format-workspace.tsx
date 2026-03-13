@@ -1,5 +1,5 @@
-import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo, useRef, useState } from "react";
+import type { Block, ImportJob } from "@chat-exporter/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
@@ -20,6 +20,7 @@ import {
   applyMarkdownRules,
   buildReaderEffectsMap,
 } from "@/components/format-workspace/rule-engine";
+import { SaveIndicator } from "@/components/format-workspace/save-indicator";
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
@@ -30,6 +31,7 @@ import {
 import { UndoToast } from "@/components/format-workspace/undo-toast";
 import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
 import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
+import { useAutoSnapshot } from "@/components/format-workspace/use-auto-snapshot";
 import { useDeletionToast } from "@/components/format-workspace/use-deletion-toast";
 import { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
@@ -91,13 +93,41 @@ export function FormatWorkspace({
   const rules = useFormatRules(view, job.id);
   const snapshots = useSnapshots(job.id);
   const messageEdits = useMessageEdits(job.id, snapshots.activeSnapshot?.id);
-  const _resolvedMessages = useResolvedConversation(
+  const resolvedMessages = useResolvedConversation(
     job.conversation,
     messageEdits.editedMessagesMap,
   );
+  const autoSnapshot = useAutoSnapshot({
+    activeSnapshot: snapshots.activeSnapshot,
+    create: snapshots.create,
+    activate: snapshots.activate,
+  });
   const deletion = useMessageDeletion(job.id);
   const deletionToast = useDeletionToast();
   const [editMode, setEditMode] = useState<EditMode>("view");
+
+  const hasEdits = resolvedMessages.some((m) => m.isEdited);
+
+  // beforeunload warning when unsaved edits exist
+  useEffect(() => {
+    if (!messageEdits.isSaving) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [messageEdits.isSaving]);
+
+  const handleBlocksChange = useCallback(
+    (messageId: string, blocks: Block[]) => {
+      void autoSnapshot.ensureSnapshot().then((ready) => {
+        if (ready) {
+          messageEdits.saveEdit(messageId, blocks);
+        }
+      });
+    },
+    [autoSnapshot, messageEdits],
+  );
   const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
     messageId: string;
@@ -179,12 +209,24 @@ export function FormatWorkspace({
     }
   }, [artifact, rules.activeRules, view]);
 
+  const resolvedConversation = useMemo(() => {
+    if (!job.conversation) return undefined;
+    return {
+      ...job.conversation,
+      messages: resolvedMessages.map((rm) => ({
+        id: rm.id,
+        role: rm.role,
+        blocks: rm.blocks,
+      })),
+    };
+  }, [job.conversation, resolvedMessages]);
+
   const readerEffectsMap = useMemo(
     () =>
-      view === "reader" && job.conversation
-        ? buildReaderEffectsMap(rules.activeRules, job.conversation)
+      view === "reader" && resolvedConversation
+        ? buildReaderEffectsMap(rules.activeRules, resolvedConversation)
         : new Map(),
-    [rules.activeRules, job.conversation, view],
+    [rules.activeRules, resolvedConversation, view],
   );
 
   const handleDownloadMarkdown = useMemo(() => {
@@ -310,25 +352,31 @@ export function FormatWorkspace({
 
           {view === "reader" ? (
             <ErrorBoundary fallback={viewErrorFallback}>
-              <ReaderView
-                activeRules={rules.activeRules}
-                conversation={job.conversation}
-                adjustModeEnabled={session.adjustModeEnabled}
-                effectsMap={readerEffectsMap}
-                highlightedRuleId={rules.hoveredRuleId}
-                selectedBlock={
-                  view === "reader" ? session.activeSelection : null
-                }
-                onSelectBlock={session.handleSelectionChange}
-                deletedMessageIds={deletion.deletedMessageIds}
-                showDeleted={deletion.showDeleted}
-                onBlocksChange={(messageId, blocks) =>
-                  messageEdits.saveEdit(messageId, blocks)
-                }
-                onDeleteMessage={handleDeleteMessage}
-                onDeleteRound={handleDeleteRound}
-                onRestoreMessage={deletion.restoreMessage}
-              />
+              <div className="space-y-2">
+                <div className="flex justify-end">
+                  <SaveIndicator
+                    isSaving={messageEdits.isSaving}
+                    hasEdits={hasEdits}
+                  />
+                </div>
+                <ReaderView
+                  activeRules={rules.activeRules}
+                  conversation={resolvedConversation}
+                  adjustModeEnabled={session.adjustModeEnabled}
+                  effectsMap={readerEffectsMap}
+                  highlightedRuleId={rules.hoveredRuleId}
+                  selectedBlock={
+                    view === "reader" ? session.activeSelection : null
+                  }
+                  onSelectBlock={session.handleSelectionChange}
+                  deletedMessageIds={deletion.deletedMessageIds}
+                  showDeleted={deletion.showDeleted}
+                  onBlocksChange={handleBlocksChange}
+                  onDeleteMessage={handleDeleteMessage}
+                  onDeleteRound={handleDeleteRound}
+                  onRestoreMessage={deletion.restoreMessage}
+                />
+              </div>
             </ErrorBoundary>
           ) : view === "markdown" ? (
             <ErrorBoundary fallback={viewErrorFallback}>
