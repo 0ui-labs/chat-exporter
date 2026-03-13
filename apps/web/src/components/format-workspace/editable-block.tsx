@@ -1,5 +1,6 @@
 import type { Block } from "@chat-exporter/shared";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 interface EditableBlockProps {
   block: Block;
@@ -109,6 +110,24 @@ export function EditableBlock({
     [],
   );
 
+  const isCodeBlock = block.type === "code";
+
+  const isEmpty = useMemo(() => {
+    if (
+      block.type === "paragraph" ||
+      block.type === "heading" ||
+      block.type === "quote" ||
+      block.type === "code"
+    ) {
+      return block.text === "";
+    }
+    return false;
+  }, [block]);
+
+  const placeholderProps = isEmpty
+    ? { "data-placeholder": "Text eingeben..." }
+    : {};
+
   return (
     /* biome-ignore lint/a11y/useSemanticElements: contentEditable div wraps arbitrary block content, not a simple text input */
     <div
@@ -121,7 +140,13 @@ export function EditableBlock({
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
-      className="outline-none rounded-md ring-0 focus:ring-1 focus:ring-blue-300 transition-shadow"
+      className={cn(
+        "outline-none rounded-md ring-0 focus:ring-1 focus:ring-blue-300 transition-shadow",
+        isCodeBlock && "whitespace-pre-wrap",
+        isEmpty &&
+          "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-400 [&:empty]:before:pointer-events-none",
+      )}
+      {...placeholderProps}
     >
       {children}
     </div>

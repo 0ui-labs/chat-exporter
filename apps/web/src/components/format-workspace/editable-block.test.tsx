@@ -297,4 +297,57 @@ describe("EditableBlock", () => {
       });
     });
   });
+
+  describe("code block whitespace preservation", () => {
+    test("applies whitespace-pre-wrap class when block type is code", () => {
+      renderEditable(codeBlock("const x = 1;\n  return x;"));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).toHaveClass("whitespace-pre-wrap");
+    });
+
+    test("does not apply whitespace-pre-wrap class for paragraph blocks", () => {
+      renderEditable(paragraphBlock("Hello"));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).not.toHaveClass("whitespace-pre-wrap");
+    });
+  });
+
+  describe("empty block placeholder", () => {
+    test("sets data-placeholder attribute on paragraph blocks", () => {
+      renderEditable(paragraphBlock(""));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).toHaveAttribute("data-placeholder", "Text eingeben...");
+    });
+
+    test("sets data-placeholder attribute on heading blocks", () => {
+      renderEditable(headingBlock(""));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).toHaveAttribute("data-placeholder", "Text eingeben...");
+    });
+
+    test("does not set data-placeholder when block has text", () => {
+      renderEditable(paragraphBlock("some text"));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).not.toHaveAttribute("data-placeholder");
+    });
+
+    test("does not set data-placeholder on list blocks", () => {
+      renderEditable(listBlock([]));
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).not.toHaveAttribute("data-placeholder");
+    });
+
+    test("does not set data-placeholder on table blocks", () => {
+      renderEditable(tableBlock());
+
+      const editable = screen.getByTestId("editable-block");
+      expect(editable).not.toHaveAttribute("data-placeholder");
+    });
+  });
 });
