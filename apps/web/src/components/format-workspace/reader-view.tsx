@@ -6,10 +6,11 @@ import type {
   RuleEffect,
 } from "@chat-exporter/shared";
 import { ClipboardCopy } from "lucide-react";
-import React, { memo, useMemo, useRef } from "react";
+import React, { memo, useCallback, useMemo, useRef } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
+import { EditableBlock } from "@/components/format-workspace/editable-block";
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
 import {
@@ -48,8 +49,10 @@ type ReaderViewProps = {
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
   deletedMessageIds?: Set<string>;
+  editMode?: boolean;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onBlocksChange?: (messageId: string, blocks: Block[]) => void;
   onCopyMessage?: (messageId: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onDeleteRound?: (messageId: string) => void;
@@ -80,11 +83,17 @@ function toViewportAnchor(rect: DOMRect): ViewportAnchor {
 
 type ReaderMessageProps = {
   adjustModeEnabled: boolean;
+  editMode?: boolean;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedBlocks: Set<string>;
   isDeleted?: boolean;
   message: Message;
   messageIndex: number;
+  onBlockChange?: (
+    messageId: string,
+    blockIndex: number,
+    newBlock: Block,
+  ) => void;
   onCopyMessage?: () => void;
   onDeleteMessage?: () => void;
   onDeleteRound?: () => void;
@@ -95,11 +104,13 @@ type ReaderMessageProps = {
 
 const ReaderMessage = memo(function ReaderMessage({
   adjustModeEnabled,
+  editMode,
   effectsMap,
   highlightedBlocks,
   isDeleted,
   message,
   messageIndex,
+  onBlockChange,
   onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
@@ -271,7 +282,18 @@ const ReaderMessage = memo(function ReaderMessage({
                 <ErrorBoundary
                   fallback={<BlockErrorFallback blockType={block.type} />}
                 >
-                  <BlockRenderer block={block} effects={blockEffects} />
+                  {editMode && onBlockChange ? (
+                    <EditableBlock
+                      block={block}
+                      blockIndex={blockIndex}
+                      messageId={message.id}
+                      onBlockChange={onBlockChange}
+                    >
+                      <BlockRenderer block={block} effects={blockEffects} />
+                    </EditableBlock>
+                  ) : (
+                    <BlockRenderer block={block} effects={blockEffects} />
+                  )}
                 </ErrorBoundary>
               </div>
               {inserts.insertAfter === "hr" && (
@@ -291,8 +313,10 @@ export function ReaderView({
   adjustModeEnabled,
   conversation,
   deletedMessageIds,
+  editMode,
   effectsMap,
   highlightedRuleId,
+  onBlocksChange,
   onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
@@ -325,6 +349,19 @@ export function ReaderView({
     return new Set(matches.map((m) => `${m.messageId}:${m.blockIndex}`));
   }, [highlightedRuleId, activeRules, conversation]);
 
+  const handleBlockChange = useCallback(
+    (messageId: string, blockIndex: number, newBlock: Block) => {
+      if (!onBlocksChange || !conversation) return;
+      const message = conversation.messages.find((m) => m.id === messageId);
+      if (!message) return;
+      const updatedBlocks = message.blocks.map((b, i) =>
+        i === blockIndex ? newBlock : b,
+      );
+      onBlocksChange(messageId, updatedBlocks);
+    },
+    [onBlocksChange, conversation],
+  );
+
   if (!conversation?.messages.length) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
@@ -339,10 +376,12 @@ export function ReaderView({
         <ReaderMessage
           key={message.id}
           adjustModeEnabled={adjustModeEnabled}
+          editMode={editMode}
           effectsMap={effectsMap}
           highlightedBlocks={highlightedBlocks}
           message={message}
           messageIndex={index}
+          onBlockChange={editMode ? handleBlockChange : undefined}
           onCopyMessage={
             onCopyMessage ? () => onCopyMessage(message.id) : undefined
           }
