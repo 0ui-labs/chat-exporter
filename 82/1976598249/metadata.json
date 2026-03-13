@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "821976598249",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "packages/shared/package.json",
+    "packages/shared/src/__tests__/edits.test.ts",
+    "packages/shared/src/edits.ts",
+    "packages/shared/src/index.ts",
+    "packages/shared/vitest.config.ts",
+    "vitest.config.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/82/1976598249/0/metadata.json",
+      "transcript": "/82/1976598249/0/full.jsonl",
+      "content_hash": "/82/1976598249/0/content_hash.txt",
+      "prompt": "/82/1976598249/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2501,
+    "cache_creation_tokens": 69829,
+    "cache_read_tokens": 326056,
+    "output_tokens": 3488,
+    "api_call_count": 7
+  }
+}

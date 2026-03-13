@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "821976598249",
+  "session_id": "df2602a7-7fdf-4f36-a219-d2c9086db39d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:34:06.69813Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "packages/shared/src/edits.ts",
+    "packages/shared/src/index.ts",
+    "packages/shared/vitest.config.ts",
+    "vitest.config.ts",
+    "packages/shared/package.json",
+    "packages/shared/src/__tests__/edits.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f093c9f4a769",
+  "token_usage": {
+    "input_tokens": 2501,
+    "cache_creation_tokens": 69829,
+    "cache_read_tokens": 326056,
+    "output_tokens": 3488,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:34:06.552516Z",
+    "agent_lines": 9,
+    "human_added": 442,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 455,
+    "agent_percentage": 1.9780219780219779
+  }
+}
