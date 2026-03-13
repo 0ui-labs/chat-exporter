@@ -1,0 +1,1 @@
+/01_write_plan bitte schreibe einen konkreten Implementierungsplan für '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-compound-selectors.md'
