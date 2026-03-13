@@ -33,6 +33,10 @@ import { useAdjustmentSession } from "@/components/format-workspace/use-adjustme
 import { useDeletionToast } from "@/components/format-workspace/use-deletion-toast";
 import { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
+import { useMessageEdits } from "@/components/format-workspace/use-message-edits";
+import { useResolvedConversation } from "@/components/format-workspace/use-resolved-conversation";
+import { useSnapshots } from "@/components/format-workspace/use-snapshots";
+import { VersionsModal } from "@/components/format-workspace/versions-modal";
 
 type ActiveStage = {
   detail: string;
@@ -85,9 +89,16 @@ export function FormatWorkspace({
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
+  const snapshots = useSnapshots(job.id);
+  const messageEdits = useMessageEdits(job.id, snapshots.activeSnapshot?.id);
+  const _resolvedMessages = useResolvedConversation(
+    job.conversation,
+    messageEdits.editedMessagesMap,
+  );
   const deletion = useMessageDeletion(job.id);
   const deletionToast = useDeletionToast();
   const [editMode, setEditMode] = useState<EditMode>("view");
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
     messageId: string;
     isRound: boolean;
@@ -284,6 +295,8 @@ export function FormatWorkspace({
             onViewChange={onViewChange}
             deletionsCount={deletion.deletionsCount}
             showDeleted={deletion.showDeleted}
+            snapshotCount={snapshots.snapshots.length}
+            onVersionsClick={() => setVersionsModalOpen(true)}
             onToggleShowDeleted={() =>
               deletion.setShowDeleted(!deletion.showDeleted)
             }
@@ -309,6 +322,9 @@ export function FormatWorkspace({
                 onSelectBlock={session.handleSelectionChange}
                 deletedMessageIds={deletion.deletedMessageIds}
                 showDeleted={deletion.showDeleted}
+                onBlocksChange={(messageId, blocks) =>
+                  messageEdits.saveEdit(messageId, blocks)
+                }
                 onDeleteMessage={handleDeleteMessage}
                 onDeleteRound={handleDeleteRound}
                 onRestoreMessage={deletion.restoreMessage}
@@ -389,6 +405,28 @@ export function FormatWorkspace({
           onDismiss={deletionToast.dismissToast}
         />
       )}
+
+      <VersionsModal
+        open={versionsModalOpen}
+        onOpenChange={setVersionsModalOpen}
+        snapshots={snapshots.snapshots}
+        activeSnapshotId={snapshots.activeSnapshot?.id ?? null}
+        onActivate={(snapshotId) => {
+          void snapshots.activate(snapshotId);
+        }}
+        onDeactivate={() => {
+          void snapshots.deactivate();
+        }}
+        onCreate={(label) => {
+          void snapshots.create(label);
+        }}
+        onRename={(snapshotId, label) => {
+          void snapshots.rename(snapshotId, label);
+        }}
+        onDelete={(snapshotId) => {
+          void snapshots.delete(snapshotId);
+        }}
+      />
     </section>
   );
 }

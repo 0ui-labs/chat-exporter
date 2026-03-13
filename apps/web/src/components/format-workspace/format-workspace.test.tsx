@@ -81,6 +81,44 @@ vi.mock("@/components/format-workspace/use-message-deletion", () => ({
   }),
 }));
 
+vi.mock("@/components/format-workspace/use-snapshots", () => ({
+  useSnapshots: () => ({
+    snapshots: [],
+    activeSnapshot: null,
+    isLoading: false,
+    create: vi.fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    delete: vi.fn(),
+    rename: vi.fn(),
+    isCreating: false,
+    isActivating: false,
+    isDeactivating: false,
+    isDeleting: false,
+    isRenaming: false,
+  }),
+}));
+
+vi.mock("@/components/format-workspace/use-message-edits", () => ({
+  useMessageEdits: () => ({
+    edits: [],
+    editedMessagesMap: new Map(),
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    saveEdit: vi.fn(),
+    deleteEdit: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/format-workspace/use-resolved-conversation", () => ({
+  useResolvedConversation: () => [],
+}));
+
+vi.mock("@/components/format-workspace/versions-modal", () => ({
+  VersionsModal: () => <div data-testid="versions-modal" />,
+}));
+
 vi.mock("@/components/format-workspace/use-deletion-toast", () => ({
   useDeletionToast: () => ({
     toast: null,
