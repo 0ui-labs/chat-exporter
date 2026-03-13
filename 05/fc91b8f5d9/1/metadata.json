@@ -1,9 +1,11 @@
 {
   "cli_version": "0.5.0",
   "checkpoint_id": "05fc91b8f5d9",
+  "session_id": "df2602a7-7fdf-4f36-a219-d2c9086db39d",
   "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:57:15.604942Z",
   "branch": "feat/kontext-editor",
-  "checkpoints_count": 3,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/web/src/components/format-workspace/completed-toolbar.test.tsx",
     "apps/web/src/components/format-workspace/completed-toolbar.tsx",
@@ -14,25 +16,22 @@
     "apps/web/src/components/format-workspace/reader-view.tsx",
     "apps/web/src/components/format-workspace/types.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/05/fc91b8f5d9/0/metadata.json",
-      "transcript": "/05/fc91b8f5d9/0/full.jsonl",
-      "content_hash": "/05/fc91b8f5d9/0/content_hash.txt",
-      "prompt": "/05/fc91b8f5d9/0/prompt.txt"
-    },
-    {
-      "metadata": "/05/fc91b8f5d9/1/metadata.json",
-      "transcript": "/05/fc91b8f5d9/1/full.jsonl",
-      "content_hash": "/05/fc91b8f5d9/1/content_hash.txt",
-      "prompt": ""
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "f093c9f4a769",
   "token_usage": {
-    "input_tokens": 2664,
-    "cache_creation_tokens": 275712,
-    "cache_read_tokens": 8031759,
-    "output_tokens": 40718,
-    "api_call_count": 113
+    "input_tokens": 2506,
+    "cache_creation_tokens": 78698,
+    "cache_read_tokens": 545521,
+    "output_tokens": 11010,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:57:15.175276Z",
+    "agent_lines": 677,
+    "human_added": 0,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 681,
+    "agent_percentage": 99.41262848751835
   }
 }
