@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "c675c19c845a",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/server/src/rpc/router.test.ts",
+    "apps/server/src/rpc/router.ts",
+    "packages/shared/src/contract.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c6/75c19c845a/0/metadata.json",
+      "transcript": "/c6/75c19c845a/0/full.jsonl",
+      "content_hash": "/c6/75c19c845a/0/content_hash.txt",
+      "prompt": "/c6/75c19c845a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 147,
+    "cache_creation_tokens": 190946,
+    "cache_read_tokens": 6948633,
+    "output_tokens": 26476,
+    "api_call_count": 98
+  }
+}

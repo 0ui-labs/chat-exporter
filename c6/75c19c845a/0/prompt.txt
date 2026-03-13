@@ -1,0 +1,51 @@
+Kannst du mir erklären was dieser Fehler im Chat ist? Die Live-KI-Antwort war nicht verfügbar (400). { "error": { "message": "Invalid value: 'input_text'. Supported values are: 'output_text' and 'refusal'.", "type": "invalid_request_error", "param": "input[3].content[0]", "code": "invalid_value" } }
+
+---
+
+Können wir unter docs eine scratch pad Datei anlegen für dinge die wir uns für später merken wollen. Schreib da rein das ich grundätzlich nur für Laien verständliche Fehlermeldungen anzeigen möchte
+
+---
+
+um ehrlich zu sein möchte ich alles   ┌──────────────────┬─────────────────────────────────────────┬───────────────────────────────┐
+  │    Strategie     │                Beispiel                 │            Nutzen             │
+  ├──────────────────┼─────────────────────────────────────────┼───────────────────────────────┤
+  │ text_contains    │ "Alle Absätze die 'Diagnose' enthalten" │ Inhaltliches Targeting        │
+  ├──────────────────┼─────────────────────────────────────────┼───────────────────────────────┤
+  │ text_starts_with │ "Blöcke die mit 'Hinweis' beginnen"     │ Strukturierte Texte           │
+  ├──────────────────┼─────────────────────────────────────────┼───────────────────────────────┤
+  │ message_role     │ "Nur Blöcke in Assistenten-Nachrichten" │ Rollen-Filter                 │
+  ├──────────────────┼─────────────────────────────────────────┼───────────────────────────────┤
+  │ block_position   │ "Erster/letzter Block jeder Nachricht"  │ Strukturelles Targeting       │
+  ├──────────────────┼─────────────────────────────────────────┼───────────────────────────────┤
+  │ heading_level    │ "Alle H2-Überschriften"                 │ Feinere Überschrift-Kontrolle │
+  └──────────────────┴─────────────────────────────────────────┴───────────────────────────────┘
+
+  Mittlerer Aufwand (Kombination)
+
+  ┌─────────────┬───────────────────────────────────────────────┬────────────────────────────────┐
+  │  Strategie  │                   Beispiel                    │             Nutzen             │
+  ├─────────────┼───────────────────────────────────────────────┼────────────────────────────────┤
+  │ compound    │ block_type: list AND text_contains: 'Symptom' │ Mehrere Bedingungen verknüpfen │
+  ├─────────────┼───────────────────────────────────────────────┼────────────────────────────────┤
+  │ text_regex  │ /^\d+\.\s/ — Zeilen die mit Nummern anfangen  │ Maximale Flexibilität          │
+  ├─────────────┼───────────────────────────────────────────────┼────────────────────────────────┤
+  │ nth_of_type │ "Jede zweite Tabelle" / "Erste Liste"         │ Positionsbasiert pro Typ       │
+  └─────────────┴───────────────────────────────────────────────┴────────────────────────────────┘
+
+  Größerer Umbau
+
+  ┌────────────────────┬────────────────────────────────────────────────────┬────────────────────────────────┐
+  │     Strategie      │                      Beispiel                      │             Nutzen             │
+  ├────────────────────┼────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ css_selector-artig │ message[role=assistant] > paragraph:first-child    │ Volle CSS-Selector-Power       │
+  ├────────────────────┼────────────────────────────────────────────────────┼────────────────────────────────┤
+  │ context_aware      │ "Absätze die direkt nach einer Überschrift kommen" │ Nachbar-Blöcke berücksichtigen │
+  └────────────────────┴────────────────────────────────────────────────────┴────────────────────────────────┘
+
+---
+
+Macht es sinn alles davon umzusetzen, wie gesagt ich möchte extreme Flexibilität, alles muss möglich sein
+
+---
+
+Hats du nicht gesagt das regex fehleranfällig ist oder kann ein Modell das zuverlässig
