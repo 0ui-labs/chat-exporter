@@ -1,0 +1,5 @@
+Kannst du mir erklären was dieser Fehler im Chat ist? Die Live-KI-Antwort war nicht verfügbar (400). { "error": { "message": "Invalid value: 'input_text'. Supported values are: 'output_text' and 'refusal'.", "type": "invalid_request_error", "param": "input[3].content[0]", "code": "invalid_value" } }
+
+---
+
+Können wir unter docs eine scratch pad Datei anlegen für dinge die wir uns für später merken wollen. Schreib da rein das ich grundätzlich nur für Laien verständliche Fehlermeldungen anzeigen möchte
