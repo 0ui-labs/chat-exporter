@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "05fc91b8f5d9",
+  "session_id": "2e7642f6-f4b1-442e-998e-7482ba3b80a8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:57:12.088844Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/completed-toolbar.test.tsx",
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "apps/web/src/components/format-workspace/format-workspace.tsx",
+    "apps/web/src/components/format-workspace/labels.ts",
+    "apps/web/src/components/format-workspace/message-clipboard.test.ts",
+    "apps/web/src/components/format-workspace/message-clipboard.ts",
+    "apps/web/src/components/format-workspace/reader-view.tsx",
+    "apps/web/src/components/format-workspace/types.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e0d7055da93c",
+  "token_usage": {
+    "input_tokens": 158,
+    "cache_creation_tokens": 197014,
+    "cache_read_tokens": 7486238,
+    "output_tokens": 29708,
+    "api_call_count": 103
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:57:11.602117Z",
+    "agent_lines": 0,
+    "human_added": 797,
+    "human_modified": 18,
+    "human_removed": 0,
+    "total_committed": 797,
+    "agent_percentage": 0
+  }
+}
