@@ -24,6 +24,7 @@ import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
   adjustableViews,
+  type EditMode,
   type ViewMode,
 } from "@/components/format-workspace/types";
 import { UndoToast } from "@/components/format-workspace/undo-toast";
@@ -86,6 +87,7 @@ export function FormatWorkspace({
   const rules = useFormatRules(view, job.id);
   const deletion = useMessageDeletion(job.id);
   const deletionToast = useDeletionToast();
+  const [editMode, setEditMode] = useState<EditMode>("view");
   const [deleteDialog, setDeleteDialog] = useState<{
     messageId: string;
     isRound: boolean;
@@ -272,10 +274,12 @@ export function FormatWorkspace({
         <div className="space-y-4">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
+            editMode={editMode}
             isAdjustableView={isAdjustableView}
             rules={rules}
             view={view}
             onDownloadMarkdown={handleDownloadMarkdown}
+            onEditModeChange={setEditMode}
             onToggleAdjustMode={session.toggleAdjustMode}
             onViewChange={onViewChange}
             deletionsCount={deletion.deletionsCount}

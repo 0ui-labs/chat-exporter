@@ -5,6 +5,7 @@ import type {
   Message,
   RuleEffect,
 } from "@chat-exporter/shared";
+import { ClipboardCopy } from "lucide-react";
 import React, { memo, useMemo, useRef } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -49,6 +50,7 @@ type ReaderViewProps = {
   deletedMessageIds?: Set<string>;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onCopyMessage?: (messageId: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onDeleteRound?: (messageId: string) => void;
   onRestoreMessage?: (messageId: string) => Promise<{ restored: boolean }>;
@@ -83,6 +85,7 @@ type ReaderMessageProps = {
   isDeleted?: boolean;
   message: Message;
   messageIndex: number;
+  onCopyMessage?: () => void;
   onDeleteMessage?: () => void;
   onDeleteRound?: () => void;
   onRestore?: () => void;
@@ -97,6 +100,7 @@ const ReaderMessage = memo(function ReaderMessage({
   isDeleted,
   message,
   messageIndex,
+  onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
   onRestore,
@@ -130,15 +134,31 @@ const ReaderMessage = memo(function ReaderMessage({
           )}
         </div>
       )}
-      <div className="group/header mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         <span>{getRoleLabel(message.role)}</span>
         <span>{messageIndex + 1}</span>
-        {!isDeleted && onDeleteMessage && onDeleteRound && (
-          <span className="ml-auto opacity-0 group-hover/header:opacity-100 transition-opacity">
-            <MessageDeleteMenu
-              onDeleteMessage={onDeleteMessage}
-              onDeleteRound={onDeleteRound}
-            />
+        {!isDeleted && (onDeleteMessage || onCopyMessage) && (
+          <span className="ml-auto flex items-center gap-1">
+            {onCopyMessage && (
+              <button
+                type="button"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyMessage();
+                }}
+                aria-label="Nachricht kopieren"
+                data-testid={`copy-message-${message.id}`}
+              >
+                <ClipboardCopy className="h-4 w-4" />
+              </button>
+            )}
+            {onDeleteMessage && onDeleteRound && (
+              <MessageDeleteMenu
+                onDeleteMessage={onDeleteMessage}
+                onDeleteRound={onDeleteRound}
+              />
+            )}
           </span>
         )}
       </div>
@@ -273,6 +293,7 @@ export function ReaderView({
   deletedMessageIds,
   effectsMap,
   highlightedRuleId,
+  onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
   onRestoreMessage,
@@ -322,6 +343,9 @@ export function ReaderView({
           highlightedBlocks={highlightedBlocks}
           message={message}
           messageIndex={index}
+          onCopyMessage={
+            onCopyMessage ? () => onCopyMessage(message.id) : undefined
+          }
           onSelectBlock={onSelectBlock}
           selectedBlock={selectedBlock}
           isDeleted={deletedMessageIds?.has(message.id)}
