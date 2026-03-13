@@ -1,0 +1,1 @@
+/03_verification Bitte schreibe einen Verifizierungsworkflow für diesen Plan  '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-compound-selectors-impl.md' nutze dazu diese Vorlage '/Users/philippbriese/Documents/dev/chat exporter/docs/templates/validierung-template.md'
