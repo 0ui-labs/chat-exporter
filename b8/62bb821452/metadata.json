@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "b862bb821452",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/server/src/lib/conversation-merge.test.ts",
+    "apps/server/src/lib/conversation-merge.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b8/62bb821452/0/metadata.json",
+      "transcript": "/b8/62bb821452/0/full.jsonl",
+      "content_hash": "/b8/62bb821452/0/content_hash.txt",
+      "prompt": "/b8/62bb821452/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 153,
+    "cache_creation_tokens": 192213,
+    "cache_read_tokens": 7160991,
+    "output_tokens": 27242,
+    "api_call_count": 100
+  }
+}
