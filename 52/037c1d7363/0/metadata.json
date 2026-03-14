@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "52037c1d7363",
+  "session_id": "3f0806c4-f4a1-4bc8-baf5-dfad468487a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T23:20:06.527431Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/rpc/router.test.ts",
+    "apps/web/src/components/format-workspace/use-auto-snapshot.test.ts",
+    "apps/web/src/components/format-workspace/use-auto-snapshot.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6[1m]",
+  "turn_id": "d85a13e7fbe1",
+  "checkpoint_transcript_start": 1341,
+  "transcript_lines_at_start": 1341,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T23:20:05.944116Z",
+    "agent_lines": 94,
+    "human_added": 4,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 99,
+    "agent_percentage": 94.94949494949495
+  }
+}
