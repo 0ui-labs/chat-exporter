@@ -259,7 +259,9 @@ describe("EditableBlock", () => {
 
     test("code block does not include language label in saved text when rendered with label element", () => {
       const onBlockChange = vi.fn();
-      renderEditable(codeBlock("const x = 1;", "typescript"), { onBlockChange });
+      renderEditable(codeBlock("const x = 1;", "typescript"), {
+        onBlockChange,
+      });
 
       const editable = screen.getByTestId("editable-block");
       setCodeBlockDom(editable, "typescript", "const x = 2;");

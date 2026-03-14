@@ -46,10 +46,12 @@ export const createSnapshotRequestSchema = z.object({
 });
 
 export const activateSnapshotRequestSchema = z.object({
+  importId: z.string(),
   snapshotId: z.string(),
 });
 
 export const renameSnapshotRequestSchema = z.object({
+  importId: z.string(),
   snapshotId: z.string(),
   label: z.string(),
 });

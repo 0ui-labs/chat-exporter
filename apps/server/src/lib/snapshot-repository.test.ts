@@ -135,7 +135,7 @@ describe("getActiveSnapshot", () => {
     trackImport(job);
 
     const snapshot = createSnapshot(job.id, "To Activate");
-    activateSnapshot(snapshot.id);
+    activateSnapshot(snapshot.id, job.id);
 
     const result = getActiveSnapshot(job.id);
 
@@ -152,7 +152,7 @@ describe("activateSnapshot", () => {
 
     const snapshot = createSnapshot(job.id, "Activate Me");
 
-    const result = activateSnapshot(snapshot.id);
+    const result = activateSnapshot(snapshot.id, job.id);
 
     expect(result.isActive).toBe(true);
     expect(result.id).toBe(snapshot.id);
@@ -165,8 +165,8 @@ describe("activateSnapshot", () => {
     const first = createSnapshot(job.id, "First");
     const second = createSnapshot(job.id, "Second");
 
-    activateSnapshot(first.id);
-    activateSnapshot(second.id);
+    activateSnapshot(first.id, job.id);
+    activateSnapshot(second.id, job.id);
 
     const all = listSnapshots(job.id);
     const firstAfter = all.find((s) => s.id === first.id);
@@ -184,12 +184,25 @@ describe("activateSnapshot", () => {
 
     const snap1 = createSnapshot(job1.id, "Job1");
     const snap2 = createSnapshot(job2.id, "Job2");
-    activateSnapshot(snap2.id);
+    activateSnapshot(snap2.id, job2.id);
 
-    activateSnapshot(snap1.id);
+    activateSnapshot(snap1.id, job1.id);
 
     const job2Snap = listSnapshots(job2.id).find((s) => s.id === snap2.id);
     expect(job2Snap?.isActive).toBe(true);
+  });
+
+  test("throws when snapshot does not belong to the given import", () => {
+    const job1 = createTestImportJob();
+    const job2 = createTestImportJob();
+    trackImport(job1);
+    trackImport(job2);
+
+    const snap1 = createSnapshot(job1.id, "Job1");
+
+    expect(() => activateSnapshot(snap1.id, job2.id)).toThrow(
+      /does not belong to import/,
+    );
   });
 });
 
@@ -199,7 +212,7 @@ describe("deactivateAllSnapshots", () => {
     trackImport(job);
 
     const snap = createSnapshot(job.id, "Active One");
-    activateSnapshot(snap.id);
+    activateSnapshot(snap.id, job.id);
 
     deactivateAllSnapshots(job.id);
 
@@ -217,8 +230,8 @@ describe("deactivateAllSnapshots", () => {
 
     const snap1 = createSnapshot(job1.id, "Job1");
     const snap2 = createSnapshot(job2.id, "Job2");
-    activateSnapshot(snap1.id);
-    activateSnapshot(snap2.id);
+    activateSnapshot(snap1.id, job1.id);
+    activateSnapshot(snap2.id, job2.id);
 
     deactivateAllSnapshots(job1.id);
 
@@ -229,13 +242,13 @@ describe("deactivateAllSnapshots", () => {
 });
 
 describe("deleteSnapshot", () => {
-  test("returns true when snapshot exists and is deleted", () => {
+  test("returns true when snapshot exists and belongs to the import", () => {
     const job = createTestImportJob();
     trackImport(job);
 
     const snapshot = createSnapshot(job.id, "To Delete");
 
-    const result = deleteSnapshot(snapshot.id);
+    const result = deleteSnapshot(snapshot.id, job.id);
 
     expect(result).toBe(true);
     const remaining = listSnapshots(job.id);
@@ -243,9 +256,28 @@ describe("deleteSnapshot", () => {
   });
 
   test("returns false when snapshot does not exist", () => {
-    const result = deleteSnapshot("non-existent-id");
+    const job = createTestImportJob();
+    trackImport(job);
+
+    const result = deleteSnapshot("non-existent-id", job.id);
 
     expect(result).toBe(false);
+  });
+
+  test("returns false when snapshot belongs to a different import", () => {
+    const job1 = createTestImportJob();
+    const job2 = createTestImportJob();
+    trackImport(job1);
+    trackImport(job2);
+
+    const snap = createSnapshot(job1.id, "Job1 Snapshot");
+
+    // Try to delete with wrong importId
+    const result = deleteSnapshot(snap.id, job2.id);
+
+    expect(result).toBe(false);
+    // Snapshot still exists under job1
+    expect(listSnapshots(job1.id)).toHaveLength(1);
   });
 });
 
@@ -257,7 +289,7 @@ describe("renameSnapshot", () => {
     const snapshot = createSnapshot(job.id, "Original Name");
 
     // Ensure updatedAt differs by using a distinct timestamp
-    const renamed = renameSnapshot(snapshot.id, "New Name");
+    const renamed = renameSnapshot(snapshot.id, job.id, "New Name");
 
     expect(renamed.label).toBe("New Name");
     expect(renamed.id).toBe(snapshot.id);
@@ -275,10 +307,23 @@ describe("renameSnapshot", () => {
 
     const snapshot = createSnapshot(job.id, "Keep Fields");
 
-    const renamed = renameSnapshot(snapshot.id, "Changed Label");
+    const renamed = renameSnapshot(snapshot.id, job.id, "Changed Label");
 
     expect(renamed.importId).toBe(snapshot.importId);
     expect(renamed.isActive).toBe(snapshot.isActive);
     expect(renamed.createdAt).toBe(snapshot.createdAt);
+  });
+
+  test("throws when snapshot does not belong to the given import", () => {
+    const job1 = createTestImportJob();
+    const job2 = createTestImportJob();
+    trackImport(job1);
+    trackImport(job2);
+
+    const snap = createSnapshot(job1.id, "Job1 Snapshot");
+
+    expect(() => renameSnapshot(snap.id, job2.id, "New Name")).toThrow(
+      /does not belong to import/,
+    );
   });
 });

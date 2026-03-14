@@ -1041,7 +1041,7 @@ describe("snapshots.delete", () => {
     });
 
     expect(result).toEqual({ deleted: true });
-    expect(mockDeleteSnapshot).toHaveBeenCalledWith("snap-1");
+    expect(mockDeleteSnapshot).toHaveBeenCalledWith("snap-1", "import-1");
   });
 
   test("returns false when snapshot does not exist", async () => {
@@ -1068,6 +1068,10 @@ describe("snapshots.rename", () => {
     });
 
     expect(result.label).toBe("New name");
-    expect(mockRenameSnapshot).toHaveBeenCalledWith("snap-1", "New name");
+    expect(mockRenameSnapshot).toHaveBeenCalledWith(
+      "snap-1",
+      "import-1",
+      "New name",
+    );
   });
 });

@@ -1,5 +1,5 @@
 import type { ConversationSnapshot } from "@chat-exporter/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, withTransaction } from "../db/client.js";
 import { conversationSnapshots } from "../db/schema.js";
 
@@ -55,6 +55,18 @@ export function listSnapshots(importId: string): ConversationSnapshot[] {
   return rows.map(toApiSnapshot);
 }
 
+export function getSnapshotById(
+  snapshotId: string,
+): ConversationSnapshot | null {
+  const row = db
+    .select()
+    .from(conversationSnapshots)
+    .where(eq(conversationSnapshots.id, snapshotId))
+    .get();
+
+  return row ? toApiSnapshot(row) : null;
+}
+
 export function getActiveSnapshot(
   importId: string,
 ): ConversationSnapshot | null {
@@ -68,7 +80,10 @@ export function getActiveSnapshot(
   return row ? toApiSnapshot(row) : null;
 }
 
-export function activateSnapshot(snapshotId: string): ConversationSnapshot {
+export function activateSnapshot(
+  snapshotId: string,
+  importId: string,
+): ConversationSnapshot {
   return withTransaction(() => {
     const snapshot = db
       .select()
@@ -78,6 +93,12 @@ export function activateSnapshot(snapshotId: string): ConversationSnapshot {
 
     if (!snapshot) {
       throw new Error(`Snapshot not found: ${snapshotId}`);
+    }
+
+    if (snapshot.importId !== importId) {
+      throw new Error(
+        `Snapshot ${snapshotId} does not belong to import ${importId}`,
+      );
     }
 
     const now = new Date().toISOString();
@@ -118,10 +139,16 @@ export function deactivateAllSnapshots(importId: string): void {
   });
 }
 
-export function deleteSnapshot(snapshotId: string): boolean {
+export function deleteSnapshot(snapshotId: string, importId: string): boolean {
+  // Only delete the snapshot if it belongs to the specified import
   const result = db
     .delete(conversationSnapshots)
-    .where(eq(conversationSnapshots.id, snapshotId))
+    .where(
+      and(
+        eq(conversationSnapshots.id, snapshotId),
+        eq(conversationSnapshots.importId, importId),
+      ),
+    )
     .run();
 
   return result.changes > 0;
@@ -129,8 +156,26 @@ export function deleteSnapshot(snapshotId: string): boolean {
 
 export function renameSnapshot(
   snapshotId: string,
+  importId: string,
   label: string,
 ): ConversationSnapshot {
+  // Verify the snapshot belongs to the specified import before renaming
+  const existing = db
+    .select()
+    .from(conversationSnapshots)
+    .where(eq(conversationSnapshots.id, snapshotId))
+    .get();
+
+  if (!existing) {
+    throw new Error(`Snapshot not found: ${snapshotId}`);
+  }
+
+  if (existing.importId !== importId) {
+    throw new Error(
+      `Snapshot ${snapshotId} does not belong to import ${importId}`,
+    );
+  }
+
   const now = new Date().toISOString();
 
   db.update(conversationSnapshots)
@@ -145,7 +190,7 @@ export function renameSnapshot(
     .get();
 
   if (!updated) {
-    throw new Error(`Snapshot not found: ${snapshotId}`);
+    throw new Error(`Snapshot not found after rename: ${snapshotId}`);
   }
 
   return toApiSnapshot(updated);

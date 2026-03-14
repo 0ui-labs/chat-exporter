@@ -173,7 +173,7 @@ export const contract = {
       .output(z.object({ deactivated: z.boolean() })),
 
     delete: oc
-      .input(z.object({ snapshotId: z.string() }))
+      .input(z.object({ importId: z.string(), snapshotId: z.string() }))
       .output(z.object({ deleted: z.boolean() })),
 
     rename: oc

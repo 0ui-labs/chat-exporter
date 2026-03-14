@@ -47,6 +47,7 @@ import {
   createSnapshot,
   deactivateAllSnapshots,
   deleteSnapshot,
+  getSnapshotById,
   listSnapshots,
   renameSnapshot,
 } from "../lib/snapshot-repository.js";
@@ -517,6 +518,14 @@ export const router = os.router({
         });
       }
 
+      // Verify the snapshot belongs to the specified import
+      const snapshot = getSnapshotById(input.snapshotId);
+      if (!snapshot || snapshot.importId !== input.importId) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Snapshot gehört nicht zu diesem Import.",
+        });
+      }
+
       const record = saveMessageEdit(
         input.importId,
         input.snapshotId,
@@ -538,6 +547,14 @@ export const router = os.router({
     }),
 
     delete: os.edits.delete.handler(({ input }) => {
+      // Verify the snapshot belongs to the specified import
+      const snapshot = getSnapshotById(input.snapshotId);
+      if (!snapshot || snapshot.importId !== input.importId) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Snapshot gehört nicht zu diesem Import.",
+        });
+      }
+
       const result = deleteMessageEdit(input.snapshotId, input.messageId);
       return { deleted: result };
     }),
@@ -576,7 +593,16 @@ export const router = os.router({
     }),
 
     activate: os.snapshots.activate.handler(({ input }) => {
-      return activateSnapshot(input.snapshotId);
+      try {
+        return activateSnapshot(input.snapshotId, input.importId);
+      } catch (error) {
+        throw new ORPCError("NOT_FOUND", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Snapshot konnte nicht aktiviert werden.",
+        });
+      }
     }),
 
     deactivate: os.snapshots.deactivate.handler(({ input }) => {
@@ -585,12 +611,21 @@ export const router = os.router({
     }),
 
     delete: os.snapshots.delete.handler(({ input }) => {
-      const result = deleteSnapshot(input.snapshotId);
+      const result = deleteSnapshot(input.snapshotId, input.importId);
       return { deleted: result };
     }),
 
     rename: os.snapshots.rename.handler(({ input }) => {
-      return renameSnapshot(input.snapshotId, input.label);
+      try {
+        return renameSnapshot(input.snapshotId, input.importId, input.label);
+      } catch (error) {
+        throw new ORPCError("NOT_FOUND", {
+          message:
+            error instanceof Error
+              ? error.message
+              : "Snapshot konnte nicht umbenannt werden.",
+        });
+      }
     }),
   },
 
