@@ -248,6 +248,7 @@ describe("createSnapshotRequestSchema", () => {
 describe("activateSnapshotRequestSchema", () => {
   test("accepts valid request", () => {
     const result = activateSnapshotRequestSchema.safeParse({
+      importId: "imp-1",
       snapshotId: "snap-1",
     });
 
@@ -266,6 +267,7 @@ describe("activateSnapshotRequestSchema", () => {
 describe("renameSnapshotRequestSchema", () => {
   test("accepts valid request", () => {
     const result = renameSnapshotRequestSchema.safeParse({
+      importId: "imp-1",
       snapshotId: "snap-1",
       label: "New name",
     });
