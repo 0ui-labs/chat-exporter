@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "e731bb14213a",
+  "session_id": "65cb0f82-0c50-4e87-a3da-bae4f3863a06",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T20:09:45.05393Z",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/rules-list-modal.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "01c402e1daf5",
+  "checkpoint_transcript_start": 135,
+  "transcript_lines_at_start": 135,
+  "token_usage": {
+    "input_tokens": 5,
+    "cache_creation_tokens": 32776,
+    "cache_read_tokens": 399337,
+    "output_tokens": 8126,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T20:09:44.887611Z",
+    "agent_lines": 28,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 28,
+    "agent_percentage": 100
+  }
+}
