@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "95022311ea8a",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/95/022311ea8a/0/metadata.json",
+      "transcript": "/95/022311ea8a/0/full.jsonl",
+      "content_hash": "/95/022311ea8a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 719,
+    "cache_creation_tokens": 27004,
+    "cache_read_tokens": 2338899,
+    "output_tokens": 5415,
+    "api_call_count": 20
+  }
+}
