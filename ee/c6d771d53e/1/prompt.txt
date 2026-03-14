@@ -1,0 +1,6 @@
+Ich habe eine Idee für ein großes Feature. Ich möchte eine alternative UI für die app entwickeln, vollständig Ai basiert, dabei wir die App vollständig über ein AI Chat Interface gesteuert so das man keine Buttons oder sonst etwas benötigt um die App vollständig steuern udn nutzen zu können. Einfach nur ein Chat wie Chatgpt oder Claude mit function calling. Die App als Bedien und management Layer über der App. Der User sagt dann einfach was er möchte und die Ui macht es dann einfach für den User. Der user kann Chats importieren, Regeln erstellen unterschiedliche Formate erstellen lassen. Kannst du mir helfen das konzeptionell zu entwickeln.
+
+---
+
+Koexistenz und natürlich muss der User seine eigenen Keys mitbringen. Wir wollen mehrere Anbieter ermöglichen aber sollten mit Gemini Modellen beginnen weil schnell und günstiger als Anthropic\
+Ja, sie soll wirlich alles steuern können. Frage 4 verstehe ich nicht. die bestehenden UI-Komponenten werden inline angezeigt. Es gibt nur einen Chat un dnicht wie bei Chatgpt chats als Instanzen. wir müssen uns dazu noch gedanken machen wir wir den Kontext managen so das er nie vollläuft. Grundsätzlich ist der Chat nicht wie Schwätzchen gedacht soll aber möglich sein. Bin mir noch nicht ganz klar wie. zu 7. bis 10 muss ich noch nachdenken
