@@ -11,28 +11,40 @@ type UseAutoSnapshotOptions = {
  * Ensures a snapshot exists and is active before an edit is saved.
  * On the first edit (when no snapshot is active), automatically creates
  * a "Bearbeitet" snapshot and activates it.
+ *
+ * Concurrent calls are safe: if creation is already in-flight, subsequent
+ * callers await the same Promise rather than returning true prematurely.
  */
 export function useAutoSnapshot({
   activeSnapshot,
   create,
   activate,
 }: UseAutoSnapshotOptions) {
-  const creatingRef = useRef(false);
+  const creatingPromiseRef = useRef<Promise<boolean> | null>(null);
 
   const ensureSnapshot = useCallback(async (): Promise<boolean> => {
     if (activeSnapshot) return true;
-    if (creatingRef.current) return true;
 
-    creatingRef.current = true;
-    try {
-      const snapshot = await create("Bearbeitet");
-      await activate(snapshot.id);
-      return true;
-    } catch {
-      return false;
-    } finally {
-      creatingRef.current = false;
-    }
+    // If creation is already in-flight, wait for the same Promise.
+    // This prevents the race condition where a concurrent caller would return
+    // true before activate() completes, leaving snapshotId undefined in the
+    // caller and causing saveEdit to silently discard the edit.
+    if (creatingPromiseRef.current) return creatingPromiseRef.current;
+
+    const promise = (async () => {
+      try {
+        const snapshot = await create("Bearbeitet");
+        await activate(snapshot.id);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        creatingPromiseRef.current = null;
+      }
+    })();
+
+    creatingPromiseRef.current = promise;
+    return promise;
   }, [activeSnapshot, create, activate]);
 
   return { ensureSnapshot };

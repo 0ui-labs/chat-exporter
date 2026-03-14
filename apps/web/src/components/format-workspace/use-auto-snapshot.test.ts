@@ -91,6 +91,80 @@ describe("useAutoSnapshot", () => {
     expect(createMock).toHaveBeenCalledTimes(1);
   });
 
+  test("concurrent second call waits for activation before resolving true", async () => {
+    // Arrange: track activation order vs concurrent call resolution
+    let resolveCreate!: (value: {
+      id: string;
+      label: string;
+      isActive: boolean;
+    }) => void;
+    let resolveActivate!: () => void;
+    let activateStarted = false;
+    let activateFinished = false;
+
+    createMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    activateMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          activateStarted = true;
+          resolveActivate = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() =>
+      useAutoSnapshot({
+        activeSnapshot: null,
+        create: createMock,
+        activate: activateMock,
+      }),
+    );
+
+    // Both calls fired concurrently — p2 hits the in-progress guard
+    const p1 = result.current.ensureSnapshot();
+    const p2 = result.current.ensureSnapshot();
+
+    // Resolve creation — activate begins
+    resolveCreate({ id: "snap-new", label: "Bearbeitet", isActive: false });
+
+    // Flush microtasks so activate is called
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(activateStarted).toBe(true);
+
+    // p2 must NOT have resolved yet — activation is still pending.
+    // We test this by checking whether p2 has settled before we resolve activate.
+    let p2Resolved = false;
+    void p2.then(() => {
+      p2Resolved = true;
+    });
+
+    // Flush microtasks — p2 should still be pending
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // With the buggy implementation p2 already resolved true (before activate
+    // finished), so p2Resolved would be true here.
+    expect(p2Resolved).toBe(false);
+
+    // Now finish activation
+    activateFinished = false;
+    resolveActivate();
+    activateFinished = true;
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    // Both callers receive true only after activation is complete
+    expect(r1).toBe(true);
+    expect(r2).toBe(true);
+    expect(activateFinished).toBe(true);
+  });
+
   test("returns false when snapshot creation fails", async () => {
     createMock.mockRejectedValue(new Error("Network error"));
 
