@@ -1,0 +1,1 @@
+bearbeiten und anpassungsmodus darf nie gleichzeitig aktivierbar sein
