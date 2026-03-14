@@ -125,7 +125,7 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
       // Compound in Markdown: textPattern match on each line
       // blockType/messageRole/context not relevant for Markdown (line-based only)
       const textPattern =
-        "textPattern" in selector ? (selector as any).textPattern : null;
+        "textPattern" in selector ? selector.textPattern : null;
 
       for (let index = 0; index < nextLines.length; index += 1) {
         const line = nextLines[index] ?? "";
