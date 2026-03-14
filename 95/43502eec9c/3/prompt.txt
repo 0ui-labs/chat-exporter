@@ -1,0 +1,5 @@
+Bitte füge einen Copy Button zum kopieren der Gesamten Konversation ein (Wenn man gerade die Markdownansicht offen hat kopiert er die Markdown Version, hat man den viewer an wird der HTML Code kopiert ( je nach dem im welchem format man sich befindet) verstehst du was ich meine? Bitte beschreibe mir was du verstanden hast
+
+---
+
+richtig. Plane das
