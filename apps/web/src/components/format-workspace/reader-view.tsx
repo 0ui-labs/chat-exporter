@@ -6,7 +6,14 @@ import type {
   RuleEffect,
 } from "@chat-exporter/shared";
 import { ClipboardCopy } from "lucide-react";
-import React, { memo, useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
 import { BlockInserter } from "@/components/format-workspace/block-inserter";
@@ -441,6 +448,36 @@ export function ReaderView({
     return conversation.messages.filter((m) => !deletedMessageIds.has(m.id));
   }, [conversation?.messages, deletedMessageIds, showDeleted]);
 
+  // Tracks the latest in-progress blocks per message so that consecutive edits
+  // within the same debounce window build on top of each other rather than on
+  // stale props (which would cause earlier edits to be overwritten).
+  const pendingBlocksRef = useRef<Map<string, Block[]>>(new Map());
+
+  // When the conversation prop updates (i.e. the parent has persisted the edit
+  // and passed the new data back down), clear any pending entries whose blocks
+  // now match the incoming props — they are no longer "in-flight".
+  useEffect(() => {
+    if (!conversation) return;
+    const pending = pendingBlocksRef.current;
+    for (const [messageId] of pending) {
+      const message = conversation.messages.find((m) => m.id === messageId);
+      if (!message) {
+        pending.delete(messageId);
+        continue;
+      }
+      // If the prop blocks now reflect our last pending write, the save has
+      // been acknowledged — remove the entry so the next edit starts fresh.
+      const pendingBlocks = pending.get(messageId);
+      if (
+        pendingBlocks &&
+        pendingBlocks.length === message.blocks.length &&
+        pendingBlocks.every((b, i) => b === message.blocks[i])
+      ) {
+        pending.delete(messageId);
+      }
+    }
+  }, [conversation]);
+
   const highlightedBlocks = useMemo(() => {
     if (!highlightedRuleId || !conversation) {
       return new Set<string>();
@@ -463,9 +500,18 @@ export function ReaderView({
       if (!onBlocksChange || !conversation) return;
       const message = conversation.messages.find((m) => m.id === messageId);
       if (!message) return;
-      const updatedBlocks = message.blocks.map((b, i) =>
+
+      // Use pending blocks as the base if present (prevents stale-closure
+      // overwrites when the user edits multiple blocks before the debounced
+      // save propagates updated props back down).
+      const baseBlocks =
+        pendingBlocksRef.current.get(messageId) ?? message.blocks;
+
+      const updatedBlocks = baseBlocks.map((b, i) =>
         i === blockIndex ? newBlock : b,
       );
+
+      pendingBlocksRef.current.set(messageId, updatedBlocks);
       onBlocksChange(messageId, updatedBlocks);
     },
     [onBlocksChange, conversation],

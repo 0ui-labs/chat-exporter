@@ -57,11 +57,12 @@ export function useSnapshots(importId: string) {
     isLoading: snapshotsQuery.isLoading,
     create: (label: string) => createSnapshot.mutateAsync({ importId, label }),
     activate: (snapshotId: string) =>
-      activateSnapshot.mutateAsync({ snapshotId }),
+      activateSnapshot.mutateAsync({ importId, snapshotId }),
     deactivate: () => deactivateSnapshot.mutateAsync({ importId }),
-    delete: (snapshotId: string) => deleteSnapshot.mutateAsync({ snapshotId }),
+    delete: (snapshotId: string) =>
+      deleteSnapshot.mutateAsync({ importId, snapshotId }),
     rename: (snapshotId: string, label: string) =>
-      renameSnapshot.mutateAsync({ snapshotId, label }),
+      renameSnapshot.mutateAsync({ importId, snapshotId, label }),
     isCreating: createSnapshot.isPending,
     isActivating: activateSnapshot.isPending,
     isDeactivating: deactivateSnapshot.isPending,

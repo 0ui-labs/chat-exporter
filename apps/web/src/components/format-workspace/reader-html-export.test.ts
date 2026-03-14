@@ -14,18 +14,17 @@ function makeConversation(
   return {
     id: "conv-1",
     title: "Test",
-    provider: "chatgpt" as const,
-    shareUrl: "https://example.com",
+    source: {
+      url: "https://example.com/share/abc",
+      platform: "chatgpt" as const,
+    },
     messages: [
       {
         id: "msg-1",
         role: "user" as const,
         blocks,
-        createdAt: "2024-01-01T00:00:00Z",
       },
     ],
-    createdAt: "2024-01-01T00:00:00Z",
-    importedAt: "2024-01-01T00:00:00Z",
   };
 }
 
