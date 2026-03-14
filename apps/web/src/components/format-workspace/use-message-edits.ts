@@ -15,6 +15,14 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
   // removed so that hasPendingEdits reflects the current state synchronously.
   const [pendingTimerCount, setPendingTimerCount] = useState(0);
 
+  // inFlightMutationCount tracks every active saveMutation.mutate() call
+  // individually. useMutation.isPending only reflects the LATEST mutate() call,
+  // so if two saves overlap (e.g. editing msg-1 and msg-2 rapidly), an older
+  // in-flight save is invisible to isPending once a newer one starts. The
+  // counter increments on each mutate() and decrements in onSettled, ensuring
+  // hasPendingEdits stays true until every in-flight call has settled.
+  const [inFlightMutationCount, setInFlightMutationCount] = useState(0);
+
   const editsQuery = useQuery({
     ...orpc.edits.listForSnapshot.queryOptions({
       input: { snapshotId: snapshotId as string },
@@ -30,6 +38,7 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
   const saveMutation = useMutation(
     orpc.edits.save.mutationOptions({
       onSuccess: () => invalidate(),
+      onSettled: () => setInFlightMutationCount((c) => c - 1),
     }),
   );
 
@@ -64,6 +73,7 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
       const timer = setTimeout(() => {
         debounceTimers.current.delete(messageId);
         setPendingTimerCount((c) => c - 1);
+        setInFlightMutationCount((c) => c + 1);
         saveMutation.mutate({
           importId,
           snapshotId,
@@ -105,7 +115,7 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
     isLoading: editsQuery.isLoading,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    hasPendingEdits: pendingTimerCount > 0 || saveMutation.isPending,
+    hasPendingEdits: pendingTimerCount > 0 || inFlightMutationCount > 0,
     saveEdit,
     deleteEdit,
   };

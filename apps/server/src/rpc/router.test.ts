@@ -53,6 +53,7 @@ vi.mock("../lib/snapshot-repository.js", () => ({
   createSnapshot: vi.fn(),
   listSnapshots: vi.fn(),
   getActiveSnapshot: vi.fn(),
+  getSnapshotById: vi.fn(),
   activateSnapshot: vi.fn(),
   deactivateAllSnapshots: vi.fn(),
   deleteSnapshot: vi.fn(),
@@ -103,6 +104,7 @@ import {
   createSnapshot,
   deactivateAllSnapshots,
   deleteSnapshot,
+  getSnapshotById,
   listSnapshots,
   renameSnapshot,
 } from "../lib/snapshot-repository.js";
@@ -159,6 +161,7 @@ const mockDeactivateAllSnapshots = deactivateAllSnapshots as ReturnType<
 >;
 const mockDeleteSnapshot = deleteSnapshot as ReturnType<typeof vi.fn>;
 const mockRenameSnapshot = renameSnapshot as ReturnType<typeof vi.fn>;
+const mockGetSnapshotById = getSnapshotById as ReturnType<typeof vi.fn>;
 
 function createImportJobFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -768,6 +771,7 @@ function createSnapshotFixture(overrides: Record<string, unknown> = {}) {
 describe("edits.save", () => {
   test("saves a message edit and returns it", async () => {
     mockGetImportJob.mockReturnValue(createImportJobFixture());
+    mockGetSnapshotById.mockReturnValue(createSnapshotFixture());
     mockSaveMessageEdit.mockReturnValue(createMessageEditFixture());
 
     const result = await client.edits.save({
@@ -791,6 +795,7 @@ describe("edits.save", () => {
 
   test("passes annotation through to repository", async () => {
     mockGetImportJob.mockReturnValue(createImportJobFixture());
+    mockGetSnapshotById.mockReturnValue(createSnapshotFixture());
     mockSaveMessageEdit.mockReturnValue(
       createMessageEditFixture({ annotation: "Fixed typo" }),
     );
@@ -825,10 +830,41 @@ describe("edits.save", () => {
       }),
     ).rejects.toThrow(ORPCError);
   });
+
+  test("throws NOT_FOUND when snapshot does not belong to the import", async () => {
+    mockGetImportJob.mockReturnValue(createImportJobFixture());
+    mockGetSnapshotById.mockReturnValue(
+      createSnapshotFixture({ importId: "other-import" }),
+    );
+
+    await expect(
+      client.edits.save({
+        importId: "import-1",
+        snapshotId: "snap-1",
+        messageId: "msg-1",
+        editedBlocks: [{ type: "paragraph", text: "x" }],
+      }),
+    ).rejects.toThrow(ORPCError);
+  });
+
+  test("throws NOT_FOUND when snapshot does not exist", async () => {
+    mockGetImportJob.mockReturnValue(createImportJobFixture());
+    mockGetSnapshotById.mockReturnValue(null);
+
+    await expect(
+      client.edits.save({
+        importId: "import-1",
+        snapshotId: "nonexistent-snap",
+        messageId: "msg-1",
+        editedBlocks: [{ type: "paragraph", text: "x" }],
+      }),
+    ).rejects.toThrow(ORPCError);
+  });
 });
 
 describe("edits.delete", () => {
   test("deletes a message edit and returns result", async () => {
+    mockGetSnapshotById.mockReturnValue(createSnapshotFixture());
     mockDeleteMessageEdit.mockReturnValue(true);
 
     const result = await client.edits.delete({
@@ -842,6 +878,7 @@ describe("edits.delete", () => {
   });
 
   test("returns false when edit does not exist", async () => {
+    mockGetSnapshotById.mockReturnValue(createSnapshotFixture());
     mockDeleteMessageEdit.mockReturnValue(false);
 
     const result = await client.edits.delete({
@@ -851,6 +888,20 @@ describe("edits.delete", () => {
     });
 
     expect(result).toEqual({ deleted: false });
+  });
+
+  test("throws NOT_FOUND when snapshot does not belong to the import", async () => {
+    mockGetSnapshotById.mockReturnValue(
+      createSnapshotFixture({ importId: "other-import" }),
+    );
+
+    await expect(
+      client.edits.delete({
+        importId: "import-1",
+        snapshotId: "snap-1",
+        messageId: "msg-1",
+      }),
+    ).rejects.toThrow(ORPCError);
   });
 });
 
@@ -944,10 +995,26 @@ describe("snapshots.activate", () => {
     const snapshot = createSnapshotFixture({ isActive: true });
     mockActivateSnapshot.mockReturnValue(snapshot);
 
-    const result = await client.snapshots.activate({ snapshotId: "snap-1" });
+    const result = await client.snapshots.activate({
+      importId: "import-1",
+      snapshotId: "snap-1",
+    });
 
     expect(result.isActive).toBe(true);
-    expect(mockActivateSnapshot).toHaveBeenCalledWith("snap-1");
+    expect(mockActivateSnapshot).toHaveBeenCalledWith("snap-1", "import-1");
+  });
+
+  test("throws NOT_FOUND when snapshot does not belong to the import", async () => {
+    mockActivateSnapshot.mockImplementation(() => {
+      throw new Error("Snapshot snap-1 does not belong to import import-1");
+    });
+
+    await expect(
+      client.snapshots.activate({
+        importId: "import-1",
+        snapshotId: "snap-1",
+      }),
+    ).rejects.toThrow(ORPCError);
   });
 });
 
@@ -968,7 +1035,10 @@ describe("snapshots.delete", () => {
   test("deletes a snapshot", async () => {
     mockDeleteSnapshot.mockReturnValue(true);
 
-    const result = await client.snapshots.delete({ snapshotId: "snap-1" });
+    const result = await client.snapshots.delete({
+      importId: "import-1",
+      snapshotId: "snap-1",
+    });
 
     expect(result).toEqual({ deleted: true });
     expect(mockDeleteSnapshot).toHaveBeenCalledWith("snap-1");
@@ -978,6 +1048,7 @@ describe("snapshots.delete", () => {
     mockDeleteSnapshot.mockReturnValue(false);
 
     const result = await client.snapshots.delete({
+      importId: "import-1",
       snapshotId: "nonexistent",
     });
 
@@ -991,6 +1062,7 @@ describe("snapshots.rename", () => {
     mockRenameSnapshot.mockReturnValue(snapshot);
 
     const result = await client.snapshots.rename({
+      importId: "import-1",
       snapshotId: "snap-1",
       label: "New name",
     });

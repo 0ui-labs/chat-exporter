@@ -188,7 +188,67 @@ ${isReader ? readerExamples : markdownExamples}`;
 // Tool Definitions (OpenAI Responses API format)
 // ---------------------------------------------------------------------------
 
-function buildSelectorSchema() {
+function buildSelectorSchema(targetFormat: AdjustmentTargetFormat = "reader") {
+  const isMarkdown = targetFormat === "markdown";
+
+  // For Markdown, compound selectors only support textPattern (line-based matching).
+  // blockType, messageRole, headingLevel, position, and context are block/message
+  // concepts that do not exist in the flat line-based Markdown representation and
+  // are silently ignored by applyMarkdownRules. Exposing them would mislead the AI
+  // into generating selectors that appear meaningful but have no effect.
+  const compoundProperties = isMarkdown
+    ? {
+        textPattern: {
+          type: "string",
+          description:
+            "Nur für compound: Regex-Pattern das im Markdown-Text matchen muss.",
+        },
+      }
+    : {
+        messageRole: {
+          type: "string",
+          enum: ["user", "assistant", "system", "tool"],
+          description: "Nur für compound: Nachrichten dieser Rolle matchen.",
+        },
+        headingLevel: {
+          type: "number",
+          description: "Nur für compound: Überschriften-Ebene 1-6.",
+        },
+        position: {
+          type: "string",
+          enum: ["first", "last"],
+          description:
+            "Nur für compound: Erster oder letzter Block einer Nachricht.",
+        },
+        textPattern: {
+          type: "string",
+          description:
+            "Nur für compound: Regex-Pattern das im Block-Text matchen muss.",
+        },
+        context: {
+          type: "object",
+          description: "Nur für compound: Nachbar-Block-Filter.",
+          properties: {
+            previousSibling: {
+              type: "object",
+              properties: {
+                blockType: { type: "string" },
+                headingLevel: { type: "number" },
+                textPattern: { type: "string" },
+              },
+            },
+            nextSibling: {
+              type: "object",
+              properties: {
+                blockType: { type: "string" },
+                headingLevel: { type: "number" },
+                textPattern: { type: "string" },
+              },
+            },
+          },
+        },
+      };
+
   return {
     type: "object",
     properties: {
@@ -225,48 +285,7 @@ function buildSelectorSchema() {
         type: "number",
         description: "Nur für Markdown: letzte Zeile.",
       },
-      messageRole: {
-        type: "string",
-        enum: ["user", "assistant", "system", "tool"],
-        description: "Nur für compound: Nachrichten dieser Rolle matchen.",
-      },
-      headingLevel: {
-        type: "number",
-        description: "Nur für compound: Überschriften-Ebene 1-6.",
-      },
-      position: {
-        type: "string",
-        enum: ["first", "last"],
-        description:
-          "Nur für compound: Erster oder letzter Block einer Nachricht.",
-      },
-      textPattern: {
-        type: "string",
-        description:
-          "Nur für compound: Regex-Pattern das im Block-Text matchen muss.",
-      },
-      context: {
-        type: "object",
-        description: "Nur für compound: Nachbar-Block-Filter.",
-        properties: {
-          previousSibling: {
-            type: "object",
-            properties: {
-              blockType: { type: "string" },
-              headingLevel: { type: "number" },
-              textPattern: { type: "string" },
-            },
-          },
-          nextSibling: {
-            type: "object",
-            properties: {
-              blockType: { type: "string" },
-              headingLevel: { type: "number" },
-              textPattern: { type: "string" },
-            },
-          },
-        },
-      },
+      ...compoundProperties,
     },
     required: ["strategy"],
   };
@@ -321,7 +340,7 @@ function buildEffectSchema() {
   };
 }
 
-function buildTools() {
+function buildTools(targetFormat: AdjustmentTargetFormat = "reader") {
   return [
     {
       type: "function",
@@ -331,7 +350,7 @@ function buildTools() {
       parameters: {
         type: "object",
         properties: {
-          selector: buildSelectorSchema(),
+          selector: buildSelectorSchema(targetFormat),
           effect: buildEffectSchema(),
           description: {
             type: "string",
@@ -754,6 +773,7 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
   }
 
   const actions: ActionRecord[] = [];
+  const targetFormat = input.sessionDetail.session.targetFormat;
 
   const inputMessages = buildInputMessages(input);
 
@@ -761,7 +781,7 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
     {
       input: inputMessages,
       tool_choice: "auto",
-      tools: buildTools(),
+      tools: buildTools(targetFormat),
     },
     config,
   );
@@ -794,7 +814,7 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
         input: toolOutputs,
         previous_response_id: payload.id,
         tool_choice: "auto",
-        tools: buildTools(),
+        tools: buildTools(targetFormat),
       },
       config,
     );
@@ -826,7 +846,7 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
           },
         ],
         tool_choice: "none",
-        tools: buildTools(),
+        tools: buildTools(targetFormat),
       },
       config,
     );

@@ -359,9 +359,16 @@ describe("type inference", () => {
       label: "l",
     };
 
-    const activateReq: ActivateSnapshotRequest = { snapshotId: "s" };
+    const activateReq: ActivateSnapshotRequest = {
+      importId: "i",
+      snapshotId: "s",
+    };
 
-    const renameReq: RenameSnapshotRequest = { snapshotId: "s", label: "l" };
+    const renameReq: RenameSnapshotRequest = {
+      importId: "i",
+      snapshotId: "s",
+      label: "l",
+    };
 
     const resolved: ResolvedMessage = {
       messageId: "m",

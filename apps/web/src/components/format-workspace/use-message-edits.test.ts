@@ -12,7 +12,7 @@ import { useMessageEdits } from "./use-message-edits";
 
 const mockMutate = vi.fn();
 const mockMutateAsync = vi.fn();
-let mockIsPending = false;
+let _mockIsPending = false;
 
 vi.mock("@/lib/orpc", () => ({
   orpc: {
@@ -25,11 +25,18 @@ vi.mock("@/lib/orpc", () => ({
         key: () => ["edits", "listForSnapshot"],
       },
       save: {
-        mutationOptions: (opts: { onSuccess?: () => void }) => ({
+        mutationOptions: (opts: {
+          onSuccess?: () => void;
+          onSettled?: () => void;
+        }) => ({
           mutationFn: async (input: unknown) => {
-            const result = await mockMutate(input);
-            opts?.onSuccess?.();
-            return result;
+            try {
+              const result = await mockMutate(input);
+              opts?.onSuccess?.();
+              return result;
+            } finally {
+              opts?.onSettled?.();
+            }
           },
         }),
       },
@@ -73,7 +80,7 @@ describe("useMessageEdits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    mockIsPending = false;
+    _mockIsPending = false;
     mockMutate.mockResolvedValue(undefined);
     mockMutateAsync.mockResolvedValue(undefined);
   });
@@ -179,6 +186,67 @@ describe("useMessageEdits", () => {
       });
 
       // deleteEdit cancels the debounce timer; no pending edits remain
+      expect(result.current.hasPendingEdits).toBe(false);
+    });
+  });
+
+  describe("hasPendingEdits with overlapping in-flight saves", () => {
+    test("remains true while an older save is still in-flight after a newer one completes", async () => {
+      /**
+       * Given: Two messages both have their debounce timers fire, triggering
+       *        two concurrent save mutations. The second mutation resolves
+       *        first while the first is still in-flight.
+       * When:  The second mutation settles.
+       * Then:  hasPendingEdits must still be true because the first save is
+       *        still running. It must only become false once both settle.
+       */
+      let resolveFirst!: () => void;
+      let resolveSecond!: () => void;
+
+      const firstSave = new Promise<void>((res) => {
+        resolveFirst = res;
+      });
+      const secondSave = new Promise<void>((res) => {
+        resolveSecond = res;
+      });
+
+      // First call blocks, second call resolves immediately
+      mockMutate
+        .mockReturnValueOnce(firstSave)
+        .mockReturnValueOnce(secondSave);
+
+      const { result } = renderHook(
+        () => useMessageEdits("import-1", "snap-1"),
+        { wrapper: createWrapper() },
+      );
+
+      // Trigger two saves for two different messages
+      act(() => {
+        result.current.saveEdit("msg-1", []);
+        result.current.saveEdit("msg-2", []);
+      });
+
+      // Both debounce timers fire — two mutations now in-flight
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      // Second save resolves while first is still in-flight
+      await act(async () => {
+        resolveSecond();
+        await secondSave;
+      });
+
+      // First save still running — hasPendingEdits must remain true
+      expect(result.current.hasPendingEdits).toBe(true);
+
+      // Now first save also resolves
+      await act(async () => {
+        resolveFirst();
+        await firstSave;
+      });
+
+      // Both saves complete — hasPendingEdits must be false
       expect(result.current.hasPendingEdits).toBe(false);
     });
   });
