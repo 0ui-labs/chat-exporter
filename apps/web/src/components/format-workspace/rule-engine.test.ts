@@ -336,3 +336,141 @@ describe("applyMarkdownRules — compound strategy", () => {
     expect(result).toBe("Hello world\nTest line");
   });
 });
+
+// ---------------------------------------------------------------------------
+// buildReaderEffectsMap — compound selectors
+// ---------------------------------------------------------------------------
+
+describe("buildReaderEffectsMap — compound selectors", () => {
+  test("compound blockType filter matches correct blocks", () => {
+    const rules = [
+      createRule({
+        selector: { strategy: "compound", blockType: "heading" },
+        compiledRule: {
+          type: "custom_style",
+          textStyle: { fontSize: "2rem" },
+        },
+      }),
+    ];
+    const conversation = createConversation({
+      messages: [
+        {
+          id: "msg-1",
+          role: "assistant",
+          blocks: [
+            { type: "paragraph", text: "Intro" },
+            { type: "heading", level: 2, text: "Title" },
+          ],
+        },
+      ],
+    });
+
+    const result = buildReaderEffectsMap(rules, conversation);
+
+    expect(result.has("msg-1:0")).toBe(false);
+    expect(result.has("msg-1:1")).toBe(true);
+  });
+
+  test("compound messageRole filter matches only assistant messages", () => {
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          messageRole: "assistant",
+        },
+        compiledRule: {
+          type: "custom_style",
+          containerStyle: { marginBottom: "1rem" },
+        },
+      }),
+    ];
+    const conversation = createConversation({
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          blocks: [{ type: "paragraph", text: "User text" }],
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          blocks: [{ type: "paragraph", text: "Assistant text" }],
+        },
+      ],
+    });
+
+    const result = buildReaderEffectsMap(rules, conversation);
+
+    expect(result.has("msg-1:0")).toBe(false);
+    expect(result.has("msg-2:0")).toBe(true);
+  });
+
+  test("compound context.previousSibling matches paragraph after heading", () => {
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          context: { previousSibling: { blockType: "heading" } },
+        },
+        compiledRule: {
+          type: "custom_style",
+          containerStyle: { paddingLeft: "1.5rem" },
+        },
+      }),
+    ];
+    const conversation = createConversation({
+      messages: [
+        {
+          id: "msg-1",
+          role: "assistant",
+          blocks: [
+            { type: "heading", level: 1, text: "Title" },
+            { type: "paragraph", text: "After heading" },
+            { type: "paragraph", text: "Not after heading" },
+          ],
+        },
+      ],
+    });
+
+    const result = buildReaderEffectsMap(rules, conversation);
+
+    expect(result.has("msg-1:0")).toBe(false);
+    expect(result.has("msg-1:1")).toBe(true);
+    expect(result.has("msg-1:2")).toBe(false);
+  });
+
+  test("compound position: first matches only first block per message", () => {
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          position: "first",
+        },
+        compiledRule: {
+          type: "custom_style",
+          textStyle: { fontWeight: "700" },
+        },
+      }),
+    ];
+    const conversation = createConversation({
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          blocks: [
+            { type: "paragraph", text: "First" },
+            { type: "paragraph", text: "Second" },
+          ],
+        },
+      ],
+    });
+
+    const result = buildReaderEffectsMap(rules, conversation);
+
+    expect(result.has("msg-1:0")).toBe(true);
+    expect(result.has("msg-1:1")).toBe(false);
+  });
+});

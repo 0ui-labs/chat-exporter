@@ -11,7 +11,7 @@ import {
 } from "@chat-exporter/shared";
 
 import { blockToPlainText } from "./reader-block-render";
-import { matchesReaderRule } from "./rule-matching";
+import { matchesReaderRule, type ReaderMatchContext } from "./rule-matching";
 
 // Re-exports for backward compatibility
 export {
@@ -29,12 +29,20 @@ export function resolveReaderBlockEffects(
   blockIndex: number,
   blockType: Block["type"],
   blockText: string,
+  context?: ReaderMatchContext,
 ) {
   return rules
     .filter(
       (rule) =>
         rule.status === "active" &&
-        matchesReaderRule(rule, messageId, blockIndex, blockType, blockText),
+        matchesReaderRule(
+          rule,
+          messageId,
+          blockIndex,
+          blockType,
+          blockText,
+          context,
+        ),
     )
     .map((rule) => rule.compiledRule)
     .filter((effect): effect is RuleEffect => effect !== undefined)
@@ -49,6 +57,11 @@ export function buildReaderEffectsMap(
   const effectsMap = new Map<string, RuleEffect[]>();
 
   for (const message of conversation.messages) {
+    const context: ReaderMatchContext = {
+      messageRole: message.role,
+      blocks: message.blocks,
+    };
+
     for (
       let blockIndex = 0;
       blockIndex < message.blocks.length;
@@ -68,6 +81,7 @@ export function buildReaderEffectsMap(
             blockIndex,
             block.type,
             blockToPlainText(block),
+            context,
           ),
         )
         .map((rule) => rule.compiledRule)
