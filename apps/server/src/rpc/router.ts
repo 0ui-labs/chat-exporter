@@ -530,6 +530,7 @@ export const router = os.router({
         importId: record.importId,
         snapshotId: record.snapshotId,
         messageId: record.messageId,
+        editedBlocks: JSON.parse(record.editedBlocksJson),
         annotation: record.annotation ?? undefined,
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,

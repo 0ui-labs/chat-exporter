@@ -18,6 +18,7 @@ export const messageEditSchema = z.object({
   importId: z.string(),
   snapshotId: z.string(),
   messageId: z.string(),
+  editedBlocks: z.array(blockSchema),
   annotation: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),

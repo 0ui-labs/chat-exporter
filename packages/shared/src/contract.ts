@@ -9,7 +9,6 @@ import {
   createAdjustmentSessionRequestSchema,
   formatRuleSchema,
 } from "./adjustments.js";
-import { blockSchema } from "./conversation.js";
 import {
   deleteMessageRequestSchema,
   deleteRoundRequestSchema,
@@ -151,20 +150,9 @@ export const contract = {
       .input(deleteMessageEditRequestSchema)
       .output(z.object({ deleted: z.boolean() })),
 
-    listForSnapshot: oc.input(z.object({ snapshotId: z.string() })).output(
-      z.array(
-        z.object({
-          id: z.string(),
-          importId: z.string(),
-          snapshotId: z.string(),
-          messageId: z.string(),
-          editedBlocks: z.array(blockSchema),
-          annotation: z.string().optional(),
-          createdAt: z.string(),
-          updatedAt: z.string(),
-        }),
-      ),
-    ),
+    listForSnapshot: oc
+      .input(z.object({ snapshotId: z.string() }))
+      .output(z.array(messageEditSchema)),
   },
 
   snapshots: {

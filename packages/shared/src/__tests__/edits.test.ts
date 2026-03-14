@@ -36,6 +36,7 @@ const validMessageEdit = {
   importId: "imp-1",
   snapshotId: "snap-1",
   messageId: "msg-1",
+  editedBlocks: [{ type: "paragraph" as const, text: "Hello world" }],
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
@@ -100,13 +101,30 @@ describe("messageEditSchema", () => {
     }
   });
 
+  test("accepts a valid message edit with multiple blocks", () => {
+    const result = messageEditSchema.safeParse({
+      ...validMessageEdit,
+      editedBlocks: validBlocks,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.editedBlocks).toHaveLength(2);
+    }
+  });
+
   test.each([
     ["missing id", { ...validMessageEdit, id: undefined }],
     ["missing importId", { ...validMessageEdit, importId: undefined }],
     ["missing snapshotId", { ...validMessageEdit, snapshotId: undefined }],
     ["missing messageId", { ...validMessageEdit, messageId: undefined }],
+    ["missing editedBlocks", { ...validMessageEdit, editedBlocks: undefined }],
     ["missing createdAt", { ...validMessageEdit, createdAt: undefined }],
     ["wrong type for annotation", { ...validMessageEdit, annotation: 42 }],
+    [
+      "invalid block type in editedBlocks",
+      { ...validMessageEdit, editedBlocks: [{ type: "unknown", text: "x" }] },
+    ],
   ])("rejects invalid message edit: %s", (_label, payload) => {
     const result = messageEditSchema.safeParse(payload);
 
@@ -318,6 +336,7 @@ describe("type inference", () => {
       importId: "i",
       snapshotId: "s",
       messageId: "m",
+      editedBlocks: [{ type: "paragraph", text: "t" }],
       createdAt: "c",
       updatedAt: "u",
     };
