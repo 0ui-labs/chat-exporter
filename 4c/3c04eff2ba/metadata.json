@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "4c3c04eff2ba",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "packages/shared/src/adjustments.test.ts",
+    "packages/shared/src/adjustments.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/3c04eff2ba/0/metadata.json",
+      "transcript": "/4c/3c04eff2ba/0/full.jsonl",
+      "content_hash": "/4c/3c04eff2ba/0/content_hash.txt",
+      "prompt": "/4c/3c04eff2ba/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 46696,
+    "cache_read_tokens": 665258,
+    "output_tokens": 3783,
+    "api_call_count": 13
+  }
+}
