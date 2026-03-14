@@ -128,15 +128,18 @@ export function FormatWorkspace({
 
   const hasEdits = resolvedMessages.some((m) => m.isEdited);
 
-  // beforeunload warning when unsaved edits exist
+  // beforeunload warning when unsaved edits exist.
+  // hasPendingEdits covers both debounce timers that haven't fired yet and
+  // in-flight HTTP mutations, preventing data loss during the 500 ms debounce
+  // window where isSaving alone would still be false.
   useEffect(() => {
-    if (!messageEdits.isSaving) return;
+    if (!messageEdits.hasPendingEdits) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [messageEdits.isSaving]);
+  }, [messageEdits.hasPendingEdits]);
 
   const handleBlocksChange = useCallback(
     (messageId: string, blocks: Block[]) => {

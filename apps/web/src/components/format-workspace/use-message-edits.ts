@@ -1,6 +1,6 @@
 import type { Block } from "@chat-exporter/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { orpc } from "@/lib/orpc";
 
@@ -11,6 +11,9 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+  // pendingTimerCount triggers re-renders when debounce timers are added or
+  // removed so that hasPendingEdits reflects the current state synchronously.
+  const [pendingTimerCount, setPendingTimerCount] = useState(0);
 
   const editsQuery = useQuery({
     ...orpc.edits.listForSnapshot.queryOptions({
@@ -50,10 +53,17 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
       if (!snapshotId) return;
 
       const existing = debounceTimers.current.get(messageId);
-      if (existing) clearTimeout(existing);
+      if (existing) {
+        clearTimeout(existing);
+        // Timer is being replaced — count stays the same, no net change needed
+      } else {
+        // New timer being added
+        setPendingTimerCount((c) => c + 1);
+      }
 
       const timer = setTimeout(() => {
         debounceTimers.current.delete(messageId);
+        setPendingTimerCount((c) => c - 1);
         saveMutation.mutate({
           importId,
           snapshotId,
@@ -77,6 +87,7 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
       if (existing) {
         clearTimeout(existing);
         debounceTimers.current.delete(messageId);
+        setPendingTimerCount((c) => c - 1);
       }
 
       return deleteMutation.mutateAsync({
@@ -94,6 +105,7 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
     isLoading: editsQuery.isLoading,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    hasPendingEdits: pendingTimerCount > 0 || saveMutation.isPending,
     saveEdit,
     deleteEdit,
   };

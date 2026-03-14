@@ -106,6 +106,7 @@ vi.mock("@/components/format-workspace/use-message-edits", () => ({
     isLoading: false,
     isSaving: false,
     isDeleting: false,
+    hasPendingEdits: false,
     saveEdit: vi.fn(),
     deleteEdit: vi.fn(),
   }),
