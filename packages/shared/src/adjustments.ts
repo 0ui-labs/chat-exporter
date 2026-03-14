@@ -123,10 +123,32 @@ export const markdownTableSelectorSchema = z
   })
   .strict();
 
+export const compoundContextSiblingSchema = z.object({
+  blockType: z.string().optional(),
+  headingLevel: z.number().int().min(1).max(6).optional(),
+  textPattern: z.string().optional(),
+});
+
+export const compoundSelectorSchema = z.object({
+  strategy: z.literal("compound"),
+  blockType: z.string().optional(),
+  messageRole: z.enum(["user", "assistant", "system", "tool"]).optional(),
+  headingLevel: z.number().int().min(1).max(6).optional(),
+  position: z.enum(["first", "last"]).optional(),
+  textPattern: z.string().optional(),
+  context: z
+    .object({
+      previousSibling: compoundContextSiblingSchema.optional(),
+      nextSibling: compoundContextSiblingSchema.optional(),
+    })
+    .optional(),
+});
+
 export const readerRuleSelectorSchema = z.union([
   exactReaderSelectorSchema,
   blockTypeSelectorSchema,
   readerPrefixSelectorSchema,
+  compoundSelectorSchema,
 ]);
 
 export const markdownRuleSelectorSchema = z.union([
@@ -310,6 +332,10 @@ export type AdjustmentMetrics = z.infer<typeof adjustmentMetricsSchema>;
 export type RuleSelector = z.infer<typeof ruleSelectorSchema>;
 export type RuleEffect = z.infer<typeof ruleEffectSchema>;
 export type CustomStyleEffect = z.infer<typeof customStyleEffectSchema>;
+export type CompoundSelector = z.infer<typeof compoundSelectorSchema>;
+export type CompoundContextSibling = z.infer<
+  typeof compoundContextSiblingSchema
+>;
 
 /**
  * Converts legacy effect types into a unified `custom_style` effect.

@@ -2,10 +2,136 @@ import { describe, expect, test } from "vitest";
 
 import {
   adjustmentSessionStatusSchema,
+  blockTypeSelectorSchema,
+  compoundSelectorSchema,
   customStyleEffectSchema,
+  exactReaderSelectorSchema,
   normalizeLegacyEffect,
   type RuleEffect,
+  readerPrefixSelectorSchema,
+  readerRuleSelectorSchema,
 } from "./adjustments.js";
+
+// ---------------------------------------------------------------------------
+// compoundSelectorSchema
+// ---------------------------------------------------------------------------
+
+describe("compoundSelectorSchema", () => {
+  test("accepts minimal compound selector (strategy only)", () => {
+    const result = compoundSelectorSchema.safeParse({ strategy: "compound" });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts compound with all block-filter fields", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      blockType: "paragraph",
+      messageRole: "assistant",
+      headingLevel: 2,
+      position: "first",
+      textPattern: "^Introduction",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts compound with context.previousSibling", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      context: {
+        previousSibling: { blockType: "heading", headingLevel: 1 },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts compound with context.nextSibling", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      context: {
+        nextSibling: { blockType: "code_block", textPattern: "import" },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts compound with full context (both siblings)", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      blockType: "paragraph",
+      context: {
+        previousSibling: { blockType: "heading" },
+        nextSibling: { blockType: "list" },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects headingLevel > 6", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      headingLevel: 7,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects headingLevel < 1", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      headingLevel: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects invalid messageRole", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      messageRole: "moderator",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects invalid position", () => {
+    const result = compoundSelectorSchema.safeParse({
+      strategy: "compound",
+      position: "middle",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("existing selectors still parse (backward compatible)", () => {
+    expect(
+      exactReaderSelectorSchema.safeParse({
+        strategy: "exact",
+        messageId: "m1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      blockTypeSelectorSchema.safeParse({
+        strategy: "block_type",
+        blockType: "heading",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      readerPrefixSelectorSchema.safeParse({
+        strategy: "prefix_before_colon",
+        blockType: "paragraph",
+      }).success,
+    ).toBe(true);
+  });
+
+  test("readerRuleSelectorSchema accepts compound selectors", () => {
+    const result = readerRuleSelectorSchema.safeParse({
+      strategy: "compound",
+      blockType: "list",
+      messageRole: "assistant",
+    });
+    expect(result.success).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // customStyleEffectSchema
