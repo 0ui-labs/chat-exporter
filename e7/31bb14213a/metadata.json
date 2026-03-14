@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "e731bb14213a",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/rules-list-modal.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e7/31bb14213a/0/metadata.json",
+      "transcript": "/e7/31bb14213a/0/full.jsonl",
+      "content_hash": "/e7/31bb14213a/0/content_hash.txt",
+      "prompt": "/e7/31bb14213a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 43042,
+    "cache_read_tokens": 33012,
+    "output_tokens": 657,
+    "api_call_count": 2
+  }
+}
