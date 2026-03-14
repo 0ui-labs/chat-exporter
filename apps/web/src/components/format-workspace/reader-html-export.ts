@@ -88,9 +88,11 @@ function collectContainerStyle(effects: RuleEffect[]): string {
     if (effect.type !== "custom_style") continue;
     if (effect.containerStyle) Object.assign(styles, effect.containerStyle);
   }
-  return Object.entries(styles)
-    .map(([k, v]) => `${camelToKebab(k)}: ${v}`)
-    .join("; ");
+  return escapeHtml(
+    Object.entries(styles)
+      .map(([k, v]) => `${camelToKebab(k)}: ${v}`)
+      .join("; "),
+  );
 }
 
 function camelToKebab(str: string): string {

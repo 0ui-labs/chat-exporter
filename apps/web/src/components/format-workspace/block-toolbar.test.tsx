@@ -67,7 +67,7 @@ describe("getBlockText", () => {
     expect(result).toBe("Item 1\nItem 2\nItem 3");
   });
 
-  test("joins table headers with comma-space", () => {
+  test("joins table headers with pipe separator and includes rows", () => {
     const block: Block = {
       type: "table",
       headers: ["Name", "Age", "City"],
@@ -76,7 +76,34 @@ describe("getBlockText", () => {
 
     const result = getBlockText(block);
 
-    expect(result).toBe("Name, Age, City");
+    expect(result).toBe("Name | Age | City\nAlice | 30 | Berlin");
+  });
+
+  test("table with no rows returns only headers", () => {
+    const block: Block = {
+      type: "table",
+      headers: ["Col A", "Col B"],
+      rows: [],
+    };
+
+    const result = getBlockText(block);
+
+    expect(result).toBe("Col A | Col B");
+  });
+
+  test("table with multiple rows includes all rows", () => {
+    const block: Block = {
+      type: "table",
+      headers: ["Name", "Score"],
+      rows: [
+        ["Alice", "100"],
+        ["Bob", "85"],
+      ],
+    };
+
+    const result = getBlockText(block);
+
+    expect(result).toBe("Name | Score\nAlice | 100\nBob | 85");
   });
 });
 
@@ -169,7 +196,7 @@ describe("convertBlockType", () => {
     expect(result).toEqual({ type: "paragraph", text: "let x = 1" });
   });
 
-  test("table to paragraph uses headers as text", () => {
+  test("table to paragraph includes headers and rows separated by pipe", () => {
     const block: Block = {
       type: "table",
       headers: ["Col A", "Col B"],
@@ -178,7 +205,7 @@ describe("convertBlockType", () => {
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "Col A, Col B" });
+    expect(result).toEqual({ type: "paragraph", text: "Col A | Col B\n1 | 2" });
   });
 });
 

@@ -32,8 +32,11 @@ export function getBlockText(block: Block): string {
       return block.text;
     case "list":
       return block.items.join("\n");
-    case "table":
-      return block.headers.join(", ");
+    case "table": {
+      const headerLine = block.headers.join(" | ");
+      const rows = block.rows.map((row) => row.join(" | ")).join("\n");
+      return rows ? `${headerLine}\n${rows}` : headerLine;
+    }
   }
 }
 
