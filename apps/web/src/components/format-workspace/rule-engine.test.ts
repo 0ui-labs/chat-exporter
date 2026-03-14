@@ -5,7 +5,7 @@ vi.mock("@/lib/utils", () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
-import { buildReaderEffectsMap } from "./rule-engine";
+import { applyMarkdownRules, buildReaderEffectsMap } from "./rule-engine";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -223,5 +223,116 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject(customEffect);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyMarkdownRules — compound strategy
+// ---------------------------------------------------------------------------
+
+describe("applyMarkdownRules — compound strategy", () => {
+  test("compound with textPattern applies transform only to matching lines", () => {
+    const content = "Title Line\nRegular line\nAnother Title Line";
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          textPattern: "^Title",
+        },
+        compiledRule: {
+          type: "custom_style",
+          markdownTransform: "promote_to_heading",
+        },
+      }),
+    ];
+
+    const result = applyMarkdownRules(content, rules);
+
+    expect(result).toBe("## Title Line\nRegular line\nAnother Title Line");
+  });
+
+  test("compound without textPattern applies transform to all lines", () => {
+    const content = "First line\nSecond line\nThird line";
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+        },
+        compiledRule: {
+          type: "custom_style",
+          markdownTransform: "reshape_markdown_block",
+        },
+      }),
+    ];
+
+    const result = applyMarkdownRules(content, rules);
+
+    expect(result).toBe("First line\nSecond line\nThird line");
+  });
+
+  test("compound with bold_prefix_before_colon on matching lines", () => {
+    const content = "Name: John\nNo colon here\nAge: 30";
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          textPattern: ":",
+        },
+        compiledRule: {
+          type: "custom_style",
+          markdownTransform: "bold_prefix_before_colon",
+        },
+      }),
+    ];
+
+    const result = applyMarkdownRules(content, rules);
+
+    expect(result).toBe("**Name:** John\nNo colon here\n**Age:** 30");
+  });
+
+  test("compound with invalid regex skips line without crash", () => {
+    const content = "Hello world\nTest line";
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          textPattern: "[invalid",
+        },
+        compiledRule: {
+          type: "custom_style",
+          markdownTransform: "promote_to_heading",
+        },
+      }),
+    ];
+
+    const result = applyMarkdownRules(content, rules);
+
+    // Invalid regex means no lines match, so content unchanged
+    expect(result).toBe("Hello world\nTest line");
+  });
+
+  test("compound without markdownTransform produces no change", () => {
+    const content = "Hello world\nTest line";
+    const rules = [
+      createRule({
+        selector: {
+          strategy: "compound",
+          blockType: "paragraph",
+          textPattern: "Hello",
+        },
+        compiledRule: {
+          type: "custom_style",
+          containerStyle: { color: "red" },
+        },
+      }),
+    ];
+
+    const result = applyMarkdownRules(content, rules);
+
+    expect(result).toBe("Hello world\nTest line");
   });
 });

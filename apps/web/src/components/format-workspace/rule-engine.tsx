@@ -104,6 +104,63 @@ export function applyMarkdownRules(content: string, rules: FormatRule[]) {
 
     const strategy = "strategy" in selector ? selector.strategy : undefined;
 
+    if (strategy === "compound") {
+      const transform = effect.markdownTransform;
+      if (!transform) continue;
+
+      // Compound in Markdown: textPattern match on each line
+      // blockType/messageRole/context not relevant for Markdown (line-based only)
+      const textPattern =
+        "textPattern" in selector ? (selector as any).textPattern : null;
+
+      for (let index = 0; index < nextLines.length; index += 1) {
+        const line = nextLines[index] ?? "";
+
+        // If textPattern set: only transform matching lines
+        if (textPattern) {
+          try {
+            if (!new RegExp(textPattern).test(line)) continue;
+          } catch {
+            continue;
+          }
+        }
+
+        // Apply transform (same switch logic as for exact)
+        switch (transform) {
+          case "promote_to_heading":
+            nextLines[index] = `## ${line.replace(/^#+\s*/, "")}`.trimEnd();
+            break;
+          case "bold_prefix_before_colon":
+            nextLines[index] = line.replace(
+              /^([^:\n]{1,120}:)(?!\*)/,
+              "**$1**",
+            );
+            break;
+          case "normalize_list_structure": {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) break;
+            nextLines[index] = /^[-*]\s/.test(trimmedLine)
+              ? trimmedLine
+              : `- ${trimmedLine}`;
+            break;
+          }
+          case "normalize_markdown_table":
+            if (line.includes("|")) {
+              nextLines[index] = line
+                .split("|")
+                .map((cell) => cell.trim())
+                .join(" | ")
+                .trim();
+            }
+            break;
+          case "reshape_markdown_block":
+            nextLines[index] = line.trimEnd();
+            break;
+        }
+      }
+      continue;
+    }
+
     // All effects are now custom_style after normalization
     {
       const transform = effect.markdownTransform;
