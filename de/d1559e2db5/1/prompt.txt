@@ -1,0 +1,1 @@
+Bitte schreibe einen valisierungsworkflow für diesen Plan '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-2.4-pluggable-output-formate.md' bitte nutze dazu dieses Template '/Users/philippbriese/Documents/dev/chat exporter/docs/templates/validierung-template.md'
