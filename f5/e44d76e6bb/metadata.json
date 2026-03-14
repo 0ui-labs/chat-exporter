@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "f5e44d76e6bb",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/package.json",
+    "apps/web/src/components/format-workspace/format-workspace.test.tsx",
+    "apps/web/src/components/format-workspace/format-workspace.tsx",
+    "apps/web/src/components/format-workspace/use-message-edits.test.ts",
+    "apps/web/src/components/format-workspace/use-message-edits.ts",
+    "pnpm-lock.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f5/e44d76e6bb/0/metadata.json",
+      "transcript": "/f5/e44d76e6bb/0/full.jsonl",
+      "content_hash": "/f5/e44d76e6bb/0/content_hash.txt",
+      "prompt": "/f5/e44d76e6bb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 33,
+    "cache_creation_tokens": 178789,
+    "cache_read_tokens": 1131922,
+    "output_tokens": 18844,
+    "api_call_count": 23
+  }
+}
