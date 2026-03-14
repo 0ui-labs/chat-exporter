@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "aaa10343c0d5",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/server/src/lib/adjustment-agent.test.ts",
+    "apps/server/src/lib/adjustment-agent.ts",
+    "apps/server/src/rpc/router.test.ts",
+    "apps/web/src/components/format-workspace/use-message-edits.test.ts",
+    "apps/web/src/components/format-workspace/use-message-edits.ts",
+    "packages/shared/src/__tests__/edits.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/aa/a10343c0d5/0/metadata.json",
+      "transcript": "/aa/a10343c0d5/0/full.jsonl",
+      "content_hash": "/aa/a10343c0d5/0/content_hash.txt",
+      "prompt": "/aa/a10343c0d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1685,
+    "cache_creation_tokens": 202918,
+    "cache_read_tokens": 3348576,
+    "output_tokens": 27614,
+    "api_call_count": 47
+  }
+}
