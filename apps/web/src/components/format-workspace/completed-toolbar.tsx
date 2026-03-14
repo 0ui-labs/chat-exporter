@@ -1,4 +1,6 @@
 import {
+  Check,
+  Copy,
   Download,
   Eye,
   EyeOff,
@@ -27,6 +29,7 @@ const outputViews: { value: ViewMode; label: string }[] = [
 
 type CompletedToolbarProps = {
   adjustModeEnabled: boolean;
+  copySuccess?: boolean;
   deletionsCount?: number;
   editMode: EditMode;
   isAdjustableView: boolean;
@@ -34,6 +37,7 @@ type CompletedToolbarProps = {
   showDeleted?: boolean;
   snapshotCount?: number;
   view: ViewMode;
+  onCopyAll?: () => void;
   onDownloadMarkdown?: () => void;
   onEditModeChange: (mode: EditMode) => void;
   onToggleAdjustMode: () => void;
@@ -44,6 +48,7 @@ type CompletedToolbarProps = {
 
 export function CompletedToolbar({
   adjustModeEnabled,
+  copySuccess,
   deletionsCount,
   editMode,
   isAdjustableView,
@@ -51,6 +56,7 @@ export function CompletedToolbar({
   showDeleted,
   snapshotCount,
   view,
+  onCopyAll,
   onDownloadMarkdown,
   onEditModeChange,
   onToggleAdjustMode,
@@ -102,6 +108,36 @@ export function CompletedToolbar({
           >
             <Download className="mr-2 h-4 w-4" />
             {adjustmentLabels.downloadAction}
+          </Button>
+        )}
+
+        {onCopyAll ? (
+          <Button
+            data-testid="toolbar-copy-all"
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onCopyAll}
+          >
+            {copySuccess ? (
+              <Check className="mr-2 h-4 w-4" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            {copySuccess
+              ? adjustmentLabels.copyAllSuccess
+              : adjustmentLabels.copyAllAction}
+          </Button>
+        ) : (
+          <Button
+            data-testid="toolbar-copy-all"
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            {adjustmentLabels.copyAllAction}
           </Button>
         )}
 

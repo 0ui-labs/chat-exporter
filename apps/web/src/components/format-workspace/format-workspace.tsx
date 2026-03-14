@@ -15,6 +15,8 @@ import {
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
+import { copyMessageToClipboard } from "@/components/format-workspace/message-clipboard";
+import { buildReaderHtml } from "@/components/format-workspace/reader-html-export";
 import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   applyMarkdownRules,
@@ -105,6 +107,24 @@ export function FormatWorkspace({
   const deletion = useMessageDeletion(job.id);
   const deletionToast = useDeletionToast();
   const [editMode, setEditMode] = useState<EditMode>("view");
+
+  // Mutual exclusion: edit mode and adjustment mode must never be active simultaneously
+  const handleEditModeChange = useCallback(
+    (mode: EditMode) => {
+      if (mode === "edit" && session.adjustModeEnabled) {
+        session.toggleAdjustMode();
+      }
+      setEditMode(mode);
+    },
+    [session],
+  );
+
+  const handleToggleAdjustMode = useCallback(() => {
+    if (!session.adjustModeEnabled && editMode === "edit") {
+      setEditMode("view");
+    }
+    session.toggleAdjustMode();
+  }, [session, editMode]);
 
   const hasEdits = resolvedMessages.some((m) => m.isEdited);
 
@@ -229,20 +249,128 @@ export function FormatWorkspace({
     [rules.activeRules, resolvedConversation, view],
   );
 
-  const handleDownloadMarkdown = useMemo(() => {
-    if (view !== "markdown") return undefined;
-    return () => {
-      const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `export-${job.id}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+  const handleCopyMessage = useCallback(
+    (messageId: string) => {
+      const msg = resolvedConversation?.messages.find(
+        (m) => m.id === messageId,
+      );
+      if (!msg) return;
+      void copyMessageToClipboard(msg, view, msg.blocks);
+    },
+    [resolvedConversation, view],
+  );
+
+  const [copySuccess, setCopySuccess] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleCopyAll = useMemo(() => {
+    const doCopy = async (content: string, isHtml: boolean) => {
+      try {
+        if (isHtml) {
+          const blob = new Blob([content], { type: "text/html" });
+          const plainBlob = new Blob([content], { type: "text/plain" });
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": blob,
+              "text/plain": plainBlob,
+            }),
+          ]);
+        } else {
+          await navigator.clipboard.writeText(content);
+        }
+        clearTimeout(copyTimeoutRef.current);
+        setCopySuccess(true);
+        copyTimeoutRef.current = setTimeout(() => setCopySuccess(false), 2000);
+      } catch {
+        // Fallback: silently fail
+      }
     };
-  }, [view, displayedMarkdown, job.id]);
+
+    if (view === "markdown") {
+      return () => {
+        void doCopy(displayedMarkdown, false);
+      };
+    }
+    if (view === "reader" && resolvedConversation) {
+      return () => {
+        const html = buildReaderHtml(
+          resolvedConversation,
+          readerEffectsMap,
+          resolvedConversation.title ?? `export-${job.id}`,
+        );
+        void doCopy(html, true);
+      };
+    }
+    if ((view === "handover" || view === "json") && artifact) {
+      return () => {
+        void doCopy(artifact, false);
+      };
+    }
+    return undefined;
+  }, [
+    view,
+    displayedMarkdown,
+    job.id,
+    resolvedConversation,
+    readerEffectsMap,
+    artifact,
+  ]);
+
+  const handleDownload = useMemo(() => {
+    if (view === "markdown") {
+      return () => {
+        const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    if (view === "reader" && resolvedConversation) {
+      return () => {
+        const html = buildReaderHtml(
+          resolvedConversation,
+          readerEffectsMap,
+          resolvedConversation.title ?? `export-${job.id}`,
+        );
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    if ((view === "handover" || view === "json") && artifact) {
+      return () => {
+        const ext = view === "json" ? "json" : "md";
+        const blob = new Blob([artifact], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    return undefined;
+  }, [
+    view,
+    displayedMarkdown,
+    job.id,
+    resolvedConversation,
+    readerEffectsMap,
+    artifact,
+  ]);
   const showPopover =
     session.adjustModeEnabled &&
     Boolean(session.activeSelection) &&
@@ -327,13 +455,15 @@ export function FormatWorkspace({
         <div className="space-y-4">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
+            copySuccess={copySuccess}
             editMode={editMode}
             isAdjustableView={isAdjustableView}
             rules={rules}
             view={view}
-            onDownloadMarkdown={handleDownloadMarkdown}
-            onEditModeChange={setEditMode}
-            onToggleAdjustMode={session.toggleAdjustMode}
+            onCopyAll={handleCopyAll}
+            onDownloadMarkdown={handleDownload}
+            onEditModeChange={handleEditModeChange}
+            onToggleAdjustMode={handleToggleAdjustMode}
             onViewChange={onViewChange}
             deletionsCount={deletion.deletionsCount}
             showDeleted={deletion.showDeleted}
@@ -363,6 +493,7 @@ export function FormatWorkspace({
                   activeRules={rules.activeRules}
                   conversation={resolvedConversation}
                   adjustModeEnabled={session.adjustModeEnabled}
+                  editMode={editMode === "edit"}
                   effectsMap={readerEffectsMap}
                   highlightedRuleId={rules.hoveredRuleId}
                   selectedBlock={
@@ -372,6 +503,7 @@ export function FormatWorkspace({
                   deletedMessageIds={deletion.deletedMessageIds}
                   showDeleted={deletion.showDeleted}
                   onBlocksChange={handleBlocksChange}
+                  onCopyMessage={handleCopyMessage}
                   onDeleteMessage={handleDeleteMessage}
                   onDeleteRound={handleDeleteRound}
                   onRestoreMessage={deletion.restoreMessage}

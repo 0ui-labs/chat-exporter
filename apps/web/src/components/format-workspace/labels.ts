@@ -154,6 +154,8 @@ export const adjustmentLabels = {
   // Toolbar actions
   versions: "Versionen",
   downloadAction: "Herunterladen",
+  copyAllAction: "Kopieren",
+  copyAllSuccess: "Kopiert!",
 } as const;
 
 export function getAdjustViewLabel(view: ViewMode) {

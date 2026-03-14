@@ -41,9 +41,11 @@ function createMockRules(): ReturnType<typeof useFormatRules> {
 type RenderToolbarOptions = {
   view?: "reader" | "markdown" | "handover" | "json";
   adjustModeEnabled?: boolean;
+  copySuccess?: boolean;
   editMode?: "view" | "edit" | "adjust";
   isAdjustableView?: boolean;
   snapshotCount?: number;
+  onCopyAll?: (() => void) | undefined;
   onEditModeChange?: () => void;
   onVersionsClick?: () => void;
 };
@@ -52,20 +54,24 @@ function renderToolbar(options: RenderToolbarOptions = {}) {
   const {
     view = "reader",
     adjustModeEnabled = false,
+    copySuccess = false,
     editMode = "view",
     isAdjustableView = true,
     snapshotCount,
+    onCopyAll,
     onEditModeChange = vi.fn(),
     onVersionsClick = vi.fn(),
   } = options;
 
   const props = {
     adjustModeEnabled,
+    copySuccess,
     editMode,
     isAdjustableView,
     rules: createMockRules(),
     view,
     snapshotCount,
+    onCopyAll,
     onDownloadMarkdown: vi.fn(),
     onEditModeChange,
     onToggleAdjustMode: vi.fn(),
@@ -196,6 +202,50 @@ describe("CompletedToolbar", () => {
       await user.click(adjustButton);
 
       expect(props.onToggleAdjustMode).toHaveBeenCalled();
+    });
+  });
+
+  describe("copy all button", () => {
+    test("renders copy all button in action row", () => {
+      renderToolbar();
+
+      expect(screen.getByTestId("toolbar-copy-all")).toBeInTheDocument();
+    });
+
+    test("calls onCopyAll when clicked", async () => {
+      const user = userEvent.setup();
+      const onCopyAll = vi.fn();
+      renderToolbar({ onCopyAll });
+
+      await user.click(screen.getByTestId("toolbar-copy-all"));
+
+      expect(onCopyAll).toHaveBeenCalledTimes(1);
+    });
+
+    test("shows success label when copySuccess is true", () => {
+      renderToolbar({ onCopyAll: vi.fn(), copySuccess: true });
+
+      expect(screen.getByTestId("toolbar-copy-all")).toHaveTextContent(
+        "Kopiert!",
+      );
+    });
+
+    test("shows default label when copySuccess is false", () => {
+      renderToolbar({ onCopyAll: vi.fn(), copySuccess: false });
+
+      expect(screen.getByTestId("toolbar-copy-all")).toHaveTextContent(
+        "Kopieren",
+      );
+    });
+
+    test("is disabled when onCopyAll is undefined", () => {
+      renderToolbar({ onCopyAll: undefined });
+
+      const button = screen.getByTestId("toolbar-copy-all");
+      expect(
+        button.hasAttribute("disabled") ||
+          button.getAttribute("aria-disabled") === "true",
+      ).toBe(true);
     });
   });
 
