@@ -1,0 +1,2 @@
+Lass uns Brainstormen. Ich hab da eine Idee udn habe dazu einige Fragen und einige Dinge die ich gerne besser verstehen würde. \
+Also, ist es grundsätzlich möglich Text verlustfrei zu komprimieren und ich meine nicht die Daten wie in ZIP sondern semantisch? Stell dir vor wir chatten in diesem Thread über Stunden und haben eine Konverssation die 2 Mio Tokens umfasst. Ist es möglich unsere Konversation verlustfrei semantisch zu verdichten?

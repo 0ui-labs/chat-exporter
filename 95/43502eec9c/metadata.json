@@ -3,7 +3,7 @@
   "checkpoint_id": "9543502eec9c",
   "strategy": "manual-commit",
   "branch": "feat/kontext-editor",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "apps/web/src/components/format-workspace/format-workspace.tsx"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/95/43502eec9c/1/full.jsonl",
       "content_hash": "/95/43502eec9c/1/content_hash.txt",
       "prompt": "/95/43502eec9c/1/prompt.txt"
+    },
+    {
+      "metadata": "/95/43502eec9c/2/metadata.json",
+      "transcript": "/95/43502eec9c/2/full.jsonl",
+      "content_hash": "/95/43502eec9c/2/content_hash.txt",
+      "prompt": "/95/43502eec9c/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 27,
-    "cache_creation_tokens": 85574,
+    "input_tokens": 30,
+    "cache_creation_tokens": 118644,
     "cache_read_tokens": 1055877,
-    "output_tokens": 8664,
-    "api_call_count": 23
+    "output_tokens": 10043,
+    "api_call_count": 24
   }
 }
