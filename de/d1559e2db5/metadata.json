@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "ded1559e2db5",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/reader-html-export.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/de/d1559e2db5/0/metadata.json",
+      "transcript": "/de/d1559e2db5/0/full.jsonl",
+      "content_hash": "/de/d1559e2db5/0/content_hash.txt",
+      "prompt": "/de/d1559e2db5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 42403,
+    "cache_read_tokens": 185884,
+    "output_tokens": 1957,
+    "api_call_count": 6
+  }
+}
