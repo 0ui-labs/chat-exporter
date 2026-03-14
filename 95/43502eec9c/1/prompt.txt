@@ -1,0 +1,1 @@
+der reader download sollte keine text datei sein sondern eine 1 zu 1 Html datei mit styles die genauso aussieht wie in der reader ansicht
