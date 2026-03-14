@@ -86,6 +86,27 @@ function setListDom(element: HTMLElement, items: string[]) {
   element.appendChild(ul);
 }
 
+/**
+ * Builds the DOM structure that BlockRenderer produces for a code block:
+ *   <div>
+ *     <p>{language}</p>
+ *     <pre><code>{code}</code></pre>
+ *   </div>
+ */
+function setCodeBlockDom(element: HTMLElement, language: string, code: string) {
+  while (element.firstChild) element.removeChild(element.firstChild);
+  const wrapper = document.createElement("div");
+  const langLabel = document.createElement("p");
+  langLabel.textContent = language;
+  wrapper.appendChild(langLabel);
+  const pre = document.createElement("pre");
+  const codeEl = document.createElement("code");
+  codeEl.textContent = code;
+  pre.appendChild(codeEl);
+  wrapper.appendChild(pre);
+  element.appendChild(wrapper);
+}
+
 function setTableDom(
   element: HTMLElement,
   headers: string[],
@@ -233,6 +254,21 @@ describe("EditableBlock", () => {
         type: "code",
         language: "python",
         text: "new code",
+      });
+    });
+
+    test("code block does not include language label in saved text when rendered with label element", () => {
+      const onBlockChange = vi.fn();
+      renderEditable(codeBlock("const x = 1;", "typescript"), { onBlockChange });
+
+      const editable = screen.getByTestId("editable-block");
+      setCodeBlockDom(editable, "typescript", "const x = 2;");
+      fireEvent.blur(editable);
+
+      expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        type: "code",
+        language: "typescript",
+        text: "const x = 2;",
       });
     });
 

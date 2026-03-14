@@ -34,12 +34,14 @@ function readBlockFromDom(element: HTMLElement, original: Block): Block {
     case "quote":
       return { type: "quote", text: element.textContent ?? "" };
 
-    case "code":
+    case "code": {
+      const codeEl = element.querySelector("pre code");
       return {
         type: "code",
         language: original.language,
-        text: element.textContent ?? "",
+        text: codeEl ? (codeEl.textContent ?? "") : (element.textContent ?? ""),
       };
+    }
 
     case "list": {
       const listItems = element.querySelectorAll("li");
