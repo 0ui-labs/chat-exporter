@@ -80,7 +80,12 @@ Erlaubte CSS-Properties: padding*, margin*, fontSize, fontWeight, fontStyle, lin
 Erlaubte Farben: hsl(var(--primary)), hsl(var(--foreground)), hsl(var(--accent)), hsl(var(--muted)), hsl(var(--border)).
 
 Verboten: position, display, z-index, overflow, width/height, Animationen, Transforms, hardcoded hex-Farben, Pseudo-Elemente, Hover-States, Media-Queries.
-Du kannst den Text-Inhalt NICHT umschreiben, nur dessen Darstellung ändern.`;
+Du kannst den Text-Inhalt NICHT umschreiben, nur dessen Darstellung ändern.
+
+## Wann compound statt block_type?
+- Wenn der Nutzer nach einem bestimmten Kontext fragt ("nach Überschriften", "in Assistenten-Antworten")
+- Wenn mehrere Filterkriterien kombiniert werden ("Listen die 'Symptom' enthalten")
+- block_type für einfache "alle X"-Anfragen, compound für alles mit Kontext`;
 
   const markdownGuide = `## Markdown-Anpassungen (nur strukturelle Transformationen)
 
@@ -126,7 +131,19 @@ Nutzer sagt: "Alle Listen sollen mehr Abstand haben"
 → create_rule mit:
   selector: { strategy: "block_type", blockType: "list" }
   effect: { type: "custom_style", containerStyle: { marginBottom: "1rem", marginTop: "1rem" } }
-  description: "Mehr Abstand um alle Listen"`;
+  description: "Mehr Abstand um alle Listen"
+
+Nutzer sagt: "Alle Listen in Assistenten-Antworten sollen mehr Abstand haben"
+→ create_rule mit:
+  selector: { strategy: "compound", blockType: "list", messageRole: "assistant" }
+  effect: { type: "custom_style", containerStyle: { marginBottom: "1rem" } }
+  description: "Mehr Abstand unter Listen in Assistenten-Antworten"
+
+Nutzer sagt: "Absätze nach Überschriften sollen eingerückt sein"
+→ create_rule mit:
+  selector: { strategy: "compound", blockType: "paragraph", context: { previousSibling: { blockType: "heading" } } }
+  effect: { type: "custom_style", containerStyle: { paddingLeft: "1.5rem" } }
+  description: "Absätze nach Überschriften eingerückt"`;
 
   const markdownExamples = `## Beispiele
 
@@ -177,9 +194,15 @@ function buildSelectorSchema() {
     properties: {
       strategy: {
         type: "string",
-        enum: ["exact", "block_type", "prefix_before_colon", "markdown_table"],
+        enum: [
+          "exact",
+          "block_type",
+          "prefix_before_colon",
+          "markdown_table",
+          "compound",
+        ],
         description:
-          "exact = nur dieser eine Block, block_type = alle Blöcke dieses Typs.",
+          "exact = nur dieser eine Block, block_type = alle Blöcke dieses Typs, compound = flexible Kombination aus Filtern.",
       },
       messageId: {
         type: "string",
@@ -201,6 +224,48 @@ function buildSelectorSchema() {
       lineEnd: {
         type: "number",
         description: "Nur für Markdown: letzte Zeile.",
+      },
+      messageRole: {
+        type: "string",
+        enum: ["user", "assistant", "system", "tool"],
+        description: "Nur für compound: Nachrichten dieser Rolle matchen.",
+      },
+      headingLevel: {
+        type: "number",
+        description: "Nur für compound: Überschriften-Ebene 1-6.",
+      },
+      position: {
+        type: "string",
+        enum: ["first", "last"],
+        description:
+          "Nur für compound: Erster oder letzter Block einer Nachricht.",
+      },
+      textPattern: {
+        type: "string",
+        description:
+          "Nur für compound: Regex-Pattern das im Block-Text matchen muss.",
+      },
+      context: {
+        type: "object",
+        description: "Nur für compound: Nachbar-Block-Filter.",
+        properties: {
+          previousSibling: {
+            type: "object",
+            properties: {
+              blockType: { type: "string" },
+              headingLevel: { type: "number" },
+              textPattern: { type: "string" },
+            },
+          },
+          nextSibling: {
+            type: "object",
+            properties: {
+              blockType: { type: "string" },
+              headingLevel: { type: "number" },
+              textPattern: { type: "string" },
+            },
+          },
+        },
       },
     },
     required: ["strategy"],
@@ -773,3 +838,6 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 
   return { assistantMessage, actions };
 }
+
+/** @internal — exported for testing only */
+export const _internal = { buildSelectorSchema, buildSystemPrompt };

@@ -5,7 +5,11 @@ import type {
 } from "@chat-exporter/shared";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { AgentUnavailableError, runAgentTurn } from "./adjustment-agent.js";
+import {
+  _internal,
+  AgentUnavailableError,
+  runAgentTurn,
+} from "./adjustment-agent.js";
 
 // --- Env setup ---
 
@@ -614,5 +618,73 @@ describe("AdjustmentAgent", () => {
 
     // Agent should still return
     expect(result.assistantMessage).toBeTruthy();
+  });
+});
+
+describe("buildSelectorSchema", () => {
+  test("includes compound in strategy enum", () => {
+    const schema = _internal.buildSelectorSchema();
+
+    expect(schema.properties.strategy.enum).toContain("compound");
+  });
+
+  test("includes messageRole, headingLevel, position, textPattern, context properties", () => {
+    const schema = _internal.buildSelectorSchema();
+
+    expect(schema.properties).toHaveProperty("messageRole");
+    expect(schema.properties).toHaveProperty("headingLevel");
+    expect(schema.properties).toHaveProperty("position");
+    expect(schema.properties).toHaveProperty("textPattern");
+    expect(schema.properties).toHaveProperty("context");
+  });
+
+  test("messageRole enum contains expected roles", () => {
+    const schema = _internal.buildSelectorSchema();
+
+    expect(schema.properties.messageRole.enum).toEqual([
+      "user",
+      "assistant",
+      "system",
+      "tool",
+    ]);
+  });
+
+  test("position enum contains first and last", () => {
+    const schema = _internal.buildSelectorSchema();
+
+    expect(schema.properties.position.enum).toEqual(["first", "last"]);
+  });
+
+  test("context has previousSibling and nextSibling with correct sub-properties", () => {
+    const schema = _internal.buildSelectorSchema();
+    const context = schema.properties.context;
+
+    expect(context.properties).toHaveProperty("previousSibling");
+    expect(context.properties).toHaveProperty("nextSibling");
+    expect(context.properties.previousSibling.properties).toHaveProperty(
+      "blockType",
+    );
+    expect(context.properties.previousSibling.properties).toHaveProperty(
+      "headingLevel",
+    );
+    expect(context.properties.previousSibling.properties).toHaveProperty(
+      "textPattern",
+    );
+  });
+});
+
+describe("buildSystemPrompt", () => {
+  test("reader prompt contains compound examples", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("compound");
+    expect(prompt).toContain("messageRole");
+    expect(prompt).toContain("previousSibling");
+  });
+
+  test("reader prompt contains compound guidance", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Wann compound statt block_type");
   });
 });
