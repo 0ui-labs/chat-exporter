@@ -3,21 +3,30 @@
   "checkpoint_id": "ad1ad3182453",
   "strategy": "manual-commit",
   "branch": "feat/kontext-editor",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/rule-matching.test.ts",
+    "apps/web/src/components/format-workspace/rule-matching.ts"
+  ],
   "sessions": [
     {
       "metadata": "/ad/1ad3182453/0/metadata.json",
       "transcript": "/ad/1ad3182453/0/full.jsonl",
       "content_hash": "/ad/1ad3182453/0/content_hash.txt",
       "prompt": "/ad/1ad3182453/0/prompt.txt"
+    },
+    {
+      "metadata": "/ad/1ad3182453/1/metadata.json",
+      "transcript": "/ad/1ad3182453/1/full.jsonl",
+      "content_hash": "/ad/1ad3182453/1/content_hash.txt",
+      "prompt": "/ad/1ad3182453/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 33,
-    "cache_creation_tokens": 178789,
-    "cache_read_tokens": 1131922,
-    "output_tokens": 18844,
-    "api_call_count": 23
+    "input_tokens": 39,
+    "cache_creation_tokens": 228468,
+    "cache_read_tokens": 1149458,
+    "output_tokens": 20500,
+    "api_call_count": 25
   }
 }
