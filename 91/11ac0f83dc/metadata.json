@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "9111ac0f83dc",
+  "strategy": "manual-commit",
+  "branch": "feat/kontext-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/server/src/lib/snapshot-repository.test.ts",
+    "apps/server/src/lib/snapshot-repository.ts",
+    "apps/server/src/rpc/router.test.ts",
+    "apps/server/src/rpc/router.ts",
+    "packages/shared/src/contract.ts",
+    "packages/shared/src/edits.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/91/11ac0f83dc/0/metadata.json",
+      "transcript": "/91/11ac0f83dc/0/full.jsonl",
+      "content_hash": "/91/11ac0f83dc/0/content_hash.txt",
+      "prompt": "/91/11ac0f83dc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1685,
+    "cache_creation_tokens": 202918,
+    "cache_read_tokens": 3348576,
+    "output_tokens": 27614,
+    "api_call_count": 47
+  }
+}
