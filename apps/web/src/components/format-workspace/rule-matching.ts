@@ -74,12 +74,10 @@ function matchesCompoundSelector(
     return false;
   }
 
-  if (
-    selector.messageRole !== undefined &&
-    context !== undefined &&
-    selector.messageRole !== context.messageRole
-  ) {
-    return false;
+  if (selector.messageRole !== undefined) {
+    if (context === undefined || selector.messageRole !== context.messageRole) {
+      return false;
+    }
   }
 
   if (selector.headingLevel !== undefined) {

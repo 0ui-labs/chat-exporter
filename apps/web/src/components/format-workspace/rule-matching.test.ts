@@ -441,6 +441,32 @@ describe("matchesReaderRule — compound strategy", () => {
     expect(result).toBe(true);
   });
 
+  test("messageRole set but context undefined → returns false (cannot verify role)", () => {
+    const rule = createRule({
+      selector: { strategy: "compound", messageRole: "assistant" },
+    });
+
+    // No context passed — role cannot be verified, must not silently match
+    const result = matchesReaderRule(rule, "msg-1", 0, "paragraph", "text");
+
+    expect(result).toBe(false);
+  });
+
+  test("messageRole set but context undefined → false even when blockType matches", () => {
+    const rule = createRule({
+      selector: {
+        strategy: "compound",
+        blockType: "paragraph",
+        messageRole: "user",
+      },
+    });
+
+    // No context passed — blockType matches but role cannot be verified
+    const result = matchesReaderRule(rule, "msg-1", 0, "paragraph", "text");
+
+    expect(result).toBe(false);
+  });
+
   test("no context parameter passed → skips compound context checks", () => {
     const rule = createRule({
       selector: {
