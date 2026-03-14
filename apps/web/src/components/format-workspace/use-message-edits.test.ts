@@ -162,7 +162,9 @@ describe("useMessageEdits", () => {
 
       // Call again to reset the debounce
       act(() => {
-        result.current.saveEdit("msg-1", [{ type: "paragraph", text: "v2" } as never]);
+        result.current.saveEdit("msg-1", [
+          { type: "paragraph", text: "v2" } as never,
+        ]);
       });
 
       // Only one timer should be pending (the reset one)
@@ -211,9 +213,7 @@ describe("useMessageEdits", () => {
       });
 
       // First call blocks, second call resolves immediately
-      mockMutate
-        .mockReturnValueOnce(firstSave)
-        .mockReturnValueOnce(secondSave);
+      mockMutate.mockReturnValueOnce(firstSave).mockReturnValueOnce(secondSave);
 
       const { result } = renderHook(
         () => useMessageEdits("import-1", "snap-1"),
