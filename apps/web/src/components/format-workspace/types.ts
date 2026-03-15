@@ -2,6 +2,7 @@ import type {
   AdjustmentTargetFormat,
   AdjustmentSelection as SharedAdjustmentSelection,
 } from "@chat-exporter/shared";
+import { defaultRegistry } from "@chat-exporter/shared";
 
 export type ViewMode = Extract<
   AdjustmentTargetFormat,
@@ -39,4 +40,6 @@ export type FloatingAdjustmentAnchor = {
 
 export type EditMode = "view" | "edit" | "adjust";
 
-export const adjustableViews = new Set<ViewMode>(["reader", "markdown"]);
+export const adjustableViews = new Set(
+  defaultRegistry.getAdjustable().map((f) => f.id),
+);
