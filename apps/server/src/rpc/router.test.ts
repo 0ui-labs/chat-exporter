@@ -387,6 +387,32 @@ describe("imports.exportArtifact", () => {
       client.imports.exportArtifact({ id: "import-1", format: "markdown" }),
     ).rejects.toThrow(ORPCError);
   });
+
+  test("accepts arbitrary format string and returns matching artifact", async () => {
+    mockGetImportJob.mockReturnValue(
+      createImportJobFixture({
+        artifacts: { "custom-pdf": "PDF content here" },
+      }),
+    );
+
+    const result = await client.imports.exportArtifact({
+      id: "import-1",
+      format: "custom-pdf",
+    });
+
+    expect(result).toBe("PDF content here");
+  });
+
+  test("throws NOT_FOUND for unknown format with no matching artifact", async () => {
+    mockGetImportJob.mockReturnValue(createImportJobFixture());
+
+    await expect(
+      client.imports.exportArtifact({
+        id: "import-1",
+        format: "nonexistent-format",
+      }),
+    ).rejects.toThrow(ORPCError);
+  });
 });
 
 describe("adjustments.listSessions", () => {

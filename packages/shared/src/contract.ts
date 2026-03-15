@@ -56,7 +56,7 @@ export const contract = {
       .input(
         z.object({
           id: z.string(),
-          format: z.enum(["markdown", "handover", "json"]),
+          format: z.string(),
         }),
       )
       .output(z.string()),
