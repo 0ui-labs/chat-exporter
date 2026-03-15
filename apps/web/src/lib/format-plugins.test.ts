@@ -124,17 +124,25 @@ describe("clientFormatRegistry", () => {
     expect(plugin?.prepareCopy).toBeTypeOf("function");
   });
 
-  test("reader plugin has no prepareDownload (complex deps handled elsewhere)", () => {
+  test("reader plugin has prepareConversationExport instead of prepareDownload", () => {
     const plugin = clientFormatRegistry.get("reader");
 
     expect(plugin?.prepareDownload).toBeUndefined();
+    expect(plugin?.prepareConversationExport).toBeTypeOf("function");
   });
 
-  test("handover, json, and html-export plugins have no prepareDownload or prepareCopy", () => {
-    for (const id of ["handover", "json", "html-export"]) {
+  test("html-export plugin has prepareConversationExport", () => {
+    const plugin = clientFormatRegistry.get("html-export");
+
+    expect(plugin?.prepareConversationExport).toBeTypeOf("function");
+  });
+
+  test("handover and json plugins have no prepareDownload, prepareCopy, or prepareConversationExport", () => {
+    for (const id of ["handover", "json"]) {
       const plugin = clientFormatRegistry.get(id);
       expect(plugin?.prepareDownload).toBeUndefined();
       expect(plugin?.prepareCopy).toBeUndefined();
+      expect(plugin?.prepareConversationExport).toBeUndefined();
     }
   });
 

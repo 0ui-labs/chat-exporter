@@ -3,10 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
-import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
 import { DeleteMessageDialog } from "@/components/format-workspace/delete-message-dialog";
-import { HtmlExportView } from "@/components/format-workspace/html-export-view";
 import {
   formatMarkdownLinesLabel,
   formatMessageBlockLabel,
@@ -14,10 +12,7 @@ import {
   miscLabels,
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
-import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { copyMessageToClipboard } from "@/components/format-workspace/message-clipboard";
-import { buildReaderHtml } from "@/components/format-workspace/reader-html-export";
-import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   applyMarkdownRules,
   buildReaderEffectsMap,
@@ -293,10 +288,10 @@ export function FormatWorkspace({
       }
     };
 
-    // Reader & html-export: special logic with buildReaderHtml
-    if ((view === "reader" || view === "html-export") && resolvedConversation) {
+    // Formats with conversation-based export (reader, html-export)
+    if (plugin.prepareConversationExport && resolvedConversation) {
       return () => {
-        const html = buildReaderHtml(
+        const html = plugin.prepareConversationExport!(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
@@ -332,10 +327,10 @@ export function FormatWorkspace({
     const plugin = clientFormatRegistry.get(view);
     if (!plugin) return undefined;
 
-    // Reader & html-export have special download logic (needs effectsMap, conversation)
-    if ((view === "reader" || view === "html-export") && resolvedConversation) {
+    // Formats with conversation-based export (reader, html-export)
+    if (plugin.prepareConversationExport && resolvedConversation) {
       return () => {
-        const html = buildReaderHtml(
+        const html = plugin.prepareConversationExport!(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
@@ -479,16 +474,19 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          {view === "reader" ? (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <div className="space-y-2">
-                <div className="flex justify-end">
-                  <SaveIndicator
-                    isSaving={messageEdits.isSaving}
-                    hasEdits={hasEdits}
-                  />
-                </div>
-                <ReaderView
+          <ErrorBoundary fallback={viewErrorFallback}>
+            {(() => {
+              const plugin = clientFormatRegistry.get(view);
+              if (!plugin) {
+                return (
+                  <div className="text-sm text-muted-foreground">
+                    Format nicht verfügbar
+                  </div>
+                );
+              }
+              const { ViewComponent } = plugin;
+              const viewElement = (
+                <ViewComponent
                   activeRules={rules.activeRules}
                   conversation={resolvedConversation}
                   adjustModeEnabled={session.adjustModeEnabled}
@@ -506,32 +504,28 @@ export function FormatWorkspace({
                   onDeleteMessage={handleDeleteMessage}
                   onDeleteRound={handleDeleteRound}
                   onRestoreMessage={deletion.restoreMessage}
+                  content={view === "markdown" ? displayedMarkdown : artifact}
+                  selectedRange={session.activeSelection}
+                  onSelectLines={session.handleSelectionChange}
+                  rules={rules.activeRules}
                 />
-              </div>
-            </ErrorBoundary>
-          ) : view === "markdown" ? (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <MarkdownView
-                activeRules={rules.activeRules}
-                content={displayedMarkdown}
-                adjustModeEnabled={session.adjustModeEnabled}
-                highlightedRuleId={rules.hoveredRuleId}
-                selectedRange={session.activeSelection}
-                onSelectLines={session.handleSelectionChange}
-              />
-            </ErrorBoundary>
-          ) : view === "html-export" ? (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <HtmlExportView
-                conversation={resolvedConversation}
-                rules={rules.activeRules}
-              />
-            </ErrorBoundary>
-          ) : (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <ArtifactView content={artifact} />
-            </ErrorBoundary>
-          )}
+              );
+              if (view === "reader") {
+                return (
+                  <div className="space-y-2">
+                    <div className="flex justify-end">
+                      <SaveIndicator
+                        isSaving={messageEdits.isSaving}
+                        hasEdits={hasEdits}
+                      />
+                    </div>
+                    {viewElement}
+                  </div>
+                );
+              }
+              return viewElement;
+            })()}
+          </ErrorBoundary>
 
           {session.showGuide ? (
             <AdjustmentModeGuide

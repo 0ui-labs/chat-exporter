@@ -6,6 +6,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
 import type { ReactNode } from "react";
 import { type Mock, vi } from "vitest";
 
@@ -36,25 +37,27 @@ vi.mock("@/lib/format-plugins", () => ({
 
 let readerViewShouldThrow = false;
 
-vi.mock("@/components/format-workspace/reader-view", () => ({
-  ReaderView: (props: Record<string, unknown>) => {
-    if (readerViewShouldThrow) throw new Error("ReaderView crash");
-    return (
-      <div
-        data-testid="reader-view"
-        data-adjust-mode={String(props.adjustModeEnabled)}
-      />
-    );
-  },
-}));
+function MockReaderView(props: Record<string, unknown>) {
+  if (readerViewShouldThrow) throw new Error("ReaderView crash");
+  return (
+    <div
+      data-testid="reader-view"
+      data-adjust-mode={String(props.adjustModeEnabled)}
+    />
+  );
+}
 
-vi.mock("@/components/format-workspace/markdown-view", () => ({
-  MarkdownView: () => <div data-testid="markdown-view" />,
-}));
+function MockMarkdownView() {
+  return <div data-testid="markdown-view" />;
+}
 
-vi.mock("@/components/format-workspace/artifact-view", () => ({
-  ArtifactView: () => <div data-testid="artifact-view" />,
-}));
+function MockArtifactView() {
+  return <div data-testid="artifact-view" />;
+}
+
+function MockHtmlExportView() {
+  return <div data-testid="html-export-view" />;
+}
 
 let adjustmentPopoverShouldThrow = false;
 
@@ -309,6 +312,15 @@ const mockRpc = rpc as unknown as {
   };
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: test mock components accept any props
+const viewComponentMap: Record<string, React.ComponentType<any>> = {
+  reader: MockReaderView,
+  markdown: MockMarkdownView,
+  handover: MockArtifactView,
+  json: MockArtifactView,
+  "html-export": MockHtmlExportView,
+};
+
 const pluginDescriptors: Record<
   string,
   { id: string; label: string; exportMimeType: string; exportExtension: string }
@@ -352,11 +364,14 @@ beforeEach(() => {
   mockRpc.adjustments.appendMessage.mockResolvedValue(createSessionDetail());
   mockRpc.adjustments.discard.mockResolvedValue(createSessionDetail());
 
-  // Default: return plugin descriptors for all known views
+  // Default: return plugin descriptors with ViewComponent for all known views
   mockGet.mockImplementation((id: string) => {
     const desc = pluginDescriptors[id];
     if (!desc) return undefined;
-    return { descriptor: desc };
+    return {
+      descriptor: desc,
+      ViewComponent: viewComponentMap[id] ?? MockArtifactView,
+    };
   });
 });
 
@@ -761,7 +776,10 @@ describe("FormatWorkspace", () => {
         mockGet.mockImplementation((id: string) => {
           const desc = pluginDescriptors[id];
           if (!desc) return undefined;
-          return { descriptor: desc };
+          return {
+            descriptor: desc,
+            ViewComponent: viewComponentMap[id] ?? MockArtifactView,
+          };
         });
 
         const { unmount } = renderWithProviders(
