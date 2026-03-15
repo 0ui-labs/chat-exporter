@@ -1,0 +1,5 @@
+kannst du bitte prüfen ob der Plan noch zur Codebase passt und zum aktualisierten Plan '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-2.4-pluggable-output-formate.md' denn wir gerade in einer anderen Session umsetzen
+
+---
+
+ich meinte natürlich '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-2.5-provider-parsers.md'
