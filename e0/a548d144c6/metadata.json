@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "e0a548d144c6",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/completed-toolbar.test.tsx",
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e0/a548d144c6/0/metadata.json",
+      "transcript": "/e0/a548d144c6/0/full.jsonl",
+      "content_hash": "/e0/a548d144c6/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2643,
+    "cache_creation_tokens": 93615,
+    "cache_read_tokens": 2063667,
+    "output_tokens": 13035,
+    "api_call_count": 27
+  }
+}
