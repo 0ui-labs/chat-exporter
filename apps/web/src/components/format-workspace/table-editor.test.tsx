@@ -254,6 +254,48 @@ describe("TableEditor", () => {
     });
   });
 
+  describe("Enter key behavior", () => {
+    test("Enter in a cell calls preventDefault and triggers blur", () => {
+      const { container } = renderTableEditor();
+
+      const cells = container.querySelectorAll(
+        "[contenteditable]",
+      ) as NodeListOf<HTMLDivElement>;
+      const firstCell = cells.item(0);
+
+      firstCell.focus();
+      expect(document.activeElement).toBe(firstCell);
+
+      const event = new KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      });
+      const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+      firstCell.dispatchEvent(event);
+
+      expect(preventDefaultSpy).toHaveBeenCalled();
+      expect(document.activeElement).not.toBe(firstCell);
+    });
+  });
+
+  describe("responsive layout", () => {
+    test("table with 10 columns has overflow-x-auto container", () => {
+      const { container } = renderTableEditor({ block: createMaxTable() });
+
+      const wrapper = container.querySelector(".overflow-x-auto");
+      expect(wrapper).toBeInTheDocument();
+    });
+
+    test("table element has table-fixed class for equal column widths", () => {
+      const { container } = renderTableEditor();
+
+      const table = container.querySelector("table");
+      expect(table).toHaveClass("table-fixed");
+    });
+  });
+
   describe("tab navigation", () => {
     test("Tab moves focus to the next editable cell", () => {
       const { container } = renderTableEditor();
