@@ -22,7 +22,7 @@ function TableGridPicker({ onSelect }: TableGridPickerProps) {
   }
 
   return (
-    <div className="p-2" onMouseLeave={() => setHovered(null)}>
+    <fieldset className="border-none p-2" onMouseLeave={() => setHovered(null)}>
       <div
         className="grid gap-0.5"
         style={{ gridTemplateColumns: `repeat(${MAX_COLS}, 1fr)` }}
@@ -53,7 +53,7 @@ function TableGridPicker({ onSelect }: TableGridPickerProps) {
           {hovered.col} × {hovered.row}
         </p>
       )}
-    </div>
+    </fieldset>
   );
 }
 
