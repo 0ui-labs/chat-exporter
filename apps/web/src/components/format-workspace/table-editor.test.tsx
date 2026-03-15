@@ -189,7 +189,7 @@ describe("TableEditor", () => {
         name: /spalte entfernen/i,
       });
       // Remove first column ("Name")
-      await user.click(removeColBtns[0]!);
+      await user.click(removeColBtns[0] as HTMLElement);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
         id: "block-1",
@@ -209,7 +209,7 @@ describe("TableEditor", () => {
         name: /zeile entfernen/i,
       });
       // Remove first row
-      await user.click(removeRowBtns[0]!);
+      await user.click(removeRowBtns[0] as HTMLElement);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
         id: "block-1",
@@ -261,13 +261,15 @@ describe("TableEditor", () => {
       const cells = container.querySelectorAll(
         "[contenteditable]",
       ) as NodeListOf<HTMLDivElement>;
+      const firstCell = cells.item(0);
+      const secondCell = cells.item(1);
 
-      cells[0]!.focus();
-      expect(document.activeElement).toBe(cells[0]);
+      firstCell.focus();
+      expect(document.activeElement).toBe(firstCell);
 
-      fireEvent.keyDown(cells[0]!, { key: "Tab" });
+      fireEvent.keyDown(firstCell, { key: "Tab" });
 
-      expect(document.activeElement).toBe(cells[1]);
+      expect(document.activeElement).toBe(secondCell);
     });
 
     test("Shift+Tab moves focus to the previous editable cell", () => {
@@ -276,13 +278,15 @@ describe("TableEditor", () => {
       const cells = container.querySelectorAll(
         "[contenteditable]",
       ) as NodeListOf<HTMLDivElement>;
+      const firstCell = cells.item(0);
+      const secondCell = cells.item(1);
 
-      cells[1]!.focus();
-      expect(document.activeElement).toBe(cells[1]);
+      secondCell.focus();
+      expect(document.activeElement).toBe(secondCell);
 
-      fireEvent.keyDown(cells[1]!, { key: "Tab", shiftKey: true });
+      fireEvent.keyDown(secondCell, { key: "Tab", shiftKey: true });
 
-      expect(document.activeElement).toBe(cells[0]);
+      expect(document.activeElement).toBe(firstCell);
     });
   });
 });
