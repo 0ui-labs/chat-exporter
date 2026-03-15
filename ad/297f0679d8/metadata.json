@@ -3,7 +3,7 @@
   "checkpoint_id": "ad297f0679d8",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 1,
+  "checkpoints_count": 5,
   "files_touched": [
     "apps/web/src/components/format-workspace/format-workspace.tsx"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/ad/297f0679d8/1/full.jsonl",
       "content_hash": "/ad/297f0679d8/1/content_hash.txt",
       "prompt": "/ad/297f0679d8/1/prompt.txt"
+    },
+    {
+      "metadata": "/ad/297f0679d8/2/metadata.json",
+      "transcript": "/ad/297f0679d8/2/full.jsonl",
+      "content_hash": "/ad/297f0679d8/2/content_hash.txt",
+      "prompt": "/ad/297f0679d8/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 176,
-    "cache_creation_tokens": 215018,
-    "cache_read_tokens": 14440338,
-    "output_tokens": 41092,
-    "api_call_count": 152
+    "input_tokens": 449,
+    "cache_creation_tokens": 399313,
+    "cache_read_tokens": 28523976,
+    "output_tokens": 100755,
+    "api_call_count": 270
   }
 }

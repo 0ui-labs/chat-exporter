@@ -1,0 +1,13 @@
+'/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-stabile-block-identitaet-validierung.md' bitte validieren
+
+---
+
+ja
+
+---
+
+ja
+
+---
+
+listen, tabellen, quotes und code blöcke verschwinden immer direkt wieder. Ich konnte eine Headline und einen textblock erstellen aber jeder weitere Block verschwindet direkt wieder nach der Erstellung
