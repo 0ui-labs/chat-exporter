@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "c8299ee838bf",
+  "session_id": "0f8826ee-73cf-446a-896f-feb72f1b72a4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T15:39:34.886063Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/format-workspace.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "10bbb1eaa875",
+  "checkpoint_transcript_start": 671,
+  "transcript_lines_at_start": 671,
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 23962,
+    "cache_read_tokens": 2778439,
+    "output_tokens": 4638,
+    "api_call_count": 17
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T15:39:34.592809Z",
+    "agent_lines": 2,
+    "human_added": 15,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 19,
+    "agent_percentage": 10.526315789473683
+  }
+}
