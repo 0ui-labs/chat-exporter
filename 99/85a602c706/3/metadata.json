@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "9985a602c706",
+  "session_id": "78dfbee4-e2b1-49ae-96c5-b0a44226df2f",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T21:51:42.302836Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/block-inserter.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6[1m]",
+  "turn_id": "8a51733d28f2",
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 47403,
+    "cache_read_tokens": 273912,
+    "output_tokens": 2390,
+    "api_call_count": 8
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T21:51:42.288349Z",
+    "agent_lines": 43,
+    "human_added": 551,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 602,
+    "agent_percentage": 7.142857142857142
+  }
+}
