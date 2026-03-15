@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "869b68cf1821",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/block-inserter.test.tsx",
+    "apps/web/src/components/format-workspace/block-inserter.tsx",
+    "apps/web/src/components/format-workspace/block-toolbar.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/86/9b68cf1821/0/metadata.json",
+      "transcript": "/86/9b68cf1821/0/full.jsonl",
+      "content_hash": "/86/9b68cf1821/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 72163,
+    "cache_read_tokens": 1097820,
+    "output_tokens": 11471,
+    "api_call_count": 17
+  }
+}
