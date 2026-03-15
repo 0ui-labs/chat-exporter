@@ -6,18 +6,19 @@ import type {
   ImportSummary,
 } from "@chat-exporter/shared";
 import { withTransaction } from "../db/client.js";
-import { IMPORT_TIMEOUT_MS } from "./constants.js";
 import {
-  conversationToHandover,
-  conversationToMarkdown,
-  conversationWordCount,
-} from "./conversation-artifacts.js";
+  ArtifactGeneratorRegistry,
+  handoverGenerator,
+  jsonGenerator,
+  markdownGenerator,
+} from "./artifact-generators.js";
+import { IMPORT_TIMEOUT_MS } from "./constants.js";
+import { conversationWordCount } from "./conversation-artifacts.js";
 import {
   deleteImport,
   getPersistedImport,
   insertImport,
   listImportSummaries,
-  listPersistedImports,
   replaceImport,
   saveImportSnapshot,
 } from "./import-repository.js";
@@ -28,22 +29,27 @@ function now() {
   return new Date().toISOString();
 }
 
+const generatorRegistry = new ArtifactGeneratorRegistry();
+generatorRegistry.register(markdownGenerator);
+generatorRegistry.register(handoverGenerator);
+generatorRegistry.register(jsonGenerator);
+
 function buildArtifacts(job: ImportJob): ImportArtifacts {
   const conversation = job.conversation;
 
   if (!conversation) {
-    return {
-      markdown: "",
-      handover: "",
-      json: "",
-    };
+    const artifacts: Record<string, string> = {};
+    for (const gen of generatorRegistry.getAll()) {
+      artifacts[gen.formatId] = "";
+    }
+    return artifacts;
   }
 
-  return {
-    markdown: conversationToMarkdown(conversation),
-    handover: conversationToHandover(conversation),
-    json: JSON.stringify(conversation, null, 2),
-  };
+  const artifacts: Record<string, string> = {};
+  for (const gen of generatorRegistry.getAll()) {
+    artifacts[gen.formatId] = gen.generate(conversation);
+  }
+  return artifacts;
 }
 
 function patchJob(id: string, patch: Partial<ImportJob>) {

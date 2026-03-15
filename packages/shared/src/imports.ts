@@ -26,11 +26,7 @@ export const importRequestSchema = z.object({
   mode: importModeSchema.default("archive"),
 });
 
-export const importArtifactsSchema = z.object({
-  markdown: z.string(),
-  handover: z.string(),
-  json: z.string(),
-});
+export const importArtifactsSchema = z.record(z.string(), z.string());
 
 export const importJobSchema = z.object({
   id: z.string(),

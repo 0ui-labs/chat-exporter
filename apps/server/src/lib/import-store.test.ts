@@ -106,6 +106,28 @@ describe("runImportJob", () => {
     expect(result?.artifacts?.markdown).toContain("Hello");
   });
 
+  test("artifacts contain all registered generator formats", async () => {
+    const job = createImportJob({
+      url: "https://chatgpt.com/share/test-formats",
+      mode: "archive",
+    });
+    mockImportSharePage.mockResolvedValue(createImportResult());
+
+    await runImportJob(job.id);
+
+    const result = getImportJob(job.id);
+    expect(result?.artifacts).toBeDefined();
+    expect(result?.artifacts).toHaveProperty("markdown");
+    expect(result?.artifacts).toHaveProperty("handover");
+    expect(result?.artifacts).toHaveProperty("json");
+    expect(typeof result?.artifacts?.markdown).toBe("string");
+    expect(typeof result?.artifacts?.handover).toBe("string");
+    expect(typeof result?.artifacts?.json).toBe("string");
+    // JSON artifact should be valid JSON of the conversation
+    const parsedJson = JSON.parse(result?.artifacts?.json ?? "");
+    expect(parsedJson.title).toBe("Test conversation");
+  });
+
   test("successful import saves snapshot", async () => {
     const job = createImportJob({
       url: "https://chatgpt.com/share/test-snap",

@@ -67,21 +67,6 @@ function _describeSelectionLabel(selection: AdjustmentSelection) {
   );
 }
 
-function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob) {
-  if (!job.artifacts) {
-    return "Artefakt ist noch nicht verfügbar.";
-  }
-
-  switch (view) {
-    case "markdown":
-      return job.artifacts.markdown;
-    case "handover":
-      return job.artifacts.handover;
-    case "json":
-      return job.artifacts.json;
-  }
-}
-
 export function FormatWorkspace({
   activeStage,
   elapsedTime,
@@ -219,7 +204,10 @@ export function FormatWorkspace({
     [session.sectionRef, popover.containerRef],
   );
 
-  const artifact = view === "reader" ? "" : renderArtifact(view, job);
+  const artifact =
+    view === "reader"
+      ? ""
+      : (job.artifacts?.[view] ?? "Artefakt ist noch nicht verfügbar.");
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
   // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
   // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.

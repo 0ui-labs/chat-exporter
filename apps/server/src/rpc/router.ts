@@ -152,24 +152,15 @@ export const router = os.router({
     exportArtifact: os.imports.exportArtifact.handler(({ input }) => {
       const job = getImportJob(input.id);
 
-      if (!job || !job.artifacts) {
+      const artifact = job?.artifacts?.[input.format];
+
+      if (!artifact) {
         throw new ORPCError("NOT_FOUND", {
           message: "Export-Artefakt nicht gefunden.",
         });
       }
 
-      switch (input.format) {
-        case "markdown":
-          return job.artifacts.markdown;
-        case "handover":
-          return job.artifacts.handover;
-        case "json":
-          return job.artifacts.json;
-        default:
-          throw new ORPCError("BAD_REQUEST", {
-            message: "Nicht unterstütztes Exportformat.",
-          });
-      }
+      return artifact;
     }),
   },
 
