@@ -26,14 +26,14 @@ describe("useAutoSnapshot", () => {
       }),
     );
 
-    let snapshotReady: boolean | undefined;
+    let snapshotReady: string | false | undefined;
     await act(async () => {
       snapshotReady = await result.current.ensureSnapshot();
     });
 
     expect(createMock).toHaveBeenCalledWith("Bearbeitet");
     expect(activateMock).toHaveBeenCalledWith("snap-new");
-    expect(snapshotReady).toBe(true);
+    expect(snapshotReady).toBe("snap-new");
   });
 
   test("does not create snapshot when one is already active", async () => {
@@ -52,14 +52,14 @@ describe("useAutoSnapshot", () => {
       }),
     );
 
-    let snapshotReady: boolean | undefined;
+    let snapshotReady: string | false | undefined;
     await act(async () => {
       snapshotReady = await result.current.ensureSnapshot();
     });
 
     expect(createMock).not.toHaveBeenCalled();
     expect(activateMock).not.toHaveBeenCalled();
-    expect(snapshotReady).toBe(true);
+    expect(snapshotReady).toBe("snap-existing");
   });
 
   test("does not create duplicate snapshots on concurrent calls", async () => {
@@ -159,9 +159,9 @@ describe("useAutoSnapshot", () => {
 
     const [r1, r2] = await Promise.all([p1, p2]);
 
-    // Both callers receive true only after activation is complete
-    expect(r1).toBe(true);
-    expect(r2).toBe(true);
+    // Both callers receive the snapshot id only after activation is complete
+    expect(r1).toBe("snap-new");
+    expect(r2).toBe("snap-new");
     expect(activateFinished).toBe(true);
   });
 
@@ -176,7 +176,7 @@ describe("useAutoSnapshot", () => {
       }),
     );
 
-    let snapshotReady: boolean | undefined;
+    let snapshotReady: string | false | undefined;
     await act(async () => {
       snapshotReady = await result.current.ensureSnapshot();
     });

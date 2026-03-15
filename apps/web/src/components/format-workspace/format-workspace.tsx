@@ -17,7 +17,6 @@ import {
   applyMarkdownRules,
   buildReaderEffectsMap,
 } from "@/components/format-workspace/rule-engine";
-import { SaveIndicator } from "@/components/format-workspace/save-indicator";
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
@@ -136,9 +135,9 @@ export function FormatWorkspace({
 
   const handleBlocksChange = useCallback(
     (messageId: string, blocks: Block[]) => {
-      void autoSnapshot.ensureSnapshot().then((ready) => {
-        if (ready) {
-          messageEdits.saveEdit(messageId, blocks);
+      void autoSnapshot.ensureSnapshot().then((snapshotId) => {
+        if (snapshotId) {
+          messageEdits.saveEdit(messageId, blocks, undefined, snapshotId);
         }
       });
     },
@@ -514,19 +513,6 @@ export function FormatWorkspace({
                   rules={rules.activeRules}
                 />
               );
-              if (view === "reader") {
-                return (
-                  <div className="space-y-2">
-                    <div className="flex justify-end">
-                      <SaveIndicator
-                        isSaving={messageEdits.isSaving}
-                        hasEdits={hasEdits}
-                      />
-                    </div>
-                    {viewElement}
-                  </div>
-                );
-              }
               return viewElement;
             })()}
           </ErrorBoundary>
