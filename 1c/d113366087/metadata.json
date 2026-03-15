@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "1cd113366087",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/table-grid-picker.test.tsx",
+    "apps/web/src/components/format-workspace/table-grid-picker.tsx",
+    "apps/web/src/components/format-workspace/table-utils.test.ts",
+    "apps/web/src/components/format-workspace/table-utils.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1c/d113366087/0/metadata.json",
+      "transcript": "/1c/d113366087/0/full.jsonl",
+      "content_hash": "/1c/d113366087/0/content_hash.txt",
+      "prompt": "/1c/d113366087/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 53454,
+    "cache_read_tokens": 271213,
+    "output_tokens": 3582,
+    "api_call_count": 6
+  }
+}
