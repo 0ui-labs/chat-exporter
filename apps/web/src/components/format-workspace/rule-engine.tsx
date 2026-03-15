@@ -5,6 +5,7 @@ import type {
   RuleEffect,
 } from "@chat-exporter/shared";
 import {
+  defaultRegistry,
   normalizeLegacyEffect,
   ruleEffectSchema,
   ruleSelectorSchema,
@@ -22,6 +23,13 @@ export {
   renderReaderBlock,
 } from "./reader-block-render";
 export { getBlocksMatchingRule } from "./rule-matching";
+
+export function canApplyRule(
+  formatId: string,
+  ruleEffect: RuleEffect,
+): boolean {
+  return defaultRegistry.supportsRuleKind(formatId, ruleEffect.type);
+}
 
 export function resolveReaderBlockEffects(
   rules: FormatRule[],

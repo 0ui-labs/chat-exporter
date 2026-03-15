@@ -5,7 +5,11 @@ vi.mock("@/lib/utils", () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
-import { applyMarkdownRules, buildReaderEffectsMap } from "./rule-engine";
+import {
+  applyMarkdownRules,
+  buildReaderEffectsMap,
+  canApplyRule,
+} from "./rule-engine";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -472,5 +476,51 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     expect(result.has("msg-1:0")).toBe(true);
     expect(result.has("msg-1:1")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// canApplyRule — registry-aware rule applicability
+// ---------------------------------------------------------------------------
+
+describe("canApplyRule", () => {
+  test("returns true for reader format with custom_style effect", () => {
+    const result = canApplyRule("reader", { type: "custom_style" });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns false for json format with custom_style effect", () => {
+    const result = canApplyRule("json", { type: "custom_style" });
+
+    expect(result).toBe(false);
+  });
+
+  test("returns true for reader with legacy adjust_block_spacing effect", () => {
+    const result = canApplyRule("reader", {
+      type: "adjust_block_spacing",
+      amount: "lg",
+      direction: "after",
+    });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns true for markdown format with custom_style effect", () => {
+    const result = canApplyRule("markdown", { type: "custom_style" });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns false for unknown format", () => {
+    const result = canApplyRule("nonexistent", { type: "custom_style" });
+
+    expect(result).toBe(false);
+  });
+
+  test("returns false for handover format with custom_style effect", () => {
+    const result = canApplyRule("handover", { type: "custom_style" });
+
+    expect(result).toBe(false);
   });
 });
