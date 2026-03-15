@@ -1,9 +1,10 @@
-import type {
-  Block,
-  Conversation,
-  FormatRule,
-  Message,
-  RuleEffect,
+import {
+  type Block,
+  type Conversation,
+  type FormatRule,
+  generateBlockId,
+  type Message,
+  type RuleEffect,
 } from "@chat-exporter/shared";
 import { ClipboardCopy } from "lucide-react";
 import React, {
@@ -16,7 +17,6 @@ import React, {
 } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
-import { BlockInserter } from "@/components/format-workspace/block-inserter";
 import { BlockToolbar } from "@/components/format-workspace/block-toolbar";
 import { EditableBlock } from "@/components/format-workspace/editable-block";
 import { getRoleLabel } from "@/components/format-workspace/labels";
@@ -132,34 +132,62 @@ const ReaderMessage = memo(function ReaderMessage({
   const [hoveredBlockIndex, setHoveredBlockIndex] = useState<number | null>(
     null,
   );
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toolbarMenuOpen = useRef(false);
+  const blocksRef = useRef(message.blocks);
+  blocksRef.current = message.blocks;
+  const handleToolbarMenuOpenChange = useCallback((open: boolean) => {
+    toolbarMenuOpen.current = open;
+  }, []);
+
+  const handleBlockMouseEnter = useCallback(
+    (blockIndex: number) => {
+      if (!editMode) return;
+      if (hoverLeaveTimer.current) {
+        clearTimeout(hoverLeaveTimer.current);
+        hoverLeaveTimer.current = null;
+      }
+      setHoveredBlockIndex(blockIndex);
+    },
+    [editMode],
+  );
+
+  const handleBlockMouseLeave = useCallback(() => {
+    if (!editMode) return;
+    if (toolbarMenuOpen.current) return;
+    hoverLeaveTimer.current = setTimeout(() => {
+      setHoveredBlockIndex(null);
+      hoverLeaveTimer.current = null;
+    }, 150);
+  }, [editMode]);
 
   const handleDeleteBlock = useCallback(
     (blockIndex: number) => {
       if (!onBlocksChange) return;
-      const updatedBlocks = [...message.blocks];
+      const updatedBlocks = [...blocksRef.current];
       updatedBlocks.splice(blockIndex, 1);
       onBlocksChange(message.id, updatedBlocks);
     },
-    [message.blocks, message.id, onBlocksChange],
+    [message.id, onBlocksChange],
   );
 
   const handleDuplicateBlock = useCallback(
     (blockIndex: number) => {
       if (!onBlocksChange) return;
-      const updatedBlocks = [...message.blocks];
+      const updatedBlocks = [...blocksRef.current];
       const original = updatedBlocks[blockIndex];
       if (!original) return;
-      const copy = { ...original } as Block;
+      const copy = { ...original, id: generateBlockId() } as Block;
       updatedBlocks.splice(blockIndex + 1, 0, copy);
       onBlocksChange(message.id, updatedBlocks);
     },
-    [message.blocks, message.id, onBlocksChange],
+    [message.id, onBlocksChange],
   );
 
   const handleMoveUp = useCallback(
     (blockIndex: number) => {
       if (!onBlocksChange || blockIndex === 0) return;
-      const updatedBlocks = [...message.blocks];
+      const updatedBlocks = [...blocksRef.current];
       const current = updatedBlocks[blockIndex];
       const above = updatedBlocks[blockIndex - 1];
       if (!current || !above) return;
@@ -167,13 +195,13 @@ const ReaderMessage = memo(function ReaderMessage({
       updatedBlocks[blockIndex] = above;
       onBlocksChange(message.id, updatedBlocks);
     },
-    [message.blocks, message.id, onBlocksChange],
+    [message.id, onBlocksChange],
   );
 
   const handleMoveDown = useCallback(
     (blockIndex: number) => {
-      if (!onBlocksChange || blockIndex >= message.blocks.length - 1) return;
-      const updatedBlocks = [...message.blocks];
+      if (!onBlocksChange || blockIndex >= blocksRef.current.length - 1) return;
+      const updatedBlocks = [...blocksRef.current];
       const current = updatedBlocks[blockIndex];
       const below = updatedBlocks[blockIndex + 1];
       if (!current || !below) return;
@@ -181,27 +209,17 @@ const ReaderMessage = memo(function ReaderMessage({
       updatedBlocks[blockIndex + 1] = current;
       onBlocksChange(message.id, updatedBlocks);
     },
-    [message.blocks, message.id, onBlocksChange],
-  );
-
-  const handleTypeChange = useCallback(
-    (blockIndex: number, newBlock: Block) => {
-      if (!onBlocksChange) return;
-      const updatedBlocks = [...message.blocks];
-      updatedBlocks[blockIndex] = newBlock;
-      onBlocksChange(message.id, updatedBlocks);
-    },
-    [message.blocks, message.id, onBlocksChange],
+    [message.id, onBlocksChange],
   );
 
   const handleInsertBlock = useCallback(
     (blockIndex: number, block: Block) => {
       if (!onBlocksChange) return;
-      const updatedBlocks = [...message.blocks];
+      const updatedBlocks = [...blocksRef.current];
       updatedBlocks.splice(blockIndex, 0, block);
       onBlocksChange(message.id, updatedBlocks);
     },
-    [message.blocks, message.id, onBlocksChange],
+    [message.id, onBlocksChange],
   );
 
   return (
@@ -258,18 +276,15 @@ const ReaderMessage = memo(function ReaderMessage({
         )}
       </div>
       <div className="space-y-4">
-        {editMode && onBlocksChange && (
-          <BlockInserter blockIndex={0} onInsertBlock={handleInsertBlock} />
-        )}
         {message.blocks.map((block, blockIndex) => {
           const blockText = blockToPlainText(block);
           const blockEffects =
-            effectsMap.get(`${message.id}:${blockIndex}`) ?? [];
+            effectsMap.get(`${message.id}:${block.id}`) ?? [];
           const isSelected =
             selectedBlock?.messageId === message.id &&
             selectedBlock.blockIndex === blockIndex;
           const isHighlighted = highlightedBlocks.has(
-            `${message.id}:${blockIndex}`,
+            `${message.id}:${block.id}`,
           );
           const emitSelection = (
             anchor: ViewportAnchor,
@@ -279,6 +294,7 @@ const ReaderMessage = memo(function ReaderMessage({
 
             onSelectBlock(
               {
+                blockId: block.id,
                 blockIndex,
                 blockType: block.type,
                 messageId: message.id,
@@ -294,8 +310,7 @@ const ReaderMessage = memo(function ReaderMessage({
           const inserts = collectInserts(blockEffects);
 
           return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: block identity is message.id + blockIndex
-            <React.Fragment key={`${message.id}-${blockIndex}`}>
+            <React.Fragment key={block.id}>
               {inserts.insertBefore === "hr" && (
                 <hr className="border-border/40" />
               )}
@@ -303,10 +318,8 @@ const ReaderMessage = memo(function ReaderMessage({
               {/* biome-ignore lint/a11y/noStaticElementInteractions: hover tracking for block toolbar */}
               <div
                 className="relative"
-                onMouseEnter={() =>
-                  editMode && setHoveredBlockIndex(blockIndex)
-                }
-                onMouseLeave={() => editMode && setHoveredBlockIndex(null)}
+                onMouseEnter={() => handleBlockMouseEnter(blockIndex)}
+                onMouseLeave={handleBlockMouseLeave}
               >
                 {editMode &&
                   onBlocksChange &&
@@ -317,9 +330,10 @@ const ReaderMessage = memo(function ReaderMessage({
                       totalBlocks={message.blocks.length}
                       onDelete={handleDeleteBlock}
                       onDuplicate={handleDuplicateBlock}
+                      onInsertBlock={handleInsertBlock}
+                      onMenuOpenChange={handleToolbarMenuOpenChange}
                       onMoveUp={handleMoveUp}
                       onMoveDown={handleMoveDown}
-                      onTypeChange={handleTypeChange}
                     />
                   )}
                 {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
@@ -405,17 +419,12 @@ const ReaderMessage = memo(function ReaderMessage({
                     )}
                   </ErrorBoundary>
                 </div>
+                {/* BlockInserter removed — insert is now in BlockToolbar */}
               </div>
               {inserts.insertAfter === "hr" && (
                 <hr className="border-border/40" />
               )}
               {inserts.insertAfter === "spacer" && <div className="h-6" />}
-              {editMode && onBlocksChange && (
-                <BlockInserter
-                  blockIndex={blockIndex + 1}
-                  onInsertBlock={handleInsertBlock}
-                />
-              )}
             </React.Fragment>
           );
         })}
@@ -492,7 +501,7 @@ export function ReaderView({
     }
 
     const matches = getBlocksMatchingRule(rule, conversation);
-    return new Set(matches.map((m) => `${m.messageId}:${m.blockIndex}`));
+    return new Set(matches.map((m) => `${m.messageId}:${m.blockId}`));
   }, [highlightedRuleId, activeRules, conversation]);
 
   const handleBlockChange = useCallback(

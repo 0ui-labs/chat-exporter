@@ -30,10 +30,10 @@ function makeConversation(
 
 function makeEffectsMap(
   messageId: string,
-  blockIndex: number,
+  blockId: string,
   effects: RuleEffect[],
 ): Map<string, RuleEffect[]> {
-  return new Map([[`${messageId}:${blockIndex}`, effects]]);
+  return new Map([[`${messageId}:${blockId}`, effects]]);
 }
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ describe("buildReaderHtml style attribute XSS prevention", () => {
         color: '"; onclick="alert(1)',
       },
     };
-    const effectsMap = makeEffectsMap("msg-1", 0, [maliciousEffect]);
+    const effectsMap = makeEffectsMap("msg-1", "b1", [maliciousEffect]);
     const conversation = makeConversation();
 
     // Act
@@ -69,7 +69,7 @@ describe("buildReaderHtml style attribute XSS prevention", () => {
         background: "red</style><script>alert(1)</script>",
       },
     };
-    const effectsMap = makeEffectsMap("msg-1", 0, [maliciousEffect]);
+    const effectsMap = makeEffectsMap("msg-1", "b1", [maliciousEffect]);
     const conversation = makeConversation();
 
     // Act
@@ -90,7 +90,7 @@ describe("buildReaderHtml style attribute XSS prevention", () => {
         backgroundColor: "hsl(28 95% 58% / 0.12)",
       },
     };
-    const effectsMap = makeEffectsMap("msg-1", 0, [safeEffect]);
+    const effectsMap = makeEffectsMap("msg-1", "b1", [safeEffect]);
     const conversation = makeConversation();
 
     // Act

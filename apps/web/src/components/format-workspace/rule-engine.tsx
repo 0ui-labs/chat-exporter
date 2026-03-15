@@ -38,6 +38,7 @@ export function resolveReaderBlockEffects(
   blockType: Block["type"],
   blockText: string,
   context?: ReaderMatchContext,
+  blockId?: string,
 ) {
   return rules
     .filter(
@@ -50,6 +51,7 @@ export function resolveReaderBlockEffects(
           blockType,
           blockText,
           context,
+          blockId,
         ),
     )
     .map((rule) => rule.compiledRule)
@@ -90,6 +92,7 @@ export function buildReaderEffectsMap(
             block.type,
             blockToPlainText(block),
             context,
+            block.id,
           ),
         )
         .map((rule) => rule.compiledRule)
@@ -97,7 +100,7 @@ export function buildReaderEffectsMap(
         .map(normalizeLegacyEffect);
 
       if (effects.length > 0) {
-        effectsMap.set(`${message.id}:${blockIndex}`, effects);
+        effectsMap.set(`${message.id}:${block.id}`, effects);
       }
     }
   }

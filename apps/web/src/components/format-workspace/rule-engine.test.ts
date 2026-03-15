@@ -84,8 +84,8 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    const effects = result.get("msg-1:0");
+    expect(result.has("msg-1:b1")).toBe(true);
+    const effects = result.get("msg-1:b1");
     expect(effects).toBeDefined();
     expect(effects).toEqual([
       { type: "custom_style", textTransform: "bold_prefix_before_colon" },
@@ -102,7 +102,7 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
     expect(effects).toBeDefined();
     expect(effects).toHaveLength(1);
     expect(effects).toEqual([
@@ -135,11 +135,11 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    expect(result.has("msg-1:1")).toBe(true);
-    expect(result.has("msg-2:0")).toBe(true);
+    expect(result.has("msg-1:b3")).toBe(true);
+    expect(result.has("msg-1:b4")).toBe(true);
+    expect(result.has("msg-2:b5")).toBe(true);
     // heading block should not match the paragraph rule
-    expect(result.has("msg-2:1")).toBe(false);
+    expect(result.has("msg-2:b6")).toBe(false);
     expect(result.size).toBe(3);
   });
 
@@ -186,7 +186,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject({
@@ -204,7 +204,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject({
@@ -223,7 +223,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject(customEffect);
@@ -371,8 +371,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-1:1")).toBe(true);
+    expect(result.has("msg-1:b8")).toBe(false);
+    expect(result.has("msg-1:b9")).toBe(true);
   });
 
   test("compound messageRole filter matches only assistant messages", () => {
@@ -406,8 +406,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-2:0")).toBe(true);
+    expect(result.has("msg-1:b10")).toBe(false);
+    expect(result.has("msg-2:b11")).toBe(true);
   });
 
   test("compound context.previousSibling matches paragraph after heading", () => {
@@ -440,9 +440,9 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-1:1")).toBe(true);
-    expect(result.has("msg-1:2")).toBe(false);
+    expect(result.has("msg-1:b12")).toBe(false);
+    expect(result.has("msg-1:b13")).toBe(true);
+    expect(result.has("msg-1:b14")).toBe(false);
   });
 
   test("compound position: first matches only first block per message", () => {
@@ -474,8 +474,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    expect(result.has("msg-1:1")).toBe(false);
+    expect(result.has("msg-1:b15")).toBe(true);
+    expect(result.has("msg-1:b16")).toBe(false);
   });
 });
 

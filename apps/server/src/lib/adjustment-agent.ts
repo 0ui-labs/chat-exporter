@@ -105,25 +105,25 @@ Wenn der Nutzer nach unmöglichem Styling fragt, erkläre das kurz und ehrlich.`
 
 Nutzer wählt eine Liste aus und sagt: "Kannst du die Liste weiter einrücken?"
 → create_rule mit:
-  selector: { strategy: "exact", messageId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "list" }
+  selector: { strategy: "exact", messageId: "<aus Kontext>", blockId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "list" }
   effect: { type: "custom_style", containerStyle: { paddingLeft: "2.5rem" } }
   description: "Liste weiter eingerückt"
 
 Nutzer wählt eine Überschrift und sagt: "Die soll kleiner sein"
 → create_rule mit:
-  selector: { strategy: "exact", messageId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "heading" }
+  selector: { strategy: "exact", messageId: "<aus Kontext>", blockId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "heading" }
   effect: { type: "custom_style", textStyle: { fontSize: "1rem", fontWeight: "500" } }
   description: "Überschrift kleiner dargestellt"
 
 Nutzer wählt einen Absatz und sagt: "Mehr Abstand nach unten"
 → create_rule mit:
-  selector: { strategy: "exact", messageId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
+  selector: { strategy: "exact", messageId: "<aus Kontext>", blockId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
   effect: { type: "custom_style", containerStyle: { marginBottom: "1.5rem" } }
   description: "Mehr Abstand unter dem Absatz"
 
 Nutzer wählt einen Absatz und sagt: "Mach den Text fett"
 → create_rule mit:
-  selector: { strategy: "exact", messageId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
+  selector: { strategy: "exact", messageId: "<aus Kontext>", blockId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
   effect: { type: "custom_style", textStyle: { fontWeight: "700" } }
   description: "Text fett dargestellt"
 
@@ -149,7 +149,7 @@ Nutzer sagt: "Absätze nach Überschriften sollen eingerückt sein"
 
 Nutzer wählt eine Textzeile und sagt: "Das soll eine Überschrift werden"
 → create_rule mit:
-  selector: { strategy: "exact", messageId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
+  selector: { strategy: "exact", messageId: "<aus Kontext>", blockId: "<aus Kontext>", blockIndex: <aus Kontext>, blockType: "paragraph" }
   effect: { type: "custom_style", markdownTransform: "promote_to_heading" }
   description: "Zeile zur Überschrift gemacht"
 
@@ -267,6 +267,10 @@ function buildSelectorSchema(targetFormat: AdjustmentTargetFormat = "reader") {
       messageId: {
         type: "string",
         description: "ID der Nachricht (aus dem Kontext übernehmen).",
+      },
+      blockId: {
+        type: "string",
+        description: "ID des Blocks (aus dem Kontext übernehmen).",
       },
       blockIndex: {
         type: "number",
@@ -480,7 +484,7 @@ function buildSelectionContext(input: RunAgentTurnInput) {
   lines.push("## Ausgewählter Block");
   lines.push(`Format: ${targetFormat}`);
   lines.push(
-    `Block: ${selection.blockType} (messageId: "${selection.messageId}", blockIndex: ${selection.blockIndex})`,
+    `Block: ${selection.blockType} (messageId: "${selection.messageId}", blockId: "${selection.blockId ?? ""}", blockIndex: ${selection.blockIndex})`,
   );
   lines.push(
     `Rolle: ${selection.messageRole}, Nachricht ${selection.messageIndex + 1}`,

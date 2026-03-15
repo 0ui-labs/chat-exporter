@@ -523,8 +523,8 @@ describe("getBlocksMatchingRule — compound integration", () => {
     const matches = getBlocksMatchingRule(rule, conversation);
 
     expect(matches).toEqual([
-      { messageId: "msg-1", blockIndex: 1 },
-      { messageId: "msg-2", blockIndex: 1 },
+      { messageId: "msg-1", blockIndex: 1, blockId: "b6" },
+      { messageId: "msg-2", blockIndex: 1, blockId: "b9" },
     ]);
   });
 
@@ -553,6 +553,8 @@ describe("getBlocksMatchingRule — compound integration", () => {
 
     const matches = getBlocksMatchingRule(rule, conversation);
 
-    expect(matches).toEqual([{ messageId: "msg-1", blockIndex: 0 }]);
+    expect(matches).toEqual([
+      { messageId: "msg-1", blockIndex: 0, blockId: "b10" },
+    ]);
   });
 });

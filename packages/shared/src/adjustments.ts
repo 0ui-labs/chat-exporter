@@ -52,6 +52,7 @@ export const adjustmentEventTypeSchema = z.enum([
 ]);
 
 export const adjustmentSelectionSchema = z.object({
+  blockId: z.string().optional(),
   blockIndex: z.number().int().nonnegative(),
   blockType: z.string(),
   lineEnd: z.number().int().positive().optional(),
@@ -76,6 +77,7 @@ export const appendAdjustmentMessageRequestSchema = z.object({
 
 export const exactReaderSelectorSchema = z
   .object({
+    blockId: z.string().optional(),
     blockIndex: z.number().int().nonnegative(),
     blockType: z.string(),
     messageId: z.string(),
