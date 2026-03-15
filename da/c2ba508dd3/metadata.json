@@ -3,7 +3,7 @@
   "checkpoint_id": "dac2ba508dd3",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "apps/server/src/lib/import-store.test.ts",
     "apps/server/src/lib/import-store.ts",
@@ -17,13 +17,19 @@
       "transcript": "/da/c2ba508dd3/0/full.jsonl",
       "content_hash": "/da/c2ba508dd3/0/content_hash.txt",
       "prompt": "/da/c2ba508dd3/0/prompt.txt"
+    },
+    {
+      "metadata": "/da/c2ba508dd3/1/metadata.json",
+      "transcript": "/da/c2ba508dd3/1/full.jsonl",
+      "content_hash": "/da/c2ba508dd3/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 6,
-    "cache_creation_tokens": 4647,
-    "cache_read_tokens": 133064,
-    "output_tokens": 5487,
-    "api_call_count": 2
+    "input_tokens": 3871,
+    "cache_creation_tokens": 108170,
+    "cache_read_tokens": 2527441,
+    "output_tokens": 21610,
+    "api_call_count": 32
   }
 }
