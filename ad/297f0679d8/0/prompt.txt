@@ -1,0 +1,29 @@
+Bitte hie rnur die Icons ohne Text
+
+---
+
+Wenn man auf den Plus button im Tooltip klickt dann öffnet sich für eine Sekunde das elementauswahl feld und verschwindet weil auch das Tooltip nach dem klick sofort verschwindet
+
+---
+
+Warum sind die Dropdown Hintergründe schon wieder transparent und warum ist das gespeichert das Gespeichert schon wieder doppelt udn an der Stelle, das hatten wir doch bereits entfernt
+
+---
+
+Also das einfügen von neuen Blöcken funktioniert nicht es wird zwar Platz geschaffen aber man sieht nichts.
+
+---
+
+Also das mit den Blöcken Einträgen ist strange, da funktioniert nichts. Will man einen Block einfügen verschwindet er sofort wieder. Der Platzhalter sieht immer aus wie ein normaler paragraph und nicht wie den Block den man einsetzen möchte z.b. eine Headline. Füge doch kein Formularfeld mit Platzhalter Text ein sondern ein Beispiel block z.b. frü H2 setze eine Headline "Neue Headline" oder für Text setze eine Zeile Lore ypsum ein und für eine Tabelle eine beispielhafte Tabelle. Der User kann sie dann bearbeiten.
+
+---
+
+Ok aber jetzt werden neue Blöcke einfach immer ganz unten hinzugefügt und nicht an der Stelle an der man sie einsetzen wollte
+
+---
+
+Ich wollte keinen hacky quickfix
+
+---
+
+Wenn es etwas aufwändiges ist immer erst einen Plan schreiben
