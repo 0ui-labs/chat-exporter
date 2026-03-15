@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "8d615db49527",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/reader-view.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8d/615db49527/0/metadata.json",
+      "transcript": "/8d/615db49527/0/full.jsonl",
+      "content_hash": "/8d/615db49527/0/content_hash.txt",
+      "prompt": "/8d/615db49527/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 167,
+    "cache_creation_tokens": 114682,
+    "cache_read_tokens": 10792891,
+    "output_tokens": 36956,
+    "api_call_count": 133
+  }
+}
