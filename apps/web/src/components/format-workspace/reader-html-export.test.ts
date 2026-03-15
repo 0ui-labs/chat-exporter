@@ -7,8 +7,8 @@ import { buildReaderHtml } from "./reader-html-export";
 // ---------------------------------------------------------------------------
 
 function makeConversation(
-  blocks: Array<{ type: "paragraph"; text: string }> = [
-    { type: "paragraph", text: "Hello world" },
+  blocks: Array<{ id: string; type: "paragraph"; text: string }> = [
+    { id: "b1", type: "paragraph", text: "Hello world" },
   ],
 ) {
   return {

@@ -1,4 +1,9 @@
+import { nanoid } from "nanoid";
 import { z } from "zod";
+
+export const generateBlockId = () => nanoid(8);
+
+const blockIdField = { id: z.string().default(() => nanoid(8)) };
 
 export const sourcePlatformSchema = z.enum([
   "chatgpt",
@@ -18,39 +23,51 @@ export const roleSchema = z.enum([
   "unknown",
 ]);
 
-export const paragraphBlockSchema = z.object({
-  type: z.literal("paragraph"),
-  text: z.string(),
-});
+export const paragraphBlockSchema = z
+  .object({
+    type: z.literal("paragraph"),
+    text: z.string(),
+  })
+  .extend(blockIdField);
 
-export const headingBlockSchema = z.object({
-  type: z.literal("heading"),
-  level: z.number().int().min(1).max(6),
-  text: z.string(),
-});
+export const headingBlockSchema = z
+  .object({
+    type: z.literal("heading"),
+    level: z.number().int().min(1).max(6),
+    text: z.string(),
+  })
+  .extend(blockIdField);
 
-export const listBlockSchema = z.object({
-  type: z.literal("list"),
-  ordered: z.boolean(),
-  items: z.array(z.string()),
-});
+export const listBlockSchema = z
+  .object({
+    type: z.literal("list"),
+    ordered: z.boolean(),
+    items: z.array(z.string()),
+  })
+  .extend(blockIdField);
 
-export const codeBlockSchema = z.object({
-  type: z.literal("code"),
-  language: z.string().default("text"),
-  text: z.string(),
-});
+export const codeBlockSchema = z
+  .object({
+    type: z.literal("code"),
+    language: z.string().default("text"),
+    text: z.string(),
+  })
+  .extend(blockIdField);
 
-export const quoteBlockSchema = z.object({
-  type: z.literal("quote"),
-  text: z.string(),
-});
+export const quoteBlockSchema = z
+  .object({
+    type: z.literal("quote"),
+    text: z.string(),
+  })
+  .extend(blockIdField);
 
-export const tableBlockSchema = z.object({
-  type: z.literal("table"),
-  headers: z.array(z.string()),
-  rows: z.array(z.array(z.string())),
-});
+export const tableBlockSchema = z
+  .object({
+    type: z.literal("table"),
+    headers: z.array(z.string()),
+    rows: z.array(z.array(z.string())),
+  })
+  .extend(blockIdField);
 
 export const blockSchema = z.discriminatedUnion("type", [
   paragraphBlockSchema,

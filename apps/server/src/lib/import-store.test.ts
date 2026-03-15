@@ -23,12 +23,12 @@ function createImportResult() {
         {
           id: "msg-1",
           role: "user" as const,
-          blocks: [{ type: "paragraph" as const, text: "Hello" }],
+          blocks: [{ id: "b1", type: "paragraph" as const, text: "Hello" }],
         },
         {
           id: "msg-2",
           role: "assistant" as const,
-          blocks: [{ type: "paragraph" as const, text: "Hi there" }],
+          blocks: [{ id: "b2", type: "paragraph" as const, text: "Hi there" }],
         },
       ],
     },
@@ -44,12 +44,14 @@ function createImportResult() {
           {
             id: "msg-1",
             role: "user" as const,
-            blocks: [{ type: "paragraph" as const, text: "Hello" }],
+            blocks: [{ id: "b1", type: "paragraph" as const, text: "Hello" }],
           },
           {
             id: "msg-2",
             role: "assistant" as const,
-            blocks: [{ type: "paragraph" as const, text: "Hi there" }],
+            blocks: [
+              { id: "b2", type: "paragraph" as const, text: "Hi there" },
+            ],
           },
         ],
         warnings: [],

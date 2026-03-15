@@ -7,7 +7,11 @@ import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import type { Conversation, ImportJob } from "@chat-exporter/shared";
+import {
+  type Conversation,
+  generateBlockId,
+  type ImportJob,
+} from "@chat-exporter/shared";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
 
@@ -110,6 +114,7 @@ function createFixtureConversation(): Conversation {
         role: "user",
         blocks: [
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Please draft the release rollout checklist.",
           },
@@ -120,19 +125,23 @@ function createFixtureConversation(): Conversation {
         role: "assistant",
         blocks: [
           {
+            id: generateBlockId(),
             type: "heading",
             level: 2,
             text: "Project plan",
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Important: check the logs before deploying.",
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Reminder: keep the rollback command handy.",
           },
           {
+            id: generateBlockId(),
             type: "list",
             ordered: false,
             items: [
@@ -141,6 +150,7 @@ function createFixtureConversation(): Conversation {
             ],
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "**Wichtig für den Launch:** Zuständigkeiten müssen sichtbar bleiben.",
           },

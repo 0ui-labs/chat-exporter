@@ -16,7 +16,7 @@ function createConversation(
 }
 
 function textBlock(text: string): Block {
-  return { type: "paragraph", text };
+  return { id: "tb", type: "paragraph", text };
 }
 
 describe("useResolvedConversation", () => {

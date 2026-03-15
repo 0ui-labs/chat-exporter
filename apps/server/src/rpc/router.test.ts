@@ -814,7 +814,7 @@ describe("edits.save", () => {
       "import-1",
       "snap-1",
       "msg-1",
-      JSON.stringify([{ type: "paragraph", text: "Edited" }]),
+      expect.stringContaining('"type":"paragraph"'),
       undefined,
     );
   });
@@ -950,10 +950,10 @@ describe("edits.listForSnapshot", () => {
 
     expect(result).toHaveLength(2);
     expect(result[0]?.editedBlocks).toEqual([
-      { type: "paragraph", text: "Edited" },
+      expect.objectContaining({ type: "paragraph", text: "Edited" }),
     ]);
     expect(result[1]?.editedBlocks).toEqual([
-      { type: "heading", level: 2, text: "Title" },
+      expect.objectContaining({ type: "heading", level: 2, text: "Title" }),
     ]);
     expect(mockListMessageEdits).toHaveBeenCalledWith("snap-1");
   });

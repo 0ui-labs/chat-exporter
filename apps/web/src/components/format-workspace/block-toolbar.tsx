@@ -1,21 +1,26 @@
-import type { Block } from "@chat-exporter/shared";
+import { type Block, generateBlockId } from "@chat-exporter/shared";
 import {
   ArrowDown,
   ArrowUp,
+  Code,
   Copy,
   Heading2,
+  Heading3,
   List,
   Pilcrow,
+  Plus,
   Quote,
+  Table,
   Trash2,
-  Type,
 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -51,32 +56,57 @@ export function convertBlockType(
   targetType: ConvertibleBlockType,
 ): Block {
   const text = getBlockText(block);
+  const id = block.id ?? generateBlockId();
   switch (targetType) {
     case "paragraph":
-      return { type: "paragraph", text };
+      return { id, type: "paragraph", text };
     case "heading":
-      return { type: "heading", level: 2, text };
+      return { id, type: "heading", level: 2, text };
     case "quote":
-      return { type: "quote", text };
+      return { id, type: "quote", text };
     case "list":
-      return { type: "list", ordered: false, items: [text] };
+      return { id, type: "list", ordered: false, items: [text] };
   }
 }
 
 // ---------------------------------------------------------------------------
-// Type-change menu items
+// Insert-block menu items
 // ---------------------------------------------------------------------------
 
-const TYPE_CHANGE_ITEMS: {
-  key: ConvertibleBlockType;
-  label: string;
-  icon: typeof Pilcrow;
-}[] = [
+const INSERT_BLOCK_ITEMS = [
   { key: "paragraph", label: "Paragraph", icon: Pilcrow },
-  { key: "heading", label: "Heading", icon: Heading2 },
-  { key: "quote", label: "Quote", icon: Quote },
+  { key: "h2", label: "Heading (H2)", icon: Heading2 },
+  { key: "h3", label: "Heading (H3)", icon: Heading3 },
   { key: "list", label: "List", icon: List },
-];
+  { key: "code", label: "Code", icon: Code },
+  { key: "quote", label: "Quote", icon: Quote },
+  { key: "table", label: "Table", icon: Table },
+] as const;
+
+const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
+  paragraph: {
+    type: "paragraph",
+    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+  },
+  h2: { type: "heading", level: 2, text: "Neue Überschrift" },
+  h3: { type: "heading", level: 3, text: "Neue Unterüberschrift" },
+  list: {
+    type: "list",
+    ordered: false,
+    items: ["Erster Punkt", "Zweiter Punkt", "Dritter Punkt"],
+  },
+  code: {
+    type: "code",
+    language: "text",
+    text: "// Code hier eingeben",
+  },
+  quote: { type: "quote", text: "Zitat hier eingeben" },
+  table: {
+    type: "table",
+    headers: ["Spalte 1", "Spalte 2"],
+    rows: [["Wert 1", "Wert 2"]],
+  },
+};
 
 // ---------------------------------------------------------------------------
 // BlockToolbar component
@@ -88,48 +118,75 @@ export interface BlockToolbarProps {
   totalBlocks: number;
   onDelete: (blockIndex: number) => void;
   onDuplicate: (blockIndex: number) => void;
+  onInsertBlock: (blockIndex: number, block: Block) => void;
+  onMenuOpenChange?: (open: boolean) => void;
   onMoveUp: (blockIndex: number) => void;
   onMoveDown: (blockIndex: number) => void;
-  onTypeChange: (blockIndex: number, newBlock: Block) => void;
 }
 
 export function BlockToolbar({
-  block,
+  block: _block,
   blockIndex,
   totalBlocks,
   onDelete,
   onDuplicate,
+  onInsertBlock,
+  onMenuOpenChange,
   onMoveUp,
   onMoveDown,
-  onTypeChange,
 }: BlockToolbarProps) {
   const isFirst = blockIndex === 0;
   const isLast = blockIndex === totalBlocks - 1;
 
-  const handleTypeSelect = useCallback(
-    (targetType: ConvertibleBlockType) => {
-      const converted = convertBlockType(block, targetType);
-      onTypeChange(blockIndex, converted);
+  // Track how many dropdowns are open so the parent can prevent unmounting
+  const [, setOpenCount] = useState(0);
+  const handleDropdownOpenChange = useCallback(
+    (open: boolean) => {
+      setOpenCount((c) => {
+        const next = c + (open ? 1 : -1);
+        onMenuOpenChange?.(next > 0);
+        return next;
+      });
     },
-    [block, blockIndex, onTypeChange],
+    [onMenuOpenChange],
+  );
+
+  const handleInsertSelect = useCallback(
+    (key: string) => {
+      const template = BLOCK_DEFAULTS[key];
+      if (template) {
+        onInsertBlock(blockIndex + 1, {
+          ...template,
+          id: generateBlockId(),
+        } as Block);
+      }
+    },
+    [blockIndex, onInsertBlock],
   );
 
   return (
     <div className="absolute -top-8 left-0 z-10 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background px-1 py-0.5 shadow-sm">
-      {/* Type change dropdown */}
-      <DropdownMenu>
+      {/* Insert block dropdown */}
+      <DropdownMenu onOpenChange={handleDropdownOpenChange}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-            aria-label="Blocktyp ändern"
+            aria-label="Block einfügen"
           >
-            <Type className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-40">
-          {TYPE_CHANGE_ITEMS.map(({ key, label, icon: Icon }) => (
-            <DropdownMenuItem key={key} onSelect={() => handleTypeSelect(key)}>
+        <DropdownMenuContent align="start" className="w-44">
+          <DropdownMenuLabel className="text-xs">
+            Einfügen nach
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {INSERT_BLOCK_ITEMS.map(({ key, label, icon: Icon }) => (
+            <DropdownMenuItem
+              key={key}
+              onSelect={() => handleInsertSelect(key)}
+            >
               <Icon className="h-4 w-4" />
               <span>{label}</span>
             </DropdownMenuItem>

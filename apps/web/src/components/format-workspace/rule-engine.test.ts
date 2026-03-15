@@ -45,7 +45,7 @@ function createConversation(overrides?: Partial<Conversation>): Conversation {
       {
         id: "msg-1",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Hello world" }],
+        blocks: [{ id: "b1", type: "paragraph", text: "Hello world" }],
       },
     ],
     ...overrides,
@@ -68,7 +68,7 @@ describe("buildReaderEffectsMap", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "No heading here" }],
+          blocks: [{ id: "b2", type: "paragraph", text: "No heading here" }],
         },
       ],
     });
@@ -118,16 +118,16 @@ describe("buildReaderEffectsMap", () => {
           id: "msg-1",
           role: "user",
           blocks: [
-            { type: "paragraph", text: "First block" },
-            { type: "paragraph", text: "Second block" },
+            { id: "b3", type: "paragraph", text: "First block" },
+            { id: "b4", type: "paragraph", text: "Second block" },
           ],
         },
         {
           id: "msg-2",
           role: "assistant",
           blocks: [
-            { type: "paragraph", text: "Reply block" },
-            { type: "heading", level: 1, text: "A heading" },
+            { id: "b5", type: "paragraph", text: "Reply block" },
+            { id: "b6", type: "heading", level: 1, text: "A heading" },
           ],
         },
       ],
@@ -154,7 +154,7 @@ describe("buildReaderEffectsMap", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "No match" }],
+          blocks: [{ id: "b7", type: "paragraph", text: "No match" }],
         },
       ],
     });
@@ -362,8 +362,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "assistant",
           blocks: [
-            { type: "paragraph", text: "Intro" },
-            { type: "heading", level: 2, text: "Title" },
+            { id: "b8", type: "paragraph", text: "Intro" },
+            { id: "b9", type: "heading", level: 2, text: "Title" },
           ],
         },
       ],
@@ -394,12 +394,12 @@ describe("buildReaderEffectsMap — compound selectors", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "User text" }],
+          blocks: [{ id: "b10", type: "paragraph", text: "User text" }],
         },
         {
           id: "msg-2",
           role: "assistant",
-          blocks: [{ type: "paragraph", text: "Assistant text" }],
+          blocks: [{ id: "b11", type: "paragraph", text: "Assistant text" }],
         },
       ],
     });
@@ -430,9 +430,9 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "assistant",
           blocks: [
-            { type: "heading", level: 1, text: "Title" },
-            { type: "paragraph", text: "After heading" },
-            { type: "paragraph", text: "Not after heading" },
+            { id: "b12", type: "heading", level: 1, text: "Title" },
+            { id: "b13", type: "paragraph", text: "After heading" },
+            { id: "b14", type: "paragraph", text: "Not after heading" },
           ],
         },
       ],
@@ -465,8 +465,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "user",
           blocks: [
-            { type: "paragraph", text: "First" },
-            { type: "paragraph", text: "Second" },
+            { id: "b15", type: "paragraph", text: "First" },
+            { id: "b16", type: "paragraph", text: "Second" },
           ],
         },
       ],

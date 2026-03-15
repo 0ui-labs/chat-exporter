@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@orpc/contract": "^1.13.6",
+    "nanoid": "^5.1.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {

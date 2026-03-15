@@ -1,6 +1,15 @@
 import type { Block } from "@chat-exporter/shared";
-import { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+
+/**
+ * Renders children only on initial mount — prevents React from reconciling
+ * DOM nodes that the browser's contentEditable engine has modified.
+ */
+const FrozenChildren = React.memo(
+  ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  () => true,
+);
 
 interface EditableBlockProps {
   block: Block;
@@ -22,21 +31,31 @@ interface EditableBlockProps {
 function readBlockFromDom(element: HTMLElement, original: Block): Block {
   switch (original.type) {
     case "paragraph":
-      return { type: "paragraph", text: element.textContent ?? "" };
+      return {
+        id: original.id,
+        type: "paragraph",
+        text: element.textContent ?? "",
+      };
 
     case "heading":
       return {
+        id: original.id,
         type: "heading",
         level: original.level,
         text: element.textContent ?? "",
       };
 
     case "quote":
-      return { type: "quote", text: element.textContent ?? "" };
+      return {
+        id: original.id,
+        type: "quote",
+        text: element.textContent ?? "",
+      };
 
     case "code": {
       const codeEl = element.querySelector("pre code");
       return {
+        id: original.id,
         type: "code",
         language: original.language,
         text: codeEl ? (codeEl.textContent ?? "") : (element.textContent ?? ""),
@@ -47,6 +66,7 @@ function readBlockFromDom(element: HTMLElement, original: Block): Block {
       const listItems = element.querySelectorAll("li");
       const items = Array.from(listItems).map((li) => li.textContent ?? "");
       return {
+        id: original.id,
         type: "list",
         ordered: original.ordered,
         items: items.length > 0 ? items : [element.textContent ?? ""],
@@ -63,7 +83,7 @@ function readBlockFromDom(element: HTMLElement, original: Block): Block {
         return Array.from(cells).map((td) => td.textContent ?? "");
       });
 
-      return { type: "table", headers, rows };
+      return { id: original.id, type: "table", headers, rows };
     }
 
     default:
@@ -114,22 +134,6 @@ export function EditableBlock({
 
   const isCodeBlock = block.type === "code";
 
-  const isEmpty = useMemo(() => {
-    if (
-      block.type === "paragraph" ||
-      block.type === "heading" ||
-      block.type === "quote" ||
-      block.type === "code"
-    ) {
-      return block.text === "";
-    }
-    return false;
-  }, [block]);
-
-  const placeholderProps = isEmpty
-    ? { "data-placeholder": "Text eingeben..." }
-    : {};
-
   return (
     /* biome-ignore lint/a11y/useSemanticElements: contentEditable div wraps arbitrary block content, not a simple text input */
     <div
@@ -145,12 +149,9 @@ export function EditableBlock({
       className={cn(
         "outline-none rounded-md ring-0 focus:ring-1 focus:ring-blue-300 transition-shadow",
         isCodeBlock && "whitespace-pre-wrap",
-        isEmpty &&
-          "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-400 [&:empty]:before:pointer-events-none",
       )}
-      {...placeholderProps}
     >
-      {children}
+      <FrozenChildren>{children}</FrozenChildren>
     </div>
   );
 }

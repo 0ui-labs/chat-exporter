@@ -23,14 +23,19 @@ function createConversation(
       {
         id: "msg-1",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Hello" }],
+        blocks: [{ id: "b1", type: "paragraph", text: "Hello" }],
       },
       {
         id: "msg-2",
         role: "assistant",
         blocks: [
-          { type: "paragraph", text: "Hi there" },
-          { type: "code", language: "typescript", text: "const x = 1;" },
+          { id: "b2", type: "paragraph", text: "Hi there" },
+          {
+            id: "b3",
+            type: "code",
+            language: "typescript",
+            text: "const x = 1;",
+          },
         ],
       },
     ],

@@ -24,7 +24,7 @@ beforeAll(() => {
 
 describe("getBlockText", () => {
   test("returns text from paragraph block", () => {
-    const block: Block = { type: "paragraph", text: "Hello world" };
+    const block: Block = { id: "b1", type: "paragraph", text: "Hello world" };
 
     const result = getBlockText(block);
 
@@ -32,7 +32,12 @@ describe("getBlockText", () => {
   });
 
   test("returns text from heading block", () => {
-    const block: Block = { type: "heading", level: 2, text: "My Heading" };
+    const block: Block = {
+      id: "b2",
+      type: "heading",
+      level: 2,
+      text: "My Heading",
+    };
 
     const result = getBlockText(block);
 
@@ -40,7 +45,7 @@ describe("getBlockText", () => {
   });
 
   test("returns text from quote block", () => {
-    const block: Block = { type: "quote", text: "A wise quote" };
+    const block: Block = { id: "b3", type: "quote", text: "A wise quote" };
 
     const result = getBlockText(block);
 
@@ -48,7 +53,12 @@ describe("getBlockText", () => {
   });
 
   test("returns text from code block", () => {
-    const block: Block = { type: "code", language: "ts", text: "const x = 1;" };
+    const block: Block = {
+      id: "b4",
+      type: "code",
+      language: "ts",
+      text: "const x = 1;",
+    };
 
     const result = getBlockText(block);
 
@@ -57,6 +67,7 @@ describe("getBlockText", () => {
 
   test("joins list items with newline", () => {
     const block: Block = {
+      id: "b5",
       type: "list",
       ordered: false,
       items: ["Item 1", "Item 2", "Item 3"],
@@ -69,6 +80,7 @@ describe("getBlockText", () => {
 
   test("joins table headers with pipe separator and includes rows", () => {
     const block: Block = {
+      id: "b6",
       type: "table",
       headers: ["Name", "Age", "City"],
       rows: [["Alice", "30", "Berlin"]],
@@ -81,6 +93,7 @@ describe("getBlockText", () => {
 
   test("table with no rows returns only headers", () => {
     const block: Block = {
+      id: "b7",
       type: "table",
       headers: ["Col A", "Col B"],
       rows: [],
@@ -93,6 +106,7 @@ describe("getBlockText", () => {
 
   test("table with multiple rows includes all rows", () => {
     const block: Block = {
+      id: "b8",
       type: "table",
       headers: ["Name", "Score"],
       rows: [
@@ -113,43 +127,59 @@ describe("getBlockText", () => {
 
 describe("convertBlockType", () => {
   test("paragraph to heading preserves text and sets level 2", () => {
-    const block: Block = { type: "paragraph", text: "Some text" };
+    const block: Block = { id: "b9", type: "paragraph", text: "Some text" };
 
     const result = convertBlockType(block, "heading");
 
-    expect(result).toEqual({ type: "heading", level: 2, text: "Some text" });
+    expect(result).toEqual({
+      id: "b9",
+      type: "heading",
+      level: 2,
+      text: "Some text",
+    });
   });
 
   test("heading to paragraph preserves text", () => {
-    const block: Block = { type: "heading", level: 3, text: "Title" };
+    const block: Block = {
+      id: "b10",
+      type: "heading",
+      level: 3,
+      text: "Title",
+    };
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "Title" });
+    expect(result).toEqual({ id: "b10", type: "paragraph", text: "Title" });
   });
 
   test("paragraph to quote preserves text", () => {
-    const block: Block = { type: "paragraph", text: "Quoted text" };
+    const block: Block = { id: "b11", type: "paragraph", text: "Quoted text" };
 
     const result = convertBlockType(block, "quote");
 
-    expect(result).toEqual({ type: "quote", text: "Quoted text" });
+    expect(result).toEqual({ id: "b11", type: "quote", text: "Quoted text" });
   });
 
   test("heading to quote preserves text", () => {
-    const block: Block = { type: "heading", level: 1, text: "Big heading" };
+    const block: Block = {
+      id: "b12",
+      type: "heading",
+      level: 1,
+      text: "Big heading",
+    };
 
     const result = convertBlockType(block, "quote");
 
-    expect(result).toEqual({ type: "quote", text: "Big heading" });
+    expect(result).toEqual({ id: "b12", type: "quote", text: "Big heading" });
   });
 
   test("paragraph to list makes text a single item", () => {
-    const block: Block = { type: "paragraph", text: "Single item" };
+    const block: Block = { id: "b13", type: "paragraph", text: "Single item" };
 
     const result = convertBlockType(block, "list");
 
     expect(result).toEqual({
+      id: "b13",
       type: "list",
       ordered: false,
       items: ["Single item"],
@@ -157,11 +187,17 @@ describe("convertBlockType", () => {
   });
 
   test("heading to list makes text a single item", () => {
-    const block: Block = { type: "heading", level: 2, text: "Heading text" };
+    const block: Block = {
+      id: "b14",
+      type: "heading",
+      level: 2,
+      text: "Heading text",
+    };
 
     const result = convertBlockType(block, "list");
 
     expect(result).toEqual({
+      id: "b14",
       type: "list",
       ordered: false,
       items: ["Heading text"],
@@ -170,6 +206,7 @@ describe("convertBlockType", () => {
 
   test("list to paragraph joins items with newline", () => {
     const block: Block = {
+      id: "b15",
       type: "list",
       ordered: true,
       items: ["First", "Second"],
@@ -177,27 +214,41 @@ describe("convertBlockType", () => {
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "First\nSecond" });
+    expect(result).toEqual({
+      id: "b15",
+      type: "paragraph",
+      text: "First\nSecond",
+    });
   });
 
   test("quote to paragraph preserves text", () => {
-    const block: Block = { type: "quote", text: "Wise words" };
+    const block: Block = { id: "b16", type: "quote", text: "Wise words" };
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "Wise words" });
+    expect(result).toEqual({
+      id: "b16",
+      type: "paragraph",
+      text: "Wise words",
+    });
   });
 
   test("code to paragraph preserves text", () => {
-    const block: Block = { type: "code", language: "js", text: "let x = 1" };
+    const block: Block = {
+      id: "b17",
+      type: "code",
+      language: "js",
+      text: "let x = 1",
+    };
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "let x = 1" });
+    expect(result).toEqual({ id: "b17", type: "paragraph", text: "let x = 1" });
   });
 
   test("table to paragraph includes headers and rows separated by pipe", () => {
     const block: Block = {
+      id: "b18",
       type: "table",
       headers: ["Col A", "Col B"],
       rows: [["1", "2"]],
@@ -205,7 +256,11 @@ describe("convertBlockType", () => {
 
     const result = convertBlockType(block, "paragraph");
 
-    expect(result).toEqual({ type: "paragraph", text: "Col A | Col B\n1 | 2" });
+    expect(result).toEqual({
+      id: "b18",
+      type: "paragraph",
+      text: "Col A | Col B\n1 | 2",
+    });
   });
 });
 
@@ -215,14 +270,14 @@ describe("convertBlockType", () => {
 
 describe("BlockToolbar", () => {
   const defaultProps = {
-    block: { type: "paragraph" as const, text: "Test" },
+    block: { id: "b0", type: "paragraph" as const, text: "Test" },
     blockIndex: 1,
     totalBlocks: 5,
     onDelete: vi.fn(),
     onDuplicate: vi.fn(),
+    onInsertBlock: vi.fn(),
     onMoveUp: vi.fn(),
     onMoveDown: vi.fn(),
-    onTypeChange: vi.fn(),
   };
 
   function renderToolbar(overrides: Partial<typeof defaultProps> = {}) {
@@ -233,7 +288,6 @@ describe("BlockToolbar", () => {
       props.onDuplicate,
       props.onMoveUp,
       props.onMoveDown,
-      props.onTypeChange,
     ]) {
       fn.mockClear();
     }
@@ -316,46 +370,5 @@ describe("BlockToolbar", () => {
     expect(
       screen.getByRole("button", { name: /block nach unten/i }),
     ).toBeEnabled();
-  });
-
-  test("type dropdown shows convertible type options", async () => {
-    const user = userEvent.setup();
-    renderToolbar({
-      block: { type: "paragraph", text: "Test" },
-    });
-
-    await user.click(screen.getByRole("button", { name: /blocktyp ändern/i }));
-
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /paragraph/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /heading/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /quote/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /list/i })).toBeInTheDocument();
-  });
-
-  test("selecting a type from dropdown calls onTypeChange", async () => {
-    const user = userEvent.setup();
-    const onTypeChange = vi.fn();
-    renderToolbar({
-      onTypeChange,
-      blockIndex: 1,
-      block: { type: "paragraph", text: "Hello" },
-    });
-
-    await user.click(screen.getByRole("button", { name: /blocktyp ändern/i }));
-    await user.click(screen.getByRole("menuitem", { name: /heading/i }));
-
-    expect(onTypeChange).toHaveBeenCalledOnce();
-    expect(onTypeChange).toHaveBeenCalledWith(1, {
-      type: "heading",
-      level: 2,
-      text: "Hello",
-    });
   });
 });
