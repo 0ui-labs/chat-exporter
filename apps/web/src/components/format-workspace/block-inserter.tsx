@@ -54,11 +54,6 @@ export const BLOCK_DEFAULTS = {
     text: "// Code hier eingeben",
   },
   quote: { type: "quote" as const, text: "Zitat hier eingeben" },
-  table: {
-    type: "table" as const,
-    headers: ["Spalte 1", "Spalte 2"],
-    rows: [["Wert 1", "Wert 2"]],
-  },
 } as const;
 
 // ---------------------------------------------------------------------------

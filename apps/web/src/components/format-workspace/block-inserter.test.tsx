@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 
 import { BLOCK_DEFAULTS, BlockInserter } from "./block-inserter";
+import { createEmptyTable } from "./table-utils";
 
 // ---------------------------------------------------------------------------
 // Radix UI Polyfills (required for jsdom)
@@ -51,9 +52,7 @@ describe("BlockInserter", () => {
     expect(
       screen.getByRole("menuitem", { name: /quote/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: /table/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/table/i)).toBeInTheDocument();
   });
 
   test("selecting paragraph calls onInsertBlock with correct default", async () => {
@@ -143,18 +142,16 @@ describe("BlockInserter", () => {
     );
   });
 
-  test("selecting table calls onInsertBlock with table default", async () => {
+  test("table entry renders as a sub-menu trigger", async () => {
     const user = userEvent.setup();
-    const onInsertBlock = vi.fn();
-    render(<BlockInserter blockIndex={0} onInsertBlock={onInsertBlock} />);
+    render(<BlockInserter blockIndex={0} onInsertBlock={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: /block hinzufügen/i }));
-    await user.click(screen.getByRole("menuitem", { name: /table/i }));
 
-    expect(onInsertBlock).toHaveBeenCalledWith(
-      0,
-      expect.objectContaining(BLOCK_DEFAULTS.table),
-    );
+    // Table is now a sub-menu trigger (has aria-haspopup="menu")
+    const tableItem = screen.getByRole("menuitem", { name: /table/i });
+    expect(tableItem).toBeInTheDocument();
+    expect(tableItem).toHaveAttribute("aria-haspopup", "menu");
   });
 
   test("inserted blocks get unique IDs", async () => {
@@ -188,8 +185,10 @@ describe("BlockInserter", () => {
     expect(BLOCK_DEFAULTS.code.text.length).toBeGreaterThan(0);
     expect(BLOCK_DEFAULTS.quote.type).toBe("quote");
     expect(BLOCK_DEFAULTS.quote.text.length).toBeGreaterThan(0);
-    expect(BLOCK_DEFAULTS.table.type).toBe("table");
-    expect(BLOCK_DEFAULTS.table.rows[0].length).toBeGreaterThan(0);
+    // Table is now created via createEmptyTable(), not BLOCK_DEFAULTS
+    const table = createEmptyTable(2, 1);
+    expect(table.type).toBe("table");
+    expect(table.headers.length).toBeGreaterThan(0);
   });
 
   test("menu closes after selecting a block type", async () => {

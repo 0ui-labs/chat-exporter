@@ -106,11 +106,6 @@ const BLOCK_DEFAULTS: Record<string, Record<string, unknown>> = {
     text: "// Code hier eingeben",
   },
   quote: { type: "quote", text: "Zitat hier eingeben" },
-  table: {
-    type: "table",
-    headers: ["Spalte 1", "Spalte 2"],
-    rows: [["Wert 1", "Wert 2"]],
-  },
 };
 
 // ---------------------------------------------------------------------------
