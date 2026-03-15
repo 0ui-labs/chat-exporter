@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "8d615db49527",
+  "session_id": "ebf8c8a9-149e-4bb6-8912-8b87cd15ead6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T21:59:25.44163Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/reader-html-export.test.ts",
+    "apps/web/src/components/format-workspace/reader-html-export.ts",
+    "apps/web/src/components/format-workspace/reader-view.tsx",
+    "apps/web/src/components/format-workspace/rule-engine.test.ts",
+    "apps/web/src/components/format-workspace/rule-engine.tsx",
+    "apps/web/src/components/format-workspace/rule-matching.test.ts",
+    "apps/web/src/components/format-workspace/rule-matching.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2f1988267d8c",
+  "checkpoint_transcript_start": 953,
+  "transcript_lines_at_start": 953,
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 33684,
+    "cache_read_tokens": 7861700,
+    "output_tokens": 12577,
+    "api_call_count": 51
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T21:59:24.931802Z",
+    "agent_lines": 87,
+    "human_added": 27,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 118,
+    "agent_percentage": 73.72881355932203
+  }
+}
