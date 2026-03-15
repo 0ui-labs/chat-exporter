@@ -290,8 +290,9 @@ export function FormatWorkspace({
 
     // Formats with conversation-based export (reader, html-export)
     if (plugin.prepareConversationExport && resolvedConversation) {
+      const exportFn = plugin.prepareConversationExport;
       return () => {
-        const html = plugin.prepareConversationExport!(
+        const html = exportFn(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
@@ -329,8 +330,9 @@ export function FormatWorkspace({
 
     // Formats with conversation-based export (reader, html-export)
     if (plugin.prepareConversationExport && resolvedConversation) {
+      const exportFn = plugin.prepareConversationExport;
       return () => {
-        const html = plugin.prepareConversationExport!(
+        const html = exportFn(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
@@ -424,6 +426,8 @@ export function FormatWorkspace({
       <StatusHeader
         activeStage={activeStage}
         elapsedTime={elapsedTime}
+        hasEdits={hasEdits}
+        isSaving={messageEdits.isSaving}
         job={job}
       />
 
