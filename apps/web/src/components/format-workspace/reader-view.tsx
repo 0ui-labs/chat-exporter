@@ -29,6 +29,7 @@ import {
   getReaderBlockStyle,
   renderReaderBlock,
 } from "@/components/format-workspace/rule-engine";
+import { TableEditor } from "@/components/format-workspace/table-editor";
 import type {
   AdjustmentSelection,
   ViewportAnchor,
@@ -405,7 +406,15 @@ const ReaderMessage = memo(function ReaderMessage({
                   <ErrorBoundary
                     fallback={<BlockErrorFallback blockType={block.type} />}
                   >
-                    {editMode && onBlockChange ? (
+                    {editMode && onBlockChange && block.type === "table" ? (
+                      <TableEditor
+                        block={block}
+                        messageId={message.id}
+                        blockIndex={blockIndex}
+                        effects={blockEffects}
+                        onBlockChange={onBlockChange}
+                      />
+                    ) : editMode && onBlockChange ? (
                       <EditableBlock
                         block={block}
                         blockIndex={blockIndex}
