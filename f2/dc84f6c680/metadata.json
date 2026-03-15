@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "f2dc84f6c680",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "packages/shared/src/adjustments.ts",
+    "packages/shared/src/output-formats.test.ts",
+    "packages/shared/src/output-formats.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f2/dc84f6c680/0/metadata.json",
+      "transcript": "/f2/dc84f6c680/0/full.jsonl",
+      "content_hash": "/f2/dc84f6c680/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3870,
+    "cache_creation_tokens": 118995,
+    "cache_read_tokens": 3004682,
+    "output_tokens": 21124,
+    "api_call_count": 35
+  }
+}
