@@ -3,7 +3,7 @@
   "checkpoint_id": "9985a602c706",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 19,
+  "checkpoints_count": 20,
   "files_touched": [
     "apps/web/src/components/format-workspace/block-inserter.tsx",
     "apps/web/src/components/format-workspace/block-toolbar.test.tsx",
@@ -23,13 +23,19 @@
       "transcript": "/99/85a602c706/1/full.jsonl",
       "content_hash": "/99/85a602c706/1/content_hash.txt",
       "prompt": "/99/85a602c706/1/prompt.txt"
+    },
+    {
+      "metadata": "/99/85a602c706/2/metadata.json",
+      "transcript": "/99/85a602c706/2/full.jsonl",
+      "content_hash": "/99/85a602c706/2/content_hash.txt",
+      "prompt": "/99/85a602c706/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 276,
-    "cache_creation_tokens": 711993,
-    "cache_read_tokens": 24464407,
-    "output_tokens": 86066,
-    "api_call_count": 230
+    "input_tokens": 282,
+    "cache_creation_tokens": 751993,
+    "cache_read_tokens": 24574542,
+    "output_tokens": 86598,
+    "api_call_count": 234
   }
 }
