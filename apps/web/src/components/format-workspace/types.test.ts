@@ -2,10 +2,9 @@ import { describe, expect, test } from "vitest";
 import { adjustableViews } from "./types";
 
 describe("adjustableViews", () => {
-  test("contains reader, markdown, and html-export", () => {
+  test("contains reader and markdown", () => {
     expect(adjustableViews.has("reader")).toBe(true);
     expect(adjustableViews.has("markdown")).toBe(true);
-    expect(adjustableViews.has("html-export")).toBe(true);
   });
 
   test("does not contain non-adjustable formats", () => {

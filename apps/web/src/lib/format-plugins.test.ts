@@ -91,17 +91,16 @@ describe("FormatPluginRegistry", () => {
 // ---------------------------------------------------------------------------
 
 describe("clientFormatRegistry", () => {
-  test("has all 5 built-in formats registered", () => {
+  test("has all 4 built-in formats registered", () => {
     const all = clientFormatRegistry.getAll();
 
-    expect(all).toHaveLength(5);
+    expect(all).toHaveLength(4);
 
     const ids = all.map((p) => p.descriptor.id);
     expect(ids).toContain("reader");
     expect(ids).toContain("markdown");
     expect(ids).toContain("handover");
     expect(ids).toContain("json");
-    expect(ids).toContain("html-export");
   });
 
   test("each plugin's descriptor matches the shared BUILTIN_FORMATS", () => {
@@ -128,12 +127,6 @@ describe("clientFormatRegistry", () => {
     const plugin = clientFormatRegistry.get("reader");
 
     expect(plugin?.prepareDownload).toBeUndefined();
-    expect(plugin?.prepareConversationExport).toBeTypeOf("function");
-  });
-
-  test("html-export plugin has prepareConversationExport", () => {
-    const plugin = clientFormatRegistry.get("html-export");
-
     expect(plugin?.prepareConversationExport).toBeTypeOf("function");
   });
 

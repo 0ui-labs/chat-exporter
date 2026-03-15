@@ -261,21 +261,18 @@ describe("sessionReducer", () => {
           markdown: "keep",
           handover: "",
           json: "",
-          "html-export": "",
         },
         selectionByView: {
           reader: createSelection(),
           markdown: createSelection({ selectedText: "md selection" }),
           handover: null,
           json: null,
-          "html-export": null,
         },
         anchorByView: {
           reader: createAnchor(),
           markdown: createAnchor({ top: 99 }),
           handover: null,
           json: null,
-          "html-export": null,
         },
         activeSessionDetail: createSessionDetail(),
         sessionSelectionKeyByView: {
@@ -283,7 +280,6 @@ describe("sessionReducer", () => {
           markdown: "key-m",
           handover: null,
           json: null,
-          "html-export": null,
         },
         sessionError: "some error",
         replyVisibleByView: {
@@ -291,7 +287,6 @@ describe("sessionReducer", () => {
           markdown: true,
           handover: false,
           json: false,
-          "html-export": false,
         },
       };
 
@@ -329,14 +324,12 @@ describe("sessionReducer", () => {
           markdown: false,
           handover: false,
           json: false,
-          "html-export": false,
         },
         guideDismissedByView: {
           reader: true,
           markdown: false,
           handover: false,
           json: false,
-          "html-export": false,
         },
       };
 

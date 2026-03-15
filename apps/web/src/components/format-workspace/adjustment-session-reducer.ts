@@ -23,7 +23,6 @@ const falsy = <T>(v: T): Record<ViewMode, T> => ({
   markdown: v,
   handover: v,
   json: v,
-  "html-export": v,
 });
 
 export function createInitialState(): SessionState {

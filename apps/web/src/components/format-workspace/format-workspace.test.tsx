@@ -55,10 +55,6 @@ function MockArtifactView() {
   return <div data-testid="artifact-view" />;
 }
 
-function MockHtmlExportView() {
-  return <div data-testid="html-export-view" />;
-}
-
 let adjustmentPopoverShouldThrow = false;
 
 vi.mock("@/components/format-workspace/adjustment-popover", () => ({
@@ -318,7 +314,6 @@ const viewComponentMap: Record<string, React.ComponentType<any>> = {
   markdown: MockMarkdownView,
   handover: MockArtifactView,
   json: MockArtifactView,
-  "html-export": MockHtmlExportView,
 };
 
 const pluginDescriptors: Record<

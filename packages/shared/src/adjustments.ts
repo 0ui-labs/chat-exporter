@@ -7,7 +7,6 @@ export const adjustmentTargetFormatSchema = z.enum([
   "markdown",
   "handover",
   "json",
-  "html-export",
 ]);
 
 export const adjustmentSessionStatusSchema = z.enum([

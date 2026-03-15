@@ -213,7 +213,7 @@ export function FormatWorkspace({
   );
 
   const artifact =
-    view === "reader" || view === "html-export"
+    view === "reader"
       ? ""
       : (job.artifacts?.[view] ?? "Artefakt ist noch nicht verfügbar.");
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
@@ -242,7 +242,7 @@ export function FormatWorkspace({
 
   const readerEffectsMap = useMemo(
     () =>
-      (view === "reader" || view === "html-export") && resolvedConversation
+      view === "reader" && resolvedConversation
         ? buildReaderEffectsMap(rules.activeRules, resolvedConversation)
         : new Map(),
     [rules.activeRules, resolvedConversation, view],
@@ -288,7 +288,7 @@ export function FormatWorkspace({
       }
     };
 
-    // Formats with conversation-based export (reader, html-export)
+    // Formats with conversation-based export (reader)
     if (plugin.prepareConversationExport && resolvedConversation) {
       const exportFn = plugin.prepareConversationExport;
       return () => {
@@ -328,7 +328,7 @@ export function FormatWorkspace({
     const plugin = clientFormatRegistry.get(view);
     if (!plugin) return undefined;
 
-    // Formats with conversation-based export (reader, html-export)
+    // Formats with conversation-based export (reader)
     if (plugin.prepareConversationExport && resolvedConversation) {
       const exportFn = plugin.prepareConversationExport;
       return () => {

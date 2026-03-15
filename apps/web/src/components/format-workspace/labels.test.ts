@@ -115,7 +115,7 @@ describe("getImportStageEntry", () => {
 
 describe("getAdjustViewLabel", () => {
   test("gibt '{view} anpassen' für bekannte Views", () => {
-    expect(getAdjustViewLabel("reader")).toBe("Reader anpassen");
+    expect(getAdjustViewLabel("reader")).toBe("HTML anpassen");
     expect(getAdjustViewLabel("markdown")).toBe("Markdown anpassen");
     expect(getAdjustViewLabel("handover")).toBe("Übergabe anpassen");
     expect(getAdjustViewLabel("json")).toBe("JSON anpassen");
@@ -163,7 +163,7 @@ describe("adjustmentLabels", () => {
 
 describe("getViewLabel", () => {
   test("gibt korrekte View-Labels zurück", () => {
-    expect(getViewLabel("reader")).toBe("Reader");
+    expect(getViewLabel("reader")).toBe("HTML");
     expect(getViewLabel("markdown")).toBe("Markdown");
     expect(getViewLabel("handover")).toBe("Übergabe");
     expect(getViewLabel("json")).toBe("JSON");
@@ -242,7 +242,7 @@ describe("rulesLabels", () => {
   test("activeRulesCount formatiert korrekt", () => {
     expect(rulesLabels.activeRulesCount(0)).toBe("Regeln");
     expect(rulesLabels.activeRulesCount(3)).toBe("3 Regeln aktiv");
-    expect(rulesLabels.activeRulesCount(1)).toBe("1 Regeln aktiv");
+    expect(rulesLabels.activeRulesCount(1)).toBe("1 Regel aktiv");
   });
 
   test("statische Labels sind nicht-leer", () => {

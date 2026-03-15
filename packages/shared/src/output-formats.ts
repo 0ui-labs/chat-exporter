@@ -24,7 +24,7 @@ export interface OutputFormatDescriptor {
 export const BUILTIN_FORMATS: readonly OutputFormatDescriptor[] = [
   {
     id: "reader",
-    label: "Reader",
+    label: "HTML",
     adjustable: true,
     supportedRuleKinds: [
       "adjust_block_spacing",
@@ -67,21 +67,6 @@ export const BUILTIN_FORMATS: readonly OutputFormatDescriptor[] = [
     supportedRuleKinds: [],
     exportMimeType: "application/json",
     exportExtension: ".json",
-  },
-  {
-    id: "html-export",
-    label: "HTML",
-    adjustable: true,
-    supportedRuleKinds: [
-      "adjust_block_spacing",
-      "increase_heading_emphasis",
-      "refine_selected_block_presentation",
-      "bold_prefix_before_colon",
-      "render_markdown_strong",
-      "custom_style",
-    ],
-    exportMimeType: "text/html",
-    exportExtension: ".html",
   },
 ];
 

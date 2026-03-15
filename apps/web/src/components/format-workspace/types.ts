@@ -6,7 +6,7 @@ import { defaultRegistry } from "@chat-exporter/shared";
 
 export type ViewMode = Extract<
   AdjustmentTargetFormat,
-  "reader" | "markdown" | "handover" | "json" | "html-export"
+  "reader" | "markdown" | "handover" | "json"
 >;
 
 export type AdjustmentSelection = SharedAdjustmentSelection;

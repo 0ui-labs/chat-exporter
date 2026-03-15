@@ -7,7 +7,6 @@ import type {
 import { BUILTIN_FORMATS } from "@chat-exporter/shared";
 import type { ComponentType } from "react";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
-import { HtmlExportView } from "@/components/format-workspace/html-export-view";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { buildReaderHtml } from "@/components/format-workspace/reader-html-export";
 import { ReaderView } from "@/components/format-workspace/reader-view";
@@ -32,7 +31,7 @@ export interface FormatPlugin {
   prepareDownload?: (content: string, rules: FormatRule[]) => string;
   /** Optional client-side transformation for copy-to-clipboard. */
   prepareCopy?: (content: string, rules: FormatRule[]) => string;
-  /** For formats that export based on full conversation + effects (reader, html-export). */
+  /** For formats that export based on full conversation + effects (reader). */
   prepareConversationExport?: (
     conversation: Conversation,
     effectsMap: Map<string, RuleEffect[]>,
@@ -98,13 +97,6 @@ for (const desc of BUILTIN_FORMATS) {
       clientFormatRegistry.register({
         descriptor: desc,
         ViewComponent: ArtifactView,
-      });
-      break;
-    case "html-export":
-      clientFormatRegistry.register({
-        descriptor: desc,
-        ViewComponent: HtmlExportView,
-        prepareConversationExport: buildReaderHtml,
       });
       break;
   }
