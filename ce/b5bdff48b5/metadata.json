@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "ceb5bdff48b5",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/rule-engine.test.ts",
+    "apps/web/src/components/format-workspace/rule-engine.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ce/b5bdff48b5/0/metadata.json",
+      "transcript": "/ce/b5bdff48b5/0/full.jsonl",
+      "content_hash": "/ce/b5bdff48b5/0/content_hash.txt",
+      "prompt": "/ce/b5bdff48b5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 6371,
+    "cache_read_tokens": 59356,
+    "output_tokens": 1581,
+    "api_call_count": 1
+  }
+}
