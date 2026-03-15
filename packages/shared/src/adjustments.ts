@@ -7,9 +7,6 @@ export const adjustmentTargetFormatSchema = z.enum([
   "markdown",
   "handover",
   "json",
-  "html",
-  "rich_text",
-  "clipboard_html",
 ]);
 
 export const adjustmentSessionStatusSchema = z.enum([
