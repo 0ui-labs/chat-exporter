@@ -15,9 +15,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { TableGridPicker } from "./table-grid-picker";
+import { createEmptyTable } from "./table-utils";
 
 // ---------------------------------------------------------------------------
 // Block defaults
@@ -119,12 +124,28 @@ export function BlockInserter({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="w-44">
-          {BLOCK_TYPE_ITEMS.map(({ key, label, icon: Icon }) => (
-            <DropdownMenuItem key={key} onSelect={() => handleSelect(key)}>
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </DropdownMenuItem>
-          ))}
+          {BLOCK_TYPE_ITEMS.map(({ key, label, icon: Icon }) =>
+            key === "table" ? (
+              <DropdownMenuSub key={key}>
+                <DropdownMenuSubTrigger>
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <TableGridPicker
+                    onSelect={(cols, rows) => {
+                      onInsertBlock(blockIndex, createEmptyTable(cols, rows));
+                    }}
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : (
+              <DropdownMenuItem key={key} onSelect={() => handleSelect(key)}>
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </DropdownMenuItem>
+            ),
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

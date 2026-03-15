@@ -21,8 +21,13 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TableGridPicker } from "./table-grid-picker";
+import { createEmptyTable } from "./table-utils";
 
 // ---------------------------------------------------------------------------
 // Pure utility: extract text from any block type
@@ -182,15 +187,34 @@ export function BlockToolbar({
             Einfügen nach
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {INSERT_BLOCK_ITEMS.map(({ key, label, icon: Icon }) => (
-            <DropdownMenuItem
-              key={key}
-              onSelect={() => handleInsertSelect(key)}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </DropdownMenuItem>
-          ))}
+          {INSERT_BLOCK_ITEMS.map(({ key, label, icon: Icon }) =>
+            key === "table" ? (
+              <DropdownMenuSub key={key}>
+                <DropdownMenuSubTrigger>
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <TableGridPicker
+                    onSelect={(cols, rows) => {
+                      onInsertBlock(
+                        blockIndex + 1,
+                        createEmptyTable(cols, rows),
+                      );
+                    }}
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : (
+              <DropdownMenuItem
+                key={key}
+                onSelect={() => handleInsertSelect(key)}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </DropdownMenuItem>
+            ),
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
