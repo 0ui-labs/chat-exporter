@@ -1,3 +1,4 @@
+import { defaultRegistry } from "@chat-exporter/shared";
 import {
   Check,
   Copy,
@@ -13,19 +14,16 @@ import {
   adjustmentLabels,
   getAdjustViewLabel,
   getEndAdjustLabel,
-  getViewLabel,
 } from "@/components/format-workspace/labels";
 import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
 import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
 
-const outputViews: { value: ViewMode; label: string }[] = [
-  { value: "reader", label: getViewLabel("reader") },
-  { value: "markdown", label: getViewLabel("markdown") },
-  { value: "handover", label: getViewLabel("handover") },
-  { value: "json", label: getViewLabel("json") },
-];
+const outputViews = defaultRegistry.getAll().map((f) => ({
+  value: f.id as ViewMode,
+  label: f.label,
+}));
 
 type CompletedToolbarProps = {
   adjustModeEnabled: boolean;

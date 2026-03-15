@@ -1,3 +1,4 @@
+import { defaultRegistry } from "@chat-exporter/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -110,6 +111,16 @@ describe("CompletedToolbar", () => {
       expect(screen.getByTestId("format-view-markdown")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-handover")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-json")).toBeInTheDocument();
+    });
+
+    test("renders tab labels matching the defaultRegistry", () => {
+      renderToolbar();
+
+      const registryFormats = defaultRegistry.getAll();
+      for (const format of registryFormats) {
+        const button = screen.getByTestId(`format-view-${format.id}`);
+        expect(button).toHaveTextContent(format.label);
+      }
     });
 
     test("renders action buttons row with download button", () => {
