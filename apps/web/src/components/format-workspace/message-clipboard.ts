@@ -104,11 +104,12 @@ function blockToPlainText(block: Block): string {
 
 export async function copyMessageToClipboard(
   message: Message,
-  format: "reader" | "markdown" | "json" | "handover",
+  format: "reader" | "markdown" | "json" | "handover" | "html-export",
   blocks: Block[],
 ): Promise<void> {
   switch (format) {
-    case "reader": {
+    case "reader":
+    case "html-export": {
       const html = blocks.map(blockToHtml).join("\n");
       const blob = new Blob([html], { type: "text/html" });
       const item = new ClipboardItem({ "text/html": blob });

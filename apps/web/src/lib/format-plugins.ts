@@ -6,6 +6,7 @@ import type {
 import { BUILTIN_FORMATS } from "@chat-exporter/shared";
 import type { ComponentType } from "react";
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
+import { HtmlExportView } from "@/components/format-workspace/html-export-view";
 import { applyMarkdownRules } from "@/components/format-workspace/rule-engine";
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,12 @@ for (const desc of BUILTIN_FORMATS) {
       clientFormatRegistry.register({
         descriptor: desc,
         ViewComponent: ArtifactView,
+      });
+      break;
+    case "html-export":
+      clientFormatRegistry.register({
+        descriptor: desc,
+        ViewComponent: HtmlExportView,
       });
       break;
   }

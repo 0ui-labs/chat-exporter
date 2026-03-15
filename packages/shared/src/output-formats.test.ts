@@ -17,7 +17,13 @@ import {
 
 describe("adjustmentTargetFormatSchema (cleaned)", () => {
   test("accepts valid format values", () => {
-    for (const value of ["reader", "markdown", "handover", "json"]) {
+    for (const value of [
+      "reader",
+      "markdown",
+      "handover",
+      "json",
+      "html-export",
+    ]) {
       expect(adjustmentTargetFormatSchema.safeParse(value).success).toBe(true);
     }
   });
@@ -34,8 +40,8 @@ describe("adjustmentTargetFormatSchema (cleaned)", () => {
 // ---------------------------------------------------------------------------
 
 describe("BUILTIN_FORMATS", () => {
-  test("contains exactly 4 formats", () => {
-    expect(BUILTIN_FORMATS).toHaveLength(4);
+  test("contains exactly 5 formats", () => {
+    expect(BUILTIN_FORMATS).toHaveLength(5);
   });
 
   test("all IDs are unique", () => {
@@ -55,6 +61,16 @@ describe("BUILTIN_FORMATS", () => {
     const json = BUILTIN_FORMATS.find((f) => f.id === "json");
     expect(handover?.adjustable).toBe(false);
     expect(json?.adjustable).toBe(false);
+  });
+
+  test("html-export descriptor has correct properties", () => {
+    const htmlExport = BUILTIN_FORMATS.find((f) => f.id === "html-export");
+    expect(htmlExport).toBeDefined();
+    expect(htmlExport?.label).toBe("HTML");
+    expect(htmlExport?.adjustable).toBe(true);
+    expect(htmlExport?.exportMimeType).toBe("text/html");
+    expect(htmlExport?.exportExtension).toBe(".html");
+    expect(htmlExport?.supportedRuleKinds).toContain("custom_style");
   });
 
   test("adjustable formats include custom_style in supportedRuleKinds", () => {
@@ -156,8 +172,8 @@ describe("FormatRegistry", () => {
 // ---------------------------------------------------------------------------
 
 describe("defaultRegistry", () => {
-  test("contains all 4 built-in formats", () => {
-    expect(defaultRegistry.getAll()).toHaveLength(4);
+  test("contains all 5 built-in formats", () => {
+    expect(defaultRegistry.getAll()).toHaveLength(5);
   });
 
   test("can retrieve each built-in format by ID", () => {
@@ -166,12 +182,13 @@ describe("defaultRegistry", () => {
     }
   });
 
-  test("getAdjustable returns reader and markdown", () => {
+  test("getAdjustable returns reader, markdown, and html-export", () => {
     const adjustable = defaultRegistry.getAdjustable();
     const ids = adjustable.map((f) => f.id);
     expect(ids).toContain("reader");
     expect(ids).toContain("markdown");
-    expect(ids).toHaveLength(2);
+    expect(ids).toContain("html-export");
+    expect(ids).toHaveLength(3);
   });
 
   test("supportsRuleKind works for reader + custom_style", () => {

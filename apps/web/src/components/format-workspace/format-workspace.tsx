@@ -6,6 +6,7 @@ import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popo
 import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
 import { DeleteMessageDialog } from "@/components/format-workspace/delete-message-dialog";
+import { HtmlExportView } from "@/components/format-workspace/html-export-view";
 import {
   formatMarkdownLinesLabel,
   formatMessageBlockLabel,
@@ -217,7 +218,7 @@ export function FormatWorkspace({
   );
 
   const artifact =
-    view === "reader"
+    view === "reader" || view === "html-export"
       ? ""
       : (job.artifacts?.[view] ?? "Artefakt ist noch nicht verfügbar.");
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
@@ -246,7 +247,7 @@ export function FormatWorkspace({
 
   const readerEffectsMap = useMemo(
     () =>
-      view === "reader" && resolvedConversation
+      (view === "reader" || view === "html-export") && resolvedConversation
         ? buildReaderEffectsMap(rules.activeRules, resolvedConversation)
         : new Map(),
     [rules.activeRules, resolvedConversation, view],
@@ -292,8 +293,8 @@ export function FormatWorkspace({
       }
     };
 
-    // Reader: special logic with buildReaderHtml
-    if (view === "reader" && resolvedConversation) {
+    // Reader & html-export: special logic with buildReaderHtml
+    if ((view === "reader" || view === "html-export") && resolvedConversation) {
       return () => {
         const html = buildReaderHtml(
           resolvedConversation,
@@ -331,8 +332,8 @@ export function FormatWorkspace({
     const plugin = clientFormatRegistry.get(view);
     if (!plugin) return undefined;
 
-    // Reader has special download logic (needs effectsMap, conversation)
-    if (view === "reader" && resolvedConversation) {
+    // Reader & html-export have special download logic (needs effectsMap, conversation)
+    if ((view === "reader" || view === "html-export") && resolvedConversation) {
       return () => {
         const html = buildReaderHtml(
           resolvedConversation,
@@ -517,6 +518,13 @@ export function FormatWorkspace({
                 highlightedRuleId={rules.hoveredRuleId}
                 selectedRange={session.activeSelection}
                 onSelectLines={session.handleSelectionChange}
+              />
+            </ErrorBoundary>
+          ) : view === "html-export" ? (
+            <ErrorBoundary fallback={viewErrorFallback}>
+              <HtmlExportView
+                conversation={resolvedConversation}
+                rules={rules.activeRules}
               />
             </ErrorBoundary>
           ) : (

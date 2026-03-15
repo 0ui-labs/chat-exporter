@@ -11,6 +11,7 @@ const viewLabels: Record<ViewMode, string> = {
   markdown: "Markdown",
   handover: "Übergabe",
   json: "JSON",
+  "html-export": "HTML",
 };
 
 const roleLabels: Record<string, string> = {
