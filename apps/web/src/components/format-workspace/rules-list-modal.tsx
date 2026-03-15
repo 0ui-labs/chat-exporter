@@ -120,6 +120,34 @@ function describeSelectorStrategy(selector: unknown): string {
         : "Präfix vor Doppelpunkt";
     case "markdown_table":
       return "Alle Markdown-Tabellen";
+    case "compound": {
+      const parts: string[] = [];
+
+      if (blockType) parts.push(blockType);
+
+      const role = typeof s.messageRole === "string" ? s.messageRole : null;
+      if (role) parts.push(`Rolle: ${role}`);
+
+      const level = typeof s.headingLevel === "number" ? s.headingLevel : null;
+      if (level) parts.push(`H${level}`);
+
+      const pos = typeof s.position === "string" ? s.position : null;
+      if (pos) parts.push(pos === "first" ? "Erster Block" : "Letzter Block");
+
+      const pattern = typeof s.textPattern === "string" ? s.textPattern : null;
+      if (pattern) parts.push(`Pattern: "${pattern}"`);
+
+      const ctx =
+        s.context && typeof s.context === "object"
+          ? (s.context as Record<string, unknown>)
+          : null;
+      if (ctx?.previousSibling) parts.push("nach bestimmtem Block");
+      if (ctx?.nextSibling) parts.push("vor bestimmtem Block");
+
+      return parts.length > 0
+        ? `Compound: ${parts.join(", ")}`
+        : "Compound-Filter (alle Blöcke)";
+    }
     default:
       return `Strategie: ${strategy ?? "unbekannt"}`;
   }

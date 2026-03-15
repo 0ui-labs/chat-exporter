@@ -143,6 +143,19 @@ export const adjustmentLabels = {
 
   // Mode toggle
   endAdjustMode: "Anpassungsmodus beenden",
+
+  // Edit mode
+  edit: "Bearbeiten",
+  endEdit: "Bearbeitung beenden",
+
+  // Clipboard
+  copied: "Kopiert!",
+
+  // Toolbar actions
+  versions: "Versionen",
+  downloadAction: "Herunterladen",
+  copyAllAction: "Kopieren",
+  copyAllSuccess: "Kopiert!",
 } as const;
 
 export function getAdjustViewLabel(view: ViewMode) {

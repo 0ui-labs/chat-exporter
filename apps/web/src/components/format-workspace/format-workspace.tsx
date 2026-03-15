@@ -1,5 +1,5 @@
-import type { ImportJob } from "@chat-exporter/shared";
-import { useCallback, useMemo, useRef, useState } from "react";
+import type { Block, ImportJob } from "@chat-exporter/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
@@ -15,23 +15,32 @@ import {
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
 import { MarkdownView } from "@/components/format-workspace/markdown-view";
+import { copyMessageToClipboard } from "@/components/format-workspace/message-clipboard";
+import { buildReaderHtml } from "@/components/format-workspace/reader-html-export";
 import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   applyMarkdownRules,
   buildReaderEffectsMap,
 } from "@/components/format-workspace/rule-engine";
+import { SaveIndicator } from "@/components/format-workspace/save-indicator";
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
   adjustableViews,
+  type EditMode,
   type ViewMode,
 } from "@/components/format-workspace/types";
 import { UndoToast } from "@/components/format-workspace/undo-toast";
 import { useAdjustmentPopover } from "@/components/format-workspace/use-adjustment-popover";
 import { useAdjustmentSession } from "@/components/format-workspace/use-adjustment-session";
+import { useAutoSnapshot } from "@/components/format-workspace/use-auto-snapshot";
 import { useDeletionToast } from "@/components/format-workspace/use-deletion-toast";
 import { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { useMessageDeletion } from "@/components/format-workspace/use-message-deletion";
+import { useMessageEdits } from "@/components/format-workspace/use-message-edits";
+import { useResolvedConversation } from "@/components/format-workspace/use-resolved-conversation";
+import { useSnapshots } from "@/components/format-workspace/use-snapshots";
+import { VersionsModal } from "@/components/format-workspace/versions-modal";
 
 type ActiveStage = {
   detail: string;
@@ -84,8 +93,65 @@ export function FormatWorkspace({
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
+  const snapshots = useSnapshots(job.id);
+  const messageEdits = useMessageEdits(job.id, snapshots.activeSnapshot?.id);
+  const resolvedMessages = useResolvedConversation(
+    job.conversation,
+    messageEdits.editedMessagesMap,
+  );
+  const autoSnapshot = useAutoSnapshot({
+    activeSnapshot: snapshots.activeSnapshot,
+    create: snapshots.create,
+    activate: snapshots.activate,
+  });
   const deletion = useMessageDeletion(job.id);
   const deletionToast = useDeletionToast();
+  const [editMode, setEditMode] = useState<EditMode>("view");
+
+  // Mutual exclusion: edit mode and adjustment mode must never be active simultaneously
+  const handleEditModeChange = useCallback(
+    (mode: EditMode) => {
+      if (mode === "edit" && session.adjustModeEnabled) {
+        session.toggleAdjustMode();
+      }
+      setEditMode(mode);
+    },
+    [session],
+  );
+
+  const handleToggleAdjustMode = useCallback(() => {
+    if (!session.adjustModeEnabled && editMode === "edit") {
+      setEditMode("view");
+    }
+    session.toggleAdjustMode();
+  }, [session, editMode]);
+
+  const hasEdits = resolvedMessages.some((m) => m.isEdited);
+
+  // beforeunload warning when unsaved edits exist.
+  // hasPendingEdits covers both debounce timers that haven't fired yet and
+  // in-flight HTTP mutations, preventing data loss during the 500 ms debounce
+  // window where isSaving alone would still be false.
+  useEffect(() => {
+    if (!messageEdits.hasPendingEdits) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [messageEdits.hasPendingEdits]);
+
+  const handleBlocksChange = useCallback(
+    (messageId: string, blocks: Block[]) => {
+      void autoSnapshot.ensureSnapshot().then((ready) => {
+        if (ready) {
+          messageEdits.saveEdit(messageId, blocks);
+        }
+      });
+    },
+    [autoSnapshot, messageEdits],
+  );
+  const [versionsModalOpen, setVersionsModalOpen] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
     messageId: string;
     isRound: boolean;
@@ -166,28 +232,148 @@ export function FormatWorkspace({
     }
   }, [artifact, rules.activeRules, view]);
 
+  const resolvedConversation = useMemo(() => {
+    if (!job.conversation) return undefined;
+    return {
+      ...job.conversation,
+      messages: resolvedMessages.map((rm) => ({
+        id: rm.id,
+        role: rm.role,
+        blocks: rm.blocks,
+      })),
+    };
+  }, [job.conversation, resolvedMessages]);
+
   const readerEffectsMap = useMemo(
     () =>
-      view === "reader" && job.conversation
-        ? buildReaderEffectsMap(rules.activeRules, job.conversation)
+      view === "reader" && resolvedConversation
+        ? buildReaderEffectsMap(rules.activeRules, resolvedConversation)
         : new Map(),
-    [rules.activeRules, job.conversation, view],
+    [rules.activeRules, resolvedConversation, view],
   );
 
-  const handleDownloadMarkdown = useMemo(() => {
-    if (view !== "markdown") return undefined;
-    return () => {
-      const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `export-${job.id}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+  const handleCopyMessage = useCallback(
+    (messageId: string) => {
+      const msg = resolvedConversation?.messages.find(
+        (m) => m.id === messageId,
+      );
+      if (!msg) return;
+      void copyMessageToClipboard(msg, view, msg.blocks);
+    },
+    [resolvedConversation, view],
+  );
+
+  const [copySuccess, setCopySuccess] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleCopyAll = useMemo(() => {
+    const doCopy = async (content: string, isHtml: boolean) => {
+      try {
+        if (isHtml) {
+          const blob = new Blob([content], { type: "text/html" });
+          const plainBlob = new Blob([content], { type: "text/plain" });
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": blob,
+              "text/plain": plainBlob,
+            }),
+          ]);
+        } else {
+          await navigator.clipboard.writeText(content);
+        }
+        clearTimeout(copyTimeoutRef.current);
+        setCopySuccess(true);
+        copyTimeoutRef.current = setTimeout(() => setCopySuccess(false), 2000);
+      } catch {
+        // Fallback: silently fail
+      }
     };
-  }, [view, displayedMarkdown, job.id]);
+
+    if (view === "markdown") {
+      return () => {
+        void doCopy(displayedMarkdown, false);
+      };
+    }
+    if (view === "reader" && resolvedConversation) {
+      return () => {
+        const html = buildReaderHtml(
+          resolvedConversation,
+          readerEffectsMap,
+          resolvedConversation.title ?? `export-${job.id}`,
+        );
+        void doCopy(html, true);
+      };
+    }
+    if ((view === "handover" || view === "json") && artifact) {
+      return () => {
+        void doCopy(artifact, false);
+      };
+    }
+    return undefined;
+  }, [
+    view,
+    displayedMarkdown,
+    job.id,
+    resolvedConversation,
+    readerEffectsMap,
+    artifact,
+  ]);
+
+  const handleDownload = useMemo(() => {
+    if (view === "markdown") {
+      return () => {
+        const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    if (view === "reader" && resolvedConversation) {
+      return () => {
+        const html = buildReaderHtml(
+          resolvedConversation,
+          readerEffectsMap,
+          resolvedConversation.title ?? `export-${job.id}`,
+        );
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    if ((view === "handover" || view === "json") && artifact) {
+      return () => {
+        const ext = view === "json" ? "json" : "md";
+        const blob = new Blob([artifact], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `export-${job.id}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+      };
+    }
+    return undefined;
+  }, [
+    view,
+    displayedMarkdown,
+    job.id,
+    resolvedConversation,
+    readerEffectsMap,
+    artifact,
+  ]);
   const showPopover =
     session.adjustModeEnabled &&
     Boolean(session.activeSelection) &&
@@ -272,14 +458,20 @@ export function FormatWorkspace({
         <div className="space-y-4">
           <CompletedToolbar
             adjustModeEnabled={session.adjustModeEnabled}
+            copySuccess={copySuccess}
+            editMode={editMode}
             isAdjustableView={isAdjustableView}
             rules={rules}
             view={view}
-            onDownloadMarkdown={handleDownloadMarkdown}
-            onToggleAdjustMode={session.toggleAdjustMode}
+            onCopyAll={handleCopyAll}
+            onDownloadMarkdown={handleDownload}
+            onEditModeChange={handleEditModeChange}
+            onToggleAdjustMode={handleToggleAdjustMode}
             onViewChange={onViewChange}
             deletionsCount={deletion.deletionsCount}
             showDeleted={deletion.showDeleted}
+            snapshotCount={snapshots.snapshots.length}
+            onVersionsClick={() => setVersionsModalOpen(true)}
             onToggleShowDeleted={() =>
               deletion.setShowDeleted(!deletion.showDeleted)
             }
@@ -293,22 +485,33 @@ export function FormatWorkspace({
 
           {view === "reader" ? (
             <ErrorBoundary fallback={viewErrorFallback}>
-              <ReaderView
-                activeRules={rules.activeRules}
-                conversation={job.conversation}
-                adjustModeEnabled={session.adjustModeEnabled}
-                effectsMap={readerEffectsMap}
-                highlightedRuleId={rules.hoveredRuleId}
-                selectedBlock={
-                  view === "reader" ? session.activeSelection : null
-                }
-                onSelectBlock={session.handleSelectionChange}
-                deletedMessageIds={deletion.deletedMessageIds}
-                showDeleted={deletion.showDeleted}
-                onDeleteMessage={handleDeleteMessage}
-                onDeleteRound={handleDeleteRound}
-                onRestoreMessage={deletion.restoreMessage}
-              />
+              <div className="space-y-2">
+                <div className="flex justify-end">
+                  <SaveIndicator
+                    isSaving={messageEdits.isSaving}
+                    hasEdits={hasEdits}
+                  />
+                </div>
+                <ReaderView
+                  activeRules={rules.activeRules}
+                  conversation={resolvedConversation}
+                  adjustModeEnabled={session.adjustModeEnabled}
+                  editMode={editMode === "edit"}
+                  effectsMap={readerEffectsMap}
+                  highlightedRuleId={rules.hoveredRuleId}
+                  selectedBlock={
+                    view === "reader" ? session.activeSelection : null
+                  }
+                  onSelectBlock={session.handleSelectionChange}
+                  deletedMessageIds={deletion.deletedMessageIds}
+                  showDeleted={deletion.showDeleted}
+                  onBlocksChange={handleBlocksChange}
+                  onCopyMessage={handleCopyMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onDeleteRound={handleDeleteRound}
+                  onRestoreMessage={deletion.restoreMessage}
+                />
+              </div>
             </ErrorBoundary>
           ) : view === "markdown" ? (
             <ErrorBoundary fallback={viewErrorFallback}>
@@ -385,6 +588,28 @@ export function FormatWorkspace({
           onDismiss={deletionToast.dismissToast}
         />
       )}
+
+      <VersionsModal
+        open={versionsModalOpen}
+        onOpenChange={setVersionsModalOpen}
+        snapshots={snapshots.snapshots}
+        activeSnapshotId={snapshots.activeSnapshot?.id ?? null}
+        onActivate={(snapshotId) => {
+          void snapshots.activate(snapshotId);
+        }}
+        onDeactivate={() => {
+          void snapshots.deactivate();
+        }}
+        onCreate={(label) => {
+          void snapshots.create(label);
+        }}
+        onRename={(snapshotId, label) => {
+          void snapshots.rename(snapshotId, label);
+        }}
+        onDelete={(snapshotId) => {
+          void snapshots.delete(snapshotId);
+        }}
+      />
     </section>
   );
 }

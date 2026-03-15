@@ -1,5 +1,6 @@
-import type { Conversation, FormatRule } from "@chat-exporter/shared";
-import { render, screen } from "@testing-library/react";
+import type { Block, Conversation, FormatRule } from "@chat-exporter/shared";
+import { act, render, screen } from "@testing-library/react";
+import type React from "react";
 import { describe, expect, test, vi } from "vitest";
 
 import { renderReaderBlock } from "@/components/format-workspace/rule-engine";
@@ -27,6 +28,34 @@ vi.mock("@/components/format-workspace/rule-engine", () => ({
   renderReaderBlock: vi.fn((block: { text?: string }) => (
     <span>{block.text ?? ""}</span>
   )),
+}));
+
+// Captures the onBlockChange callback so tests can trigger block edits directly.
+let capturedOnBlockChange:
+  | ((messageId: string, blockIndex: number, newBlock: Block) => void)
+  | undefined;
+
+vi.mock("@/components/format-workspace/editable-block", () => ({
+  EditableBlock: ({
+    blockIndex,
+    messageId,
+    onBlockChange,
+    children,
+  }: {
+    blockIndex: number;
+    messageId: string;
+    onBlockChange: (
+      messageId: string,
+      blockIndex: number,
+      newBlock: Block,
+    ) => void;
+    children: React.ReactNode;
+  }) => {
+    capturedOnBlockChange = onBlockChange;
+    return (
+      <div data-testid={`editable-${messageId}-${blockIndex}`}>{children}</div>
+    );
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -107,6 +136,61 @@ describe("ReaderView", () => {
       expect(screen.getByText("1")).toBeInTheDocument();
       expect(screen.getByText("2")).toBeInTheDocument();
       expect(screen.getByText("3")).toBeInTheDocument();
+    });
+  });
+
+  describe("handleBlockChange — stale props fix", () => {
+    test("consecutive edits on different blocks accumulate instead of overwriting each other", () => {
+      // Arrange: message with two blocks; parent props will NOT update between
+      // the two edits (simulates the debounce window where props stay stale).
+      const conversation = createConversation({
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            blocks: [
+              { type: "paragraph", text: "Block A" },
+              { type: "paragraph", text: "Block B" },
+            ],
+          },
+        ],
+      });
+
+      const onBlocksChange =
+        vi.fn<(messageId: string, blocks: Block[]) => void>();
+
+      render(
+        <ReaderView
+          {...defaultProps({ conversation, onBlocksChange, editMode: true })}
+        />,
+      );
+
+      // Act: edit block 0 and block 1 in sequence without props updating in between
+      act(() => {
+        capturedOnBlockChange?.("msg-1", 0, {
+          type: "paragraph",
+          text: "Block A — edited",
+        });
+      });
+
+      act(() => {
+        capturedOnBlockChange?.("msg-1", 1, {
+          type: "paragraph",
+          text: "Block B — edited",
+        });
+      });
+
+      // Assert: the second call must include BOTH edits, not revert the first
+      const calls = onBlocksChange.mock.calls;
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+      const lastBlocks = calls[calls.length - 1]?.[1];
+      expect(lastBlocks).toHaveLength(2);
+      expect((lastBlocks?.[0] as { text: string } | undefined)?.text).toBe(
+        "Block A — edited",
+      );
+      expect((lastBlocks?.[1] as { text: string } | undefined)?.text).toBe(
+        "Block B — edited",
+      );
     });
   });
 

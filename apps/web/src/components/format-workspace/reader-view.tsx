@@ -5,10 +5,20 @@ import type {
   Message,
   RuleEffect,
 } from "@chat-exporter/shared";
-import React, { memo, useMemo, useRef } from "react";
-
+import { ClipboardCopy } from "lucide-react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
+import { BlockInserter } from "@/components/format-workspace/block-inserter";
+import { BlockToolbar } from "@/components/format-workspace/block-toolbar";
+import { EditableBlock } from "@/components/format-workspace/editable-block";
 import { getRoleLabel } from "@/components/format-workspace/labels";
 import { MessageDeleteMenu } from "@/components/format-workspace/message-delete-menu";
 import {
@@ -47,8 +57,11 @@ type ReaderViewProps = {
   adjustModeEnabled: boolean;
   conversation: Conversation | undefined;
   deletedMessageIds?: Set<string>;
+  editMode?: boolean;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedRuleId: string | null;
+  onBlocksChange?: (messageId: string, blocks: Block[]) => void;
+  onCopyMessage?: (messageId: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onDeleteRound?: (messageId: string) => void;
   onRestoreMessage?: (messageId: string) => Promise<{ restored: boolean }>;
@@ -78,11 +91,19 @@ function toViewportAnchor(rect: DOMRect): ViewportAnchor {
 
 type ReaderMessageProps = {
   adjustModeEnabled: boolean;
+  editMode?: boolean;
   effectsMap: Map<string, RuleEffect[]>;
   highlightedBlocks: Set<string>;
   isDeleted?: boolean;
   message: Message;
   messageIndex: number;
+  onBlockChange?: (
+    messageId: string,
+    blockIndex: number,
+    newBlock: Block,
+  ) => void;
+  onBlocksChange?: (messageId: string, blocks: Block[]) => void;
+  onCopyMessage?: () => void;
   onDeleteMessage?: () => void;
   onDeleteRound?: () => void;
   onRestore?: () => void;
@@ -92,11 +113,15 @@ type ReaderMessageProps = {
 
 const ReaderMessage = memo(function ReaderMessage({
   adjustModeEnabled,
+  editMode,
   effectsMap,
   highlightedBlocks,
   isDeleted,
   message,
   messageIndex,
+  onBlockChange,
+  onBlocksChange,
+  onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
   onRestore,
@@ -104,6 +129,80 @@ const ReaderMessage = memo(function ReaderMessage({
   selectedBlock,
 }: ReaderMessageProps) {
   const lastSelectionInteractionAt = useRef(0);
+  const [hoveredBlockIndex, setHoveredBlockIndex] = useState<number | null>(
+    null,
+  );
+
+  const handleDeleteBlock = useCallback(
+    (blockIndex: number) => {
+      if (!onBlocksChange) return;
+      const updatedBlocks = [...message.blocks];
+      updatedBlocks.splice(blockIndex, 1);
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
+
+  const handleDuplicateBlock = useCallback(
+    (blockIndex: number) => {
+      if (!onBlocksChange) return;
+      const updatedBlocks = [...message.blocks];
+      const original = updatedBlocks[blockIndex];
+      if (!original) return;
+      const copy = { ...original } as Block;
+      updatedBlocks.splice(blockIndex + 1, 0, copy);
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
+
+  const handleMoveUp = useCallback(
+    (blockIndex: number) => {
+      if (!onBlocksChange || blockIndex === 0) return;
+      const updatedBlocks = [...message.blocks];
+      const current = updatedBlocks[blockIndex];
+      const above = updatedBlocks[blockIndex - 1];
+      if (!current || !above) return;
+      updatedBlocks[blockIndex - 1] = current;
+      updatedBlocks[blockIndex] = above;
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
+
+  const handleMoveDown = useCallback(
+    (blockIndex: number) => {
+      if (!onBlocksChange || blockIndex >= message.blocks.length - 1) return;
+      const updatedBlocks = [...message.blocks];
+      const current = updatedBlocks[blockIndex];
+      const below = updatedBlocks[blockIndex + 1];
+      if (!current || !below) return;
+      updatedBlocks[blockIndex] = below;
+      updatedBlocks[blockIndex + 1] = current;
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
+
+  const handleTypeChange = useCallback(
+    (blockIndex: number, newBlock: Block) => {
+      if (!onBlocksChange) return;
+      const updatedBlocks = [...message.blocks];
+      updatedBlocks[blockIndex] = newBlock;
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
+
+  const handleInsertBlock = useCallback(
+    (blockIndex: number, block: Block) => {
+      if (!onBlocksChange) return;
+      const updatedBlocks = [...message.blocks];
+      updatedBlocks.splice(blockIndex, 0, block);
+      onBlocksChange(message.id, updatedBlocks);
+    },
+    [message.blocks, message.id, onBlocksChange],
+  );
 
   return (
     <article
@@ -130,19 +229,38 @@ const ReaderMessage = memo(function ReaderMessage({
           )}
         </div>
       )}
-      <div className="group/header mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         <span>{getRoleLabel(message.role)}</span>
         <span>{messageIndex + 1}</span>
-        {!isDeleted && onDeleteMessage && onDeleteRound && (
-          <span className="ml-auto opacity-0 group-hover/header:opacity-100 transition-opacity">
-            <MessageDeleteMenu
-              onDeleteMessage={onDeleteMessage}
-              onDeleteRound={onDeleteRound}
-            />
+        {!isDeleted && (onDeleteMessage || onCopyMessage) && (
+          <span className="ml-auto flex items-center gap-1">
+            {onCopyMessage && (
+              <button
+                type="button"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopyMessage();
+                }}
+                aria-label="Nachricht kopieren"
+                data-testid={`copy-message-${message.id}`}
+              >
+                <ClipboardCopy className="h-4 w-4" />
+              </button>
+            )}
+            {onDeleteMessage && onDeleteRound && (
+              <MessageDeleteMenu
+                onDeleteMessage={onDeleteMessage}
+                onDeleteRound={onDeleteRound}
+              />
+            )}
           </span>
         )}
       </div>
       <div className="space-y-4">
+        {editMode && onBlocksChange && (
+          <BlockInserter blockIndex={0} onInsertBlock={handleInsertBlock} />
+        )}
         {message.blocks.map((block, blockIndex) => {
           const blockText = blockToPlainText(block);
           const blockEffects =
@@ -182,82 +300,122 @@ const ReaderMessage = memo(function ReaderMessage({
                 <hr className="border-border/40" />
               )}
               {inserts.insertBefore === "spacer" && <div className="h-6" />}
-              {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: hover tracking for block toolbar */}
               <div
-                data-testid={`reader-block-${message.id}-${blockIndex}`}
-                className={getReaderBlockClassName({
-                  adjustModeEnabled,
-                  effects: blockEffects,
-                  isHighlighted,
-                  isSelected,
-                })}
-                style={getReaderBlockStyle(blockEffects)}
-                data-selected={isSelected ? "true" : "false"}
-                onPointerUp={(event) => {
-                  if (!adjustModeEnabled) {
-                    return;
-                  }
-
-                  const selection = window.getSelection();
-                  const range =
-                    selection && selection.rangeCount > 0
-                      ? selection.getRangeAt(0)
-                      : null;
-                  const selectedText = selection?.toString().trim() ?? "";
-                  const container = event.currentTarget;
-                  const rangeStartContainer = range?.startContainer ?? null;
-                  const rangeEndContainer = range?.endContainer ?? null;
-                  const hasLocalTextSelection =
-                    Boolean(selectedText) &&
-                    Boolean(rangeStartContainer) &&
-                    Boolean(rangeEndContainer) &&
-                    container.contains(rangeStartContainer) &&
-                    container.contains(rangeEndContainer);
-                  const anchorRect =
-                    hasLocalTextSelection && range
-                      ? range.getBoundingClientRect()
-                      : container.getBoundingClientRect();
-
-                  emitSelection(
-                    toViewportAnchor(anchorRect),
-                    hasLocalTextSelection ? selectedText : blockText,
-                  );
-
-                  if (selection && hasLocalTextSelection) {
-                    selection.removeAllRanges();
-                  }
-                }}
-                onClick={(event) => {
-                  if (!adjustModeEnabled) {
-                    return;
-                  }
-
-                  if (
-                    Date.now() - lastSelectionInteractionAt.current <
-                    SELECTION_DEBOUNCE_MS
-                  ) {
-                    return;
-                  }
-
-                  emitSelection(
-                    toViewportAnchor(
-                      event.currentTarget.getBoundingClientRect(),
-                    ),
-                    blockText,
-                  );
-                }}
+                className="relative"
+                onMouseEnter={() =>
+                  editMode && setHoveredBlockIndex(blockIndex)
+                }
+                onMouseLeave={() => editMode && setHoveredBlockIndex(null)}
               >
-                <ErrorBoundary
-                  fallback={<BlockErrorFallback blockType={block.type} />}
+                {editMode &&
+                  onBlocksChange &&
+                  hoveredBlockIndex === blockIndex && (
+                    <BlockToolbar
+                      block={block}
+                      blockIndex={blockIndex}
+                      totalBlocks={message.blocks.length}
+                      onDelete={handleDeleteBlock}
+                      onDuplicate={handleDuplicateBlock}
+                      onMoveUp={handleMoveUp}
+                      onMoveDown={handleMoveDown}
+                      onTypeChange={handleTypeChange}
+                    />
+                  )}
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+                <div
+                  data-testid={`reader-block-${message.id}-${blockIndex}`}
+                  className={getReaderBlockClassName({
+                    adjustModeEnabled,
+                    effects: blockEffects,
+                    isHighlighted,
+                    isSelected,
+                  })}
+                  style={getReaderBlockStyle(blockEffects)}
+                  data-selected={isSelected ? "true" : "false"}
+                  onPointerUp={(event) => {
+                    if (!adjustModeEnabled) {
+                      return;
+                    }
+
+                    const selection = window.getSelection();
+                    const range =
+                      selection && selection.rangeCount > 0
+                        ? selection.getRangeAt(0)
+                        : null;
+                    const selectedText = selection?.toString().trim() ?? "";
+                    const container = event.currentTarget;
+                    const rangeStartContainer = range?.startContainer ?? null;
+                    const rangeEndContainer = range?.endContainer ?? null;
+                    const hasLocalTextSelection =
+                      Boolean(selectedText) &&
+                      Boolean(rangeStartContainer) &&
+                      Boolean(rangeEndContainer) &&
+                      container.contains(rangeStartContainer) &&
+                      container.contains(rangeEndContainer);
+                    const anchorRect =
+                      hasLocalTextSelection && range
+                        ? range.getBoundingClientRect()
+                        : container.getBoundingClientRect();
+
+                    emitSelection(
+                      toViewportAnchor(anchorRect),
+                      hasLocalTextSelection ? selectedText : blockText,
+                    );
+
+                    if (selection && hasLocalTextSelection) {
+                      selection.removeAllRanges();
+                    }
+                  }}
+                  onClick={(event) => {
+                    if (!adjustModeEnabled) {
+                      return;
+                    }
+
+                    if (
+                      Date.now() - lastSelectionInteractionAt.current <
+                      SELECTION_DEBOUNCE_MS
+                    ) {
+                      return;
+                    }
+
+                    emitSelection(
+                      toViewportAnchor(
+                        event.currentTarget.getBoundingClientRect(),
+                      ),
+                      blockText,
+                    );
+                  }}
                 >
-                  <BlockRenderer block={block} effects={blockEffects} />
-                </ErrorBoundary>
+                  <ErrorBoundary
+                    fallback={<BlockErrorFallback blockType={block.type} />}
+                  >
+                    {editMode && onBlockChange ? (
+                      <EditableBlock
+                        block={block}
+                        blockIndex={blockIndex}
+                        messageId={message.id}
+                        onBlockChange={onBlockChange}
+                      >
+                        <BlockRenderer block={block} effects={blockEffects} />
+                      </EditableBlock>
+                    ) : (
+                      <BlockRenderer block={block} effects={blockEffects} />
+                    )}
+                  </ErrorBoundary>
+                </div>
               </div>
               {inserts.insertAfter === "hr" && (
                 <hr className="border-border/40" />
               )}
               {inserts.insertAfter === "spacer" && <div className="h-6" />}
+              {editMode && onBlocksChange && (
+                <BlockInserter
+                  blockIndex={blockIndex + 1}
+                  onInsertBlock={handleInsertBlock}
+                />
+              )}
             </React.Fragment>
           );
         })}
@@ -271,8 +429,11 @@ export function ReaderView({
   adjustModeEnabled,
   conversation,
   deletedMessageIds,
+  editMode,
   effectsMap,
   highlightedRuleId,
+  onBlocksChange,
+  onCopyMessage,
   onDeleteMessage,
   onDeleteRound,
   onRestoreMessage,
@@ -286,6 +447,36 @@ export function ReaderView({
     if (showDeleted) return conversation.messages;
     return conversation.messages.filter((m) => !deletedMessageIds.has(m.id));
   }, [conversation?.messages, deletedMessageIds, showDeleted]);
+
+  // Tracks the latest in-progress blocks per message so that consecutive edits
+  // within the same debounce window build on top of each other rather than on
+  // stale props (which would cause earlier edits to be overwritten).
+  const pendingBlocksRef = useRef<Map<string, Block[]>>(new Map());
+
+  // When the conversation prop updates (i.e. the parent has persisted the edit
+  // and passed the new data back down), clear any pending entries whose blocks
+  // now match the incoming props — they are no longer "in-flight".
+  useEffect(() => {
+    if (!conversation) return;
+    const pending = pendingBlocksRef.current;
+    for (const [messageId] of pending) {
+      const message = conversation.messages.find((m) => m.id === messageId);
+      if (!message) {
+        pending.delete(messageId);
+        continue;
+      }
+      // If the prop blocks now reflect our last pending write, the save has
+      // been acknowledged — remove the entry so the next edit starts fresh.
+      const pendingBlocks = pending.get(messageId);
+      if (
+        pendingBlocks &&
+        pendingBlocks.length === message.blocks.length &&
+        pendingBlocks.every((b, i) => b === message.blocks[i])
+      ) {
+        pending.delete(messageId);
+      }
+    }
+  }, [conversation]);
 
   const highlightedBlocks = useMemo(() => {
     if (!highlightedRuleId || !conversation) {
@@ -304,6 +495,28 @@ export function ReaderView({
     return new Set(matches.map((m) => `${m.messageId}:${m.blockIndex}`));
   }, [highlightedRuleId, activeRules, conversation]);
 
+  const handleBlockChange = useCallback(
+    (messageId: string, blockIndex: number, newBlock: Block) => {
+      if (!onBlocksChange || !conversation) return;
+      const message = conversation.messages.find((m) => m.id === messageId);
+      if (!message) return;
+
+      // Use pending blocks as the base if present (prevents stale-closure
+      // overwrites when the user edits multiple blocks before the debounced
+      // save propagates updated props back down).
+      const baseBlocks =
+        pendingBlocksRef.current.get(messageId) ?? message.blocks;
+
+      const updatedBlocks = baseBlocks.map((b, i) =>
+        i === blockIndex ? newBlock : b,
+      );
+
+      pendingBlocksRef.current.set(messageId, updatedBlocks);
+      onBlocksChange(messageId, updatedBlocks);
+    },
+    [onBlocksChange, conversation],
+  );
+
   if (!conversation?.messages.length) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/75 px-4 py-5 text-sm text-muted-foreground">
@@ -318,10 +531,16 @@ export function ReaderView({
         <ReaderMessage
           key={message.id}
           adjustModeEnabled={adjustModeEnabled}
+          editMode={editMode}
           effectsMap={effectsMap}
           highlightedBlocks={highlightedBlocks}
           message={message}
           messageIndex={index}
+          onBlockChange={editMode ? handleBlockChange : undefined}
+          onBlocksChange={editMode ? onBlocksChange : undefined}
+          onCopyMessage={
+            onCopyMessage ? () => onCopyMessage(message.id) : undefined
+          }
           onSelectBlock={onSelectBlock}
           selectedBlock={selectedBlock}
           isDeleted={deletedMessageIds?.has(message.id)}

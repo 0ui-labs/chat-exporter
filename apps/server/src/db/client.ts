@@ -139,6 +139,32 @@ sqlite.exec(`
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_message_deletions_import_message
     ON message_deletions (import_id, message_id);
+
+  CREATE TABLE IF NOT EXISTS conversation_snapshots (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_conversation_snapshots_import_id
+    ON conversation_snapshots (import_id);
+
+  CREATE TABLE IF NOT EXISTS message_edits (
+    id TEXT PRIMARY KEY,
+    import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+    snapshot_id TEXT NOT NULL REFERENCES conversation_snapshots(id) ON DELETE CASCADE,
+    message_id TEXT NOT NULL,
+    edited_blocks_json TEXT NOT NULL,
+    annotation TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_message_edits_snapshot_message
+    ON message_edits (snapshot_id, message_id);
 `);
 
 // Migration: make format_rules.import_id nullable (SQLite cannot ALTER COLUMN)
@@ -215,4 +241,50 @@ const errorStageColumn = sqlite
 
 if (!errorStageColumn) {
   sqlite.exec(`ALTER TABLE imports ADD COLUMN error_stage TEXT`);
+}
+
+// Migration: rebuild conversation_snapshots to fix schema
+// (remove conversation_json column, change is_active from TEXT to INTEGER)
+const csConversationJsonCol = sqlite
+  .prepare(
+    `SELECT name FROM pragma_table_info('conversation_snapshots') WHERE name = 'conversation_json'`,
+  )
+  .get() as { name: string } | undefined;
+
+if (csConversationJsonCol) {
+  sqlite.exec("PRAGMA foreign_keys = OFF;");
+
+  sqlite.exec(`
+    BEGIN;
+
+    CREATE TABLE conversation_snapshots_new (
+      id TEXT PRIMARY KEY,
+      import_id TEXT NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    INSERT INTO conversation_snapshots_new (id, import_id, label, is_active, created_at, updated_at)
+      SELECT id, import_id, label, CAST(is_active AS INTEGER), created_at, updated_at
+      FROM conversation_snapshots;
+
+    DROP TABLE conversation_snapshots;
+    ALTER TABLE conversation_snapshots_new RENAME TO conversation_snapshots;
+
+    CREATE INDEX IF NOT EXISTS idx_conversation_snapshots_import_id
+      ON conversation_snapshots (import_id);
+
+    COMMIT;
+  `);
+
+  sqlite.exec("PRAGMA foreign_keys = ON;");
+
+  const fkErrors = sqlite.pragma("foreign_key_check") as unknown[];
+  if (fkErrors.length > 0) {
+    throw new Error(
+      `FK integrity check failed after conversation_snapshots migration: ${JSON.stringify(fkErrors)}`,
+    );
+  }
 }

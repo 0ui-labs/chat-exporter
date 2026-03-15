@@ -228,6 +228,10 @@ function ReaderPreviewDiff(props: {
               blockIndex,
               block.type,
               blockText,
+              {
+                messageRole: selectedMessage.role,
+                blocks: selectedMessage.blocks,
+              },
             );
 
             return (

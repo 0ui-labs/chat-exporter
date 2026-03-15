@@ -1,4 +1,13 @@
-import { Download, Eye, EyeOff, Settings2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  History,
+  Pencil,
+  Settings2,
+} from "lucide-react";
 
 import {
   adjustmentLabels,
@@ -7,7 +16,7 @@ import {
   getViewLabel,
 } from "@/components/format-workspace/labels";
 import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
-import type { ViewMode } from "@/components/format-workspace/types";
+import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
 
@@ -20,32 +29,45 @@ const outputViews: { value: ViewMode; label: string }[] = [
 
 type CompletedToolbarProps = {
   adjustModeEnabled: boolean;
+  copySuccess?: boolean;
   deletionsCount?: number;
+  editMode: EditMode;
   isAdjustableView: boolean;
   rules: ReturnType<typeof useFormatRules>;
   showDeleted?: boolean;
+  snapshotCount?: number;
   view: ViewMode;
+  onCopyAll?: () => void;
   onDownloadMarkdown?: () => void;
+  onEditModeChange: (mode: EditMode) => void;
   onToggleAdjustMode: () => void;
   onToggleShowDeleted?: () => void;
+  onVersionsClick?: () => void;
   onViewChange: (view: ViewMode) => void;
 };
 
 export function CompletedToolbar({
   adjustModeEnabled,
+  copySuccess,
   deletionsCount,
+  editMode,
   isAdjustableView,
   rules,
   showDeleted,
+  snapshotCount,
   view,
+  onCopyAll,
   onDownloadMarkdown,
+  onEditModeChange,
   onToggleAdjustMode,
   onToggleShowDeleted,
+  onVersionsClick,
   onViewChange,
 }: CompletedToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      {/* Row 1: Format buttons */}
+      <div data-testid="toolbar-format-row" className="flex flex-wrap gap-2">
         {outputViews.map((outputView) => (
           <Button
             key={outputView.value}
@@ -60,17 +82,75 @@ export function CompletedToolbar({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Row 2: Action buttons */}
+      <div
+        data-testid="toolbar-action-row"
+        className="flex flex-wrap items-center gap-2"
+      >
         {onDownloadMarkdown ? (
           <Button
-            data-testid="download-markdown"
+            data-testid="toolbar-download"
             type="button"
             size="sm"
             variant="outline"
             onClick={onDownloadMarkdown}
           >
             <Download className="mr-2 h-4 w-4" />
-            {adjustmentLabels.download}
+            {adjustmentLabels.downloadAction}
+          </Button>
+        ) : (
+          <Button
+            data-testid="toolbar-download"
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {adjustmentLabels.downloadAction}
+          </Button>
+        )}
+
+        {onCopyAll ? (
+          <Button
+            data-testid="toolbar-copy-all"
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onCopyAll}
+          >
+            {copySuccess ? (
+              <Check className="mr-2 h-4 w-4" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            {copySuccess
+              ? adjustmentLabels.copyAllSuccess
+              : adjustmentLabels.copyAllAction}
+          </Button>
+        ) : (
+          <Button
+            data-testid="toolbar-copy-all"
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            {adjustmentLabels.copyAllAction}
+          </Button>
+        )}
+
+        {snapshotCount && snapshotCount > 0 ? (
+          <Button
+            data-testid="toolbar-versions"
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onVersionsClick}
+          >
+            <History className="mr-2 h-4 w-4" />
+            {adjustmentLabels.versions}
           </Button>
         ) : null}
 
@@ -129,6 +209,23 @@ export function CompletedToolbar({
                 : getAdjustViewLabel(view)}
             </Button>
           </>
+        ) : null}
+
+        {view === "reader" ? (
+          <Button
+            data-testid="toggle-edit-mode"
+            type="button"
+            size="sm"
+            variant={editMode === "edit" ? "default" : "outline"}
+            onClick={() =>
+              onEditModeChange(editMode === "edit" ? "view" : "edit")
+            }
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            {editMode === "edit"
+              ? adjustmentLabels.endEdit
+              : adjustmentLabels.edit}
+          </Button>
         ) : null}
       </div>
     </div>

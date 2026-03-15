@@ -81,6 +81,69 @@ vi.mock("@/components/format-workspace/use-message-deletion", () => ({
   }),
 }));
 
+vi.mock("@/components/format-workspace/use-snapshots", () => ({
+  useSnapshots: () => ({
+    snapshots: [],
+    activeSnapshot: null,
+    isLoading: false,
+    create: vi.fn(),
+    activate: vi.fn(),
+    deactivate: vi.fn(),
+    delete: vi.fn(),
+    rename: vi.fn(),
+    isCreating: false,
+    isActivating: false,
+    isDeactivating: false,
+    isDeleting: false,
+    isRenaming: false,
+  }),
+}));
+
+vi.mock("@/components/format-workspace/use-message-edits", () => ({
+  useMessageEdits: () => ({
+    edits: [],
+    editedMessagesMap: new Map(),
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    hasPendingEdits: false,
+    saveEdit: vi.fn(),
+    deleteEdit: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/format-workspace/use-resolved-conversation", () => ({
+  useResolvedConversation: (
+    conversation:
+      | { messages: Array<{ id: string; role: string; blocks: unknown[] }> }
+      | undefined,
+  ) => {
+    if (!conversation) return [];
+    return conversation.messages.map(
+      (m: { id: string; role: string; blocks: unknown[] }) => ({
+        id: m.id,
+        role: m.role,
+        blocks: m.blocks,
+        isEdited: false,
+      }),
+    );
+  },
+}));
+
+vi.mock("@/components/format-workspace/use-auto-snapshot", () => ({
+  useAutoSnapshot: () => ({
+    ensureSnapshot: vi.fn().mockResolvedValue(true),
+  }),
+}));
+
+vi.mock("@/components/format-workspace/save-indicator", () => ({
+  SaveIndicator: () => null,
+}));
+
+vi.mock("@/components/format-workspace/versions-modal", () => ({
+  VersionsModal: () => <div data-testid="versions-modal" />,
+}));
+
 vi.mock("@/components/format-workspace/use-deletion-toast", () => ({
   useDeletionToast: () => ({
     toast: null,

@@ -16,6 +16,15 @@ import {
   restoreMessageRequestSchema,
 } from "./deletions.js";
 import {
+  activateSnapshotRequestSchema,
+  conversationSnapshotSchema,
+  createSnapshotRequestSchema,
+  deleteMessageEditRequestSchema,
+  messageEditSchema,
+  renameSnapshotRequestSchema,
+  saveMessageEditRequestSchema,
+} from "./edits.js";
+import {
   importJobSchema,
   importListRequestSchema,
   importRequestSchema,
@@ -132,6 +141,44 @@ export const contract = {
     restore: oc
       .input(restoreMessageRequestSchema)
       .output(z.object({ restored: z.boolean() })),
+  },
+
+  edits: {
+    save: oc.input(saveMessageEditRequestSchema).output(messageEditSchema),
+
+    delete: oc
+      .input(deleteMessageEditRequestSchema)
+      .output(z.object({ deleted: z.boolean() })),
+
+    listForSnapshot: oc
+      .input(z.object({ snapshotId: z.string() }))
+      .output(z.array(messageEditSchema)),
+  },
+
+  snapshots: {
+    list: oc
+      .input(z.object({ importId: z.string() }))
+      .output(z.array(conversationSnapshotSchema)),
+
+    create: oc
+      .input(createSnapshotRequestSchema)
+      .output(conversationSnapshotSchema),
+
+    activate: oc
+      .input(activateSnapshotRequestSchema)
+      .output(conversationSnapshotSchema),
+
+    deactivate: oc
+      .input(z.object({ importId: z.string() }))
+      .output(z.object({ deactivated: z.boolean() })),
+
+    delete: oc
+      .input(z.object({ importId: z.string(), snapshotId: z.string() }))
+      .output(z.object({ deleted: z.boolean() })),
+
+    rename: oc
+      .input(renameSnapshotRequestSchema)
+      .output(conversationSnapshotSchema),
   },
 
   health: {
