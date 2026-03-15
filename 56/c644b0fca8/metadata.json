@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "56c644b0fca8",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/lib/artifact-generators.test.ts",
+    "apps/server/src/lib/artifact-generators.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/56/c644b0fca8/0/metadata.json",
+      "transcript": "/56/c644b0fca8/0/full.jsonl",
+      "content_hash": "/56/c644b0fca8/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 14689,
+    "cache_read_tokens": 183242,
+    "output_tokens": 4817,
+    "api_call_count": 2
+  }
+}
