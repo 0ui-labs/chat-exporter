@@ -1,6 +1,5 @@
 import type { Block, ImportJob } from "@chat-exporter/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
@@ -41,6 +40,7 @@ import { useMessageEdits } from "@/components/format-workspace/use-message-edits
 import { useResolvedConversation } from "@/components/format-workspace/use-resolved-conversation";
 import { useSnapshots } from "@/components/format-workspace/use-snapshots";
 import { VersionsModal } from "@/components/format-workspace/versions-modal";
+import { clientFormatRegistry } from "@/lib/format-plugins";
 
 type ActiveStage = {
   detail: string;
@@ -65,6 +65,18 @@ function _describeSelectionLabel(selection: AdjustmentSelection) {
     selection.messageIndex + 1,
     selection.blockType,
   );
+}
+
+function downloadBlob(content: string, mimeType: string, filename: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 export function FormatWorkspace({
@@ -255,6 +267,9 @@ export function FormatWorkspace({
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleCopyAll = useMemo(() => {
+    const plugin = clientFormatRegistry.get(view);
+    if (!plugin) return undefined;
+
     const doCopy = async (content: string, isHtml: boolean) => {
       try {
         if (isHtml) {
@@ -277,11 +292,7 @@ export function FormatWorkspace({
       }
     };
 
-    if (view === "markdown") {
-      return () => {
-        void doCopy(displayedMarkdown, false);
-      };
-    }
+    // Reader: special logic with buildReaderHtml
     if (view === "reader" && resolvedConversation) {
       return () => {
         const html = buildReaderHtml(
@@ -292,7 +303,16 @@ export function FormatWorkspace({
         void doCopy(html, true);
       };
     }
-    if ((view === "handover" || view === "json") && artifact) {
+
+    // Markdown: displayedMarkdown already has rules applied
+    if (view === "markdown") {
+      return () => {
+        void doCopy(displayedMarkdown, false);
+      };
+    }
+
+    // Others: raw artifact
+    if (artifact) {
       return () => {
         void doCopy(artifact, false);
       };
@@ -308,19 +328,10 @@ export function FormatWorkspace({
   ]);
 
   const handleDownload = useMemo(() => {
-    if (view === "markdown") {
-      return () => {
-        const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      };
-    }
+    const plugin = clientFormatRegistry.get(view);
+    if (!plugin) return undefined;
+
+    // Reader has special download logic (needs effectsMap, conversation)
     if (view === "reader" && resolvedConversation) {
       return () => {
         const html = buildReaderHtml(
@@ -328,32 +339,27 @@ export function FormatWorkspace({
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
         );
-        const blob = new Blob([html], { type: "text/html" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        downloadBlob(
+          html,
+          plugin.descriptor.exportMimeType,
+          `export-${job.id}${plugin.descriptor.exportExtension}`,
+        );
       };
     }
-    if ((view === "handover" || view === "json") && artifact) {
-      return () => {
-        const ext = view === "json" ? "json" : "md";
-        const blob = new Blob([artifact], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      };
-    }
-    return undefined;
+
+    // For all other formats: use prepareDownload if available, else raw content
+    const content = view === "markdown" ? displayedMarkdown : artifact;
+    if (!content) return undefined;
+
+    return () => {
+      const finalContent =
+        plugin.prepareDownload?.(content, rules.activeRules) ?? content;
+      downloadBlob(
+        finalContent,
+        plugin.descriptor.exportMimeType,
+        `export-${job.id}${plugin.descriptor.exportExtension}`,
+      );
+    };
   }, [
     view,
     displayedMarkdown,
@@ -361,6 +367,7 @@ export function FormatWorkspace({
     resolvedConversation,
     readerEffectsMap,
     artifact,
+    rules.activeRules,
   ]);
   const showPopover =
     session.adjustModeEnabled &&
