@@ -1,0 +1,120 @@
+Kannst du das Add Block element das im editiermodus on hover erscheint genua in die Mitte zwischen 2 Elemente setzen
+
+---
+
+Jetzt tauch das Element beim hovern überhaupt nicht mehr auf
+
+---
+
+Ist nicht genau zwischen den Blöcken zentriert, hängt immer etwas weiter unten aber das liegt wol auch daran das einige Elemente ein größeres Margin oder padding haben. Das ist natürlich schwierig dann zuverlässig genu in der Mitte zwischen 2 blöcken zu platzieren
+
+---
+
+Ja aber immer wenn man den edit mode aktiviert ändern sich die Abstände zwischen den blöcken weil die Add Block elemente hinzugefügt werden.
+
+---
+
+Hier macht transparenz keinen sinn
+
+---
+
+Das ist passiert nachdem ich in einem Block eine herumgeschrieben habe und einen punkt entfernt habe
+
+---
+
+Failed to load resource: the server responded with a status of 500 (Internal Server Error)Fehler nachvollziehen
+:5173/rpc/imports/list:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Fehler nachvollziehen
+chunk-NKCD7RFJ.js?v=bf693b18:16718 Uncaught NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChild (chunk-NKCD7RFJ.js?v=bf693b18:8503:26)
+    at commitDeletionEffectsOnFiber (chunk-NKCD7RFJ.js?v=bf693b18:17560:21)
+    at commitDeletionEffects (chunk-NKCD7RFJ.js?v=bf693b18:17526:13)
+    at recursivelyTraverseMutationEffects (chunk-NKCD7RFJ.js?v=bf693b18:17724:17)
+    at commitMutationEffectsOnFiber (chunk-NKCD7RFJ.js?v=bf693b18:17787:15)
+    at recursivelyTraverseMutationEffects (chunk-NKCD7RFJ.js?v=bf693b18:17735:15)
+    at commitMutationEffectsOnFiber (chunk-NKCD7RFJ.js?v=bf693b18:17749:15)
+    at recursivelyTraverseMutationEffects (chunk-NKCD7RFJ.js?v=bf693b18:17735:15)
+    at commitMutationEffectsOnFiber (chunk-NKCD7RFJ.js?v=bf693b18:17787:15)
+    at recursivelyTraverseMutationEffects (chunk-NKCD7RFJ.js?v=bf693b18:17735:15)Fehler nachvollziehen
+installHook.js:1 The above error occurred in the <li> component:
+
+    at li
+    at ul
+    at BlockRenderer (http://localhost:5173/src/components/format-workspace/reader-view.tsx?t=1773598615587:34:118)
+    at div
+    at EditableBlock (http://localhost:5173/src/components/format-workspace/editable-block.tsx:86:33)
+    at ErrorBoundary (http://localhost:5173/src/components/error-boundary.tsx:39:9)
+    at div
+    at div
+    at div
+    at article
+    at ReaderMessage (http://localhost:5173/src/components/format-workspace/reader-view.tsx?t=1773598615587:52:70)
+    at div
+    at ReaderView (http://localhost:5173/src/components/format-workspace/reader-view.tsx?t=1773598615587:441:30)
+    at div
+    at ErrorBoundary (http://localhost:5173/src/components/error-boundary.tsx:39:9)
+    at div
+    at section
+    at FormatWorkspace (http://localhost:5173/src/components/format-workspace/format-workspace.tsx?t=1773598615587:68:35)
+    at div
+    at div
+    at _c8 (http://localhost:5173/src/components/ui/card.tsx:67:68)
+    at div
+    at _c (http://localhost:5173/src/components/ui/card.tsx:23:60)
+    at div
+    at HomePage (http://localhost:5173/src/routes/home-page.tsx?t=1773598615587:77:45)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:4131:5)
+    at Outlet (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:4537:26)
+    at main
+    at div
+    at div
+    at RootLayout
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:4131:5)
+    at RenderErrorBoundary (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:4091:5)
+    at DataRoutes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:5282:5)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:4544:15)
+    at RouterProvider (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=bf693b18:5096:5)
+    at QueryClientProvider (http://localhost:5173/node_modules/.vite/deps/chunk-2ESBK24T.js?v=bf693b18:44:3)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+overrideMethod @ installHook.js:1Fehler nachvollziehen
+
+---
+
+Das scheint jetzt ok zu sein aber was ist das Failed to load resource: the server responded with a status of 500 (Internal Server Error)Fehler nachvollziehen
+:5173/rpc/imports/list:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Fehler nachvollziehen
+
+---
+
+Nein, kann ich nicht weil du den Server gestartet hast
+
+---
+
+läuft er jetzt weil der Feherl immernoch auftritt
+
+---
+
+Ok, gefixed aber aus irgend einem Grund kann man manchmal das Tooltip nicht mehr mit der Maus erreichen weil es bereits zum nächten Block gewecheslt hat wenn man mit dem Mauszeiger an dem Punkt angekommen ist. Es "rennt" quasi vor einem weg.
+
+---
+
+Nein, das löst das Problem nicht, schau mal wo mein Mauszeiger ist und wo das Tooltip für den Block, sehr viel weiter oben
+
+---
+
+Ich das problem wird durch die add Block Elemente ausgelöst die on hover auftauschen
+
+---
+
+Nein , das hat das problem nicht gelöst nur das jetzt auch noch die Insert block elemente garnicht mehr auftauchen
+
+---
+
+Das ist keine gute Lösung jetzt sieht man alle permanet
+
+---
+
+Das funktioniert einfach nicht. Die add block elemente kommen sich imemr irgendwie mit den Tooltips in die Quere. Was das irgendwie anders lösen
+
+---
+
+ja bitte
