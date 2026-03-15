@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "615ebab30ec3",
+  "session_id": "1eb51b75-68fe-4d65-89b5-281acbed75cf",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T12:19:00.842962Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "packages/shared/src/adjustments.ts",
+    "packages/shared/src/output-formats.ts",
+    "packages/shared/src/output-formats.test.ts",
+    "packages/shared/src/index.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1a05d3f3d7c6",
+  "token_usage": {
+    "input_tokens": 2641,
+    "cache_creation_tokens": 78926,
+    "cache_read_tokens": 1880425,
+    "output_tokens": 8218,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T12:19:00.749417Z",
+    "agent_lines": 298,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 298,
+    "agent_percentage": 100
+  }
+}

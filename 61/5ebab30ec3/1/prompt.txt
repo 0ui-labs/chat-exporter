@@ -1,0 +1,1 @@
+/implement '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-2.4-pluggable-output-formate.md'
