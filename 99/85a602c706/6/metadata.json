@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "9985a602c706",
+  "session_id": "ebf8c8a9-149e-4bb6-8912-8b87cd15ead6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T21:51:46.620063Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/lib/artifact-generators.test.ts",
+    "apps/server/src/lib/conversation-merge.test.ts",
+    "apps/server/src/lib/import-store.test.ts",
+    "apps/server/src/scripts/format-adjustments-smoke.ts",
+    "apps/web/src/components/format-workspace/block-inserter.test.tsx",
+    "apps/web/src/components/format-workspace/block-inserter.tsx",
+    "apps/web/src/components/format-workspace/block-toolbar.test.tsx",
+    "apps/web/src/components/format-workspace/block-toolbar.tsx",
+    "apps/web/src/components/format-workspace/editable-block.test.tsx",
+    "apps/web/src/components/format-workspace/editable-block.tsx",
+    "apps/web/src/components/format-workspace/format-workspace.test.tsx",
+    "apps/web/src/components/format-workspace/message-clipboard.test.ts",
+    "apps/web/src/components/format-workspace/reader-html-export.test.ts",
+    "apps/web/src/components/format-workspace/reader-view.test.tsx",
+    "apps/web/src/components/format-workspace/rule-engine.test.ts",
+    "apps/web/src/components/format-workspace/rule-matching.test.ts",
+    "apps/web/src/components/format-workspace/use-resolved-conversation.test.ts",
+    "packages/shared/package.json",
+    "packages/shared/src/__tests__/edits.test.ts",
+    "packages/shared/src/conversation.test.ts",
+    "packages/shared/src/conversation.ts",
+    "pnpm-lock.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2f1988267d8c",
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 122452,
+    "cache_read_tokens": 7672717,
+    "output_tokens": 22902,
+    "api_call_count": 75
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T21:51:46.315293Z",
+    "agent_lines": 535,
+    "human_added": 34,
+    "human_modified": 25,
+    "human_removed": 0,
+    "total_committed": 594,
+    "agent_percentage": 90.06734006734007
+  }
+}

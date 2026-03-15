@@ -5,13 +5,28 @@
   "branch": "feat/2.4-pluggable-output-formate",
   "checkpoints_count": 28,
   "files_touched": [
+    "apps/server/src/lib/artifact-generators.test.ts",
+    "apps/server/src/lib/conversation-merge.test.ts",
+    "apps/server/src/lib/import-store.test.ts",
+    "apps/server/src/scripts/format-adjustments-smoke.ts",
     "apps/web/src/components/format-workspace/block-inserter.test.tsx",
     "apps/web/src/components/format-workspace/block-inserter.tsx",
     "apps/web/src/components/format-workspace/block-toolbar.test.tsx",
     "apps/web/src/components/format-workspace/block-toolbar.tsx",
     "apps/web/src/components/format-workspace/editable-block.test.tsx",
     "apps/web/src/components/format-workspace/editable-block.tsx",
-    "apps/web/src/components/format-workspace/format-workspace.test.tsx"
+    "apps/web/src/components/format-workspace/format-workspace.test.tsx",
+    "apps/web/src/components/format-workspace/message-clipboard.test.ts",
+    "apps/web/src/components/format-workspace/reader-html-export.test.ts",
+    "apps/web/src/components/format-workspace/reader-view.test.tsx",
+    "apps/web/src/components/format-workspace/rule-engine.test.ts",
+    "apps/web/src/components/format-workspace/rule-matching.test.ts",
+    "apps/web/src/components/format-workspace/use-resolved-conversation.test.ts",
+    "packages/shared/package.json",
+    "packages/shared/src/__tests__/edits.test.ts",
+    "packages/shared/src/conversation.test.ts",
+    "packages/shared/src/conversation.ts",
+    "pnpm-lock.yaml"
   ],
   "sessions": [
     {
@@ -49,13 +64,19 @@
       "transcript": "/99/85a602c706/5/full.jsonl",
       "content_hash": "/99/85a602c706/5/content_hash.txt",
       "prompt": "/99/85a602c706/5/prompt.txt"
+    },
+    {
+      "metadata": "/99/85a602c706/6/metadata.json",
+      "transcript": "/99/85a602c706/6/full.jsonl",
+      "content_hash": "/99/85a602c706/6/content_hash.txt",
+      "prompt": "/99/85a602c706/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 478,
-    "cache_creation_tokens": 1068086,
-    "cache_read_tokens": 39453522,
-    "output_tokens": 139113,
-    "api_call_count": 399
+    "input_tokens": 555,
+    "cache_creation_tokens": 1190538,
+    "cache_read_tokens": 47126239,
+    "output_tokens": 162015,
+    "api_call_count": 474
   }
 }
