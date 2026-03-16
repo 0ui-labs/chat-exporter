@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "c0eab7cda55b",
+  "session_id": "94cd963e-7e1c-4041-9fe6-d8539edb5a2e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:54:19.703508Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/lib/adjustment-agent.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7ea2b15175e2",
+  "checkpoint_transcript_start": 146,
+  "transcript_lines_at_start": 146,
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 1473,
+    "cache_read_tokens": 47235,
+    "output_tokens": 431,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:54:19.674565Z",
+    "agent_lines": 9,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9,
+    "agent_percentage": 100
+  }
+}
