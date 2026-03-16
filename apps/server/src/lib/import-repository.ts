@@ -184,8 +184,8 @@ export function listImportSummaries(
     query = query.where(and(...conditions));
   }
 
-  return query.all().map((row) =>
-    importSummarySchema.parse({
+  return query.all().flatMap((row) => {
+    const parsed = importSummarySchema.safeParse({
       id: row.id,
       sourceUrl: row.sourceUrl,
       sourcePlatform: row.sourcePlatform,
@@ -198,8 +198,9 @@ export function listImportSummaries(
       error: row.error ?? undefined,
       summary: parseJson<ImportJob["summary"]>(row.summaryJson),
       pageTitle: row.pageTitle ?? undefined,
-    }),
-  );
+    });
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 export function deleteImport(id: string): boolean {
