@@ -16,6 +16,8 @@
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
   --radius-xl: var(--radius);
   --radius-2xl: calc(var(--radius) + 0.5rem);
   --shadow-panel: 0 1px 0 hsl(var(--foreground) / 0.06),
@@ -48,6 +50,8 @@
   --primary-foreground: 0 0% 100%;
   --accent: 28 95% 58%;
   --accent-foreground: 17 36% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 195 28% 11%;
   --border: 192 24% 84%;
   --input: 192 24% 84%;
   --ring: 177 70% 26%;
