@@ -1,0 +1,25 @@
+Kannst du mir das hier für laien erklären? Warum ist das gut? was genau macht es? Was wird besser? https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2
+
+---
+
+Ist das nur ein Stripe internes Tool oder ist das verfügbar
+
+---
+
+Hmm, in wiefern wäre das für mich praktisch nutzbar
+
+---
+
+Würdest du sagen das ich bereits ein sehr effizientes und fortgeschrittenes Setup verwende?
+
+---
+
+Ich verwende ausßerdem Entire und claude mem
+
+---
+
+Kannst du dir das mal anschauen https://github.com/mksglu/context-mode
+
+---
+
+Kannst du ein Dokument schreiben das mein Setup beschreibt mit begründungen und einer Setupanleitung für neue Projekte
