@@ -1,12 +1,13 @@
-import type { ImportStage, SourcePlatform } from "@chat-exporter/shared";
-
+import type { SourcePlatform } from "@chat-exporter/shared";
 import { importChatGptSharePage } from "./chatgpt-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
+import type { PlatformParser, StageCallback } from "./parser-types.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
-type StageCallback = (
-  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
-) => void;
+/** Registry of platform-specific parsers. Platforms not in this map use the generic fallback. */
+const parserRegistry = new Map<SourcePlatform, PlatformParser>([
+  ["chatgpt", importChatGptSharePage as PlatformParser],
+]);
 
 export async function importSharePage(
   url: string,
@@ -16,11 +17,10 @@ export async function importSharePage(
   },
 ) {
   const sourcePlatform = options?.sourcePlatform ?? classifySourcePlatform(url);
+  const parser = parserRegistry.get(sourcePlatform);
 
-  if (sourcePlatform === "chatgpt") {
-    return importChatGptSharePage(url, {
-      onStage: options?.onStage,
-    });
+  if (parser) {
+    return parser(url, { onStage: options?.onStage });
   }
 
   return importGenericSharePage(url, {
