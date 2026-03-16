@@ -3,8 +3,9 @@
   "checkpoint_id": "68c576183137",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
+    "apps/server/src/lib/source-platform.test.ts",
     "apps/server/src/lib/source-platform.ts"
   ],
   "sessions": [
@@ -19,13 +20,19 @@
       "transcript": "/68/c576183137/1/full.jsonl",
       "content_hash": "/68/c576183137/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/68/c576183137/2/metadata.json",
+      "transcript": "/68/c576183137/2/full.jsonl",
+      "content_hash": "/68/c576183137/2/content_hash.txt",
+      "prompt": "/68/c576183137/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 168,
-    "cache_creation_tokens": 115042,
-    "cache_read_tokens": 10826598,
-    "output_tokens": 37184,
-    "api_call_count": 134
+    "input_tokens": 178,
+    "cache_creation_tokens": 184760,
+    "cache_read_tokens": 11106849,
+    "output_tokens": 49227,
+    "api_call_count": 140
   }
 }
