@@ -8,6 +8,7 @@ import {
   listBlockSchema,
   paragraphBlockSchema,
   quoteBlockSchema,
+  sourcePlatformSchema,
   tableBlockSchema,
 } from "./conversation.js";
 
@@ -102,5 +103,31 @@ describe("block schema id field", () => {
     const b = blockSchema.parse({ type: "paragraph", text: "b" });
 
     expect(a.id).not.toBe(b.id);
+  });
+});
+
+describe("sourcePlatformSchema", () => {
+  test.each([
+    "chatgpt",
+    "claude",
+    "gemini",
+    "grok",
+    "deepseek",
+    "notebooklm",
+    "aistudio",
+    "perplexity",
+    "lechat",
+    "kimi",
+    "unknown",
+  ])("accepts valid platform: %s", (platform) => {
+    const result = sourcePlatformSchema.safeParse(platform);
+
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects invalid platform string", () => {
+    const result = sourcePlatformSchema.safeParse("nonexistent");
+
+    expect(result.success).toBe(false);
   });
 });

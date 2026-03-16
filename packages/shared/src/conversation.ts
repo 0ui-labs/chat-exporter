@@ -12,6 +12,10 @@ export const sourcePlatformSchema = z.enum([
   "grok",
   "deepseek",
   "notebooklm",
+  "aistudio",
+  "perplexity",
+  "lechat",
+  "kimi",
   "unknown",
 ]);
 
