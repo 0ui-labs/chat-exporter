@@ -8,6 +8,14 @@ vi.mock("./chatgpt-share-import.js", () => ({
   }),
 }));
 
+vi.mock("./gemini-share-import.js", () => ({
+  importGeminiSharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "gemini-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://gemini.google.com/share/123" },
+  }),
+}));
+
 vi.mock("./generic-share-import.js", () => ({
   importGenericSharePage: vi.fn().mockResolvedValue({
     conversation: { id: "generic-conv" },
@@ -21,11 +29,13 @@ vi.mock("./source-platform.js", () => ({
 }));
 
 import { importChatGptSharePage } from "./chatgpt-share-import.js";
+import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
 const mockChatGptParser = vi.mocked(importChatGptSharePage);
+const mockGeminiParser = vi.mocked(importGeminiSharePage);
 const mockGenericParser = vi.mocked(importGenericSharePage);
 const mockClassify = vi.mocked(classifySourcePlatform);
 
@@ -74,6 +84,26 @@ describe("importSharePage", () => {
     });
   });
 
+  test("routes gemini URLs to the gemini parser via registry", async () => {
+    mockClassify.mockReturnValue("gemini");
+
+    const result = await importSharePage("https://gemini.google.com/share/123");
+
+    expect(mockGeminiParser).toHaveBeenCalledOnce();
+    expect(mockGeminiParser).toHaveBeenCalledWith(
+      "https://gemini.google.com/share/123",
+      {
+        onStage: undefined,
+      },
+    );
+    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "gemini-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://gemini.google.com/share/123" },
+    });
+  });
+
   test("detects platform from URL when sourcePlatform is not provided", async () => {
     mockClassify.mockReturnValue("gemini");
 
@@ -82,9 +112,11 @@ describe("importSharePage", () => {
     expect(mockClassify).toHaveBeenCalledWith(
       "https://gemini.google.com/share/123",
     );
-    expect(mockGenericParser).toHaveBeenCalledWith(
+    expect(mockGeminiParser).toHaveBeenCalledWith(
       "https://gemini.google.com/share/123",
-      expect.objectContaining({ sourcePlatform: "gemini" }),
+      {
+        onStage: undefined,
+      },
     );
   });
 

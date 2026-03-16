@@ -1,5 +1,6 @@
 import type { SourcePlatform } from "@chat-exporter/shared";
 import { importChatGptSharePage } from "./chatgpt-share-import.js";
+import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
 import type { PlatformParser, StageCallback } from "./parser-types.js";
 import { classifySourcePlatform } from "./source-platform.js";
@@ -7,6 +8,7 @@ import { classifySourcePlatform } from "./source-platform.js";
 /** Registry of platform-specific parsers. Platforms not in this map use the generic fallback. */
 const parserRegistry = new Map<SourcePlatform, PlatformParser>([
   ["chatgpt", importChatGptSharePage as PlatformParser],
+  ["gemini", importGeminiSharePage as PlatformParser],
 ]);
 
 export async function importSharePage(
