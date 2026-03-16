@@ -4,6 +4,7 @@ import { importClaudeSharePage } from "./claude-share-import.js";
 import { importDeepSeekSharePage } from "./deepseek-share-import.js";
 import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
+import { importGrokSharePage } from "./grok-share-import.js";
 import type { PlatformParser, StageCallback } from "./parser-types.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
@@ -13,6 +14,7 @@ const parserRegistry = new Map<SourcePlatform, PlatformParser>([
   ["claude", importClaudeSharePage as PlatformParser],
   ["deepseek", importDeepSeekSharePage as PlatformParser],
   ["gemini", importGeminiSharePage as PlatformParser],
+  ["grok", importGrokSharePage as PlatformParser],
 ]);
 
 export async function importSharePage(

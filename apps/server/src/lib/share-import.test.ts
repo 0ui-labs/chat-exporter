@@ -40,6 +40,14 @@ vi.mock("./generic-share-import.js", () => ({
   }),
 }));
 
+vi.mock("./grok-share-import.js", () => ({
+  importGrokSharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "grok-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://grok.com/share/abc123" },
+  }),
+}));
+
 vi.mock("./source-platform.js", () => ({
   classifySourcePlatform: vi.fn().mockReturnValue("unknown"),
 }));
@@ -49,6 +57,7 @@ import { importClaudeSharePage } from "./claude-share-import.js";
 import { importDeepSeekSharePage } from "./deepseek-share-import.js";
 import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
+import { importGrokSharePage } from "./grok-share-import.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
@@ -56,6 +65,7 @@ const mockChatGptParser = vi.mocked(importChatGptSharePage);
 const mockClaudeParser = vi.mocked(importClaudeSharePage);
 const mockDeepSeekParser = vi.mocked(importDeepSeekSharePage);
 const mockGeminiParser = vi.mocked(importGeminiSharePage);
+const mockGrokParser = vi.mocked(importGrokSharePage);
 const mockGenericParser = vi.mocked(importGenericSharePage);
 const mockClassify = vi.mocked(classifySourcePlatform);
 
@@ -125,8 +135,28 @@ describe("importSharePage", () => {
     });
   });
 
-  test("routes unknown platforms to the generic parser", async () => {
+  test("routes grok URLs to the grok parser via registry", async () => {
     mockClassify.mockReturnValue("grok");
+
+    const result = await importSharePage("https://grok.com/share/abc123");
+
+    expect(mockGrokParser).toHaveBeenCalledOnce();
+    expect(mockGrokParser).toHaveBeenCalledWith(
+      "https://grok.com/share/abc123",
+      {
+        onStage: undefined,
+      },
+    );
+    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "grok-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://grok.com/share/abc123" },
+    });
+  });
+
+  test("routes unknown platforms to the generic parser", async () => {
+    mockClassify.mockReturnValue("perplexity");
 
     const result = await importSharePage("https://example.com/share/xyz");
 
@@ -135,12 +165,13 @@ describe("importSharePage", () => {
       "https://example.com/share/xyz",
       {
         onStage: undefined,
-        sourcePlatform: "grok",
+        sourcePlatform: "perplexity",
       },
     );
     expect(mockChatGptParser).not.toHaveBeenCalled();
     expect(mockClaudeParser).not.toHaveBeenCalled();
     expect(mockDeepSeekParser).not.toHaveBeenCalled();
+    expect(mockGrokParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "generic-conv" },
       warnings: [],
@@ -221,8 +252,22 @@ describe("importSharePage", () => {
     );
   });
 
-  test("passes onStage callback to the generic parser", async () => {
+  test("passes onStage callback to the grok parser", async () => {
     mockClassify.mockReturnValue("grok");
+    const onStage = vi.fn();
+
+    await importSharePage("https://grok.com/share/abc123", { onStage });
+
+    expect(mockGrokParser).toHaveBeenCalledWith(
+      "https://grok.com/share/abc123",
+      {
+        onStage,
+      },
+    );
+  });
+
+  test("passes onStage callback to the generic parser", async () => {
+    mockClassify.mockReturnValue("perplexity");
     const onStage = vi.fn();
 
     await importSharePage("https://example.com/share/xyz", { onStage });
@@ -231,7 +276,7 @@ describe("importSharePage", () => {
       "https://example.com/share/xyz",
       {
         onStage,
-        sourcePlatform: "grok",
+        sourcePlatform: "perplexity",
       },
     );
   });
