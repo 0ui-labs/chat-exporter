@@ -1,9 +1,11 @@
 import type {
+  Conversation,
   ImportArtifacts,
   ImportJob,
   ImportListRequest,
   ImportRequest,
   ImportSummary,
+  SourcePlatform,
 } from "@chat-exporter/shared";
 import { withTransaction } from "../db/client.js";
 import {
@@ -96,6 +98,43 @@ export function createImportJob(input: ImportRequest) {
 
   insertImport(job);
   return job;
+}
+
+export function createClipboardImportJob(input: {
+  conversation: Conversation;
+  warnings: string[];
+  detectedPlatform: SourcePlatform;
+  mode: ImportJob["mode"];
+}) {
+  const timestamp = now();
+  const job: ImportJob = {
+    id: crypto.randomUUID(),
+    sourceUrl: `clipboard://${input.detectedPlatform}`,
+    sourcePlatform: input.detectedPlatform,
+    mode: input.mode,
+    importMethod: "clipboard",
+    status: "completed",
+    currentStage: "done",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    warnings: input.warnings,
+    conversation: input.conversation,
+    summary: {
+      messageCount: input.conversation.messages.length,
+      transcriptWords: conversationWordCount(input.conversation),
+    },
+  };
+
+  withTransaction(() => {
+    insertImport(job);
+
+    const rendered: ImportJob = { ...job };
+    const artifacts = buildArtifacts(rendered);
+
+    patchJob(job.id, { artifacts });
+  });
+
+  return getPersistedImport(job.id) ?? job;
 }
 
 export async function runImportJob(id: string) {

@@ -3,12 +3,17 @@ import { describe, expect, test, vi } from "vitest";
 vi.mock("../lib/import-store.js", () => ({
   listImportJobs: vi.fn(),
   createImportJob: vi.fn(),
+  createClipboardImportJob: vi.fn(),
   runImportJob: vi.fn(),
   getImportJob: vi.fn(),
 }));
 
 vi.mock("../lib/import-repository.js", () => ({
   getPersistedImportSnapshot: vi.fn(),
+}));
+
+vi.mock("../lib/clipboard-import.js", () => ({
+  importFromClipboard: vi.fn(),
 }));
 
 vi.mock("../lib/adjustment-repository.js", () => ({
@@ -81,6 +86,7 @@ import {
   recordAdjustmentEvent,
   reopenAdjustmentSession,
 } from "../lib/adjustment-repository.js";
+import { importFromClipboard } from "../lib/clipboard-import.js";
 import {
   listDeletions,
   restoreMessage,
@@ -94,6 +100,7 @@ import {
 } from "../lib/edit-repository.js";
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
+  createClipboardImportJob,
   createImportJob,
   getImportJob,
   listImportJobs,
@@ -114,8 +121,12 @@ const client = createRouterClient(router);
 
 const mockListImportJobs = listImportJobs as ReturnType<typeof vi.fn>;
 const mockCreateImportJob = createImportJob as ReturnType<typeof vi.fn>;
+const mockCreateClipboardImportJob = createClipboardImportJob as ReturnType<
+  typeof vi.fn
+>;
 const mockRunImportJob = runImportJob as ReturnType<typeof vi.fn>;
 const mockGetImportJob = getImportJob as ReturnType<typeof vi.fn>;
+const mockImportFromClipboard = importFromClipboard as ReturnType<typeof vi.fn>;
 const mockGetPersistedImportSnapshot = getPersistedImportSnapshot as ReturnType<
   typeof vi.fn
 >;
@@ -260,13 +271,118 @@ describe("imports.create", () => {
     expect(mockRunImportJob).toHaveBeenCalledWith(job.id);
   });
 
-  test("rejects non-ChatGPT share link with BAD_REQUEST", async () => {
+  test("accepts any HTTP/HTTPS URL", async () => {
+    const job = createImportJobFixture({
+      status: "queued",
+      sourceUrl: "https://claude.ai/share/abc-123",
+      sourcePlatform: "claude",
+    });
+    mockCreateImportJob.mockReturnValue(job);
+    mockRunImportJob.mockResolvedValue(undefined);
+
+    const result = await client.imports.create({
+      url: "https://claude.ai/share/abc-123",
+      mode: "archive",
+    });
+
+    expect(result).toEqual(job);
+    expect(mockCreateImportJob).toHaveBeenCalledWith({
+      url: "https://claude.ai/share/abc-123",
+      mode: "archive",
+    });
+  });
+
+  test("rejects non-HTTP URL with BAD_REQUEST", async () => {
     await expect(
       client.imports.create({
-        url: "https://example.com/not-a-share-link",
+        url: "ftp://example.com/file",
         mode: "archive",
       }),
     ).rejects.toThrow(ORPCError);
+  });
+});
+
+describe("imports.createFromClipboard", () => {
+  test("creates import job from clipboard HTML", async () => {
+    const clipboardResult = {
+      conversation: {
+        id: "conv-1",
+        title: "Pasted Chat",
+        source: { url: "clipboard://paste", platform: "chatgpt" },
+        messages: [
+          {
+            id: "msg-1",
+            role: "user",
+            blocks: [{ type: "paragraph", text: "Hello" }],
+          },
+        ],
+      },
+      warnings: [],
+      detectedPlatform: "chatgpt",
+    };
+    mockImportFromClipboard.mockResolvedValue(clipboardResult);
+
+    const job = createImportJobFixture({
+      sourceUrl: "clipboard://chatgpt",
+      sourcePlatform: "chatgpt",
+      importMethod: "clipboard",
+      status: "completed",
+    });
+    mockCreateClipboardImportJob.mockReturnValue(job);
+
+    const result = await client.imports.createFromClipboard({
+      html: "<p>Hello</p>",
+    });
+
+    expect(result).toEqual(job);
+    expect(mockImportFromClipboard).toHaveBeenCalledWith({
+      html: "<p>Hello</p>",
+      plainText: undefined,
+    });
+    expect(mockCreateClipboardImportJob).toHaveBeenCalledWith({
+      conversation: clipboardResult.conversation,
+      warnings: clipboardResult.warnings,
+      detectedPlatform: "chatgpt",
+      mode: "archive",
+    });
+  });
+
+  test("creates import job from clipboard plain text", async () => {
+    const clipboardResult = {
+      conversation: {
+        id: "conv-1",
+        title: "Pasted Chat",
+        source: { url: "clipboard://paste", platform: "unknown" },
+        messages: [
+          {
+            id: "msg-1",
+            role: "unknown",
+            blocks: [{ type: "paragraph", text: "Hello world" }],
+          },
+        ],
+      },
+      warnings: ["Imported from plain text — formatting may be lost."],
+      detectedPlatform: "unknown",
+    };
+    mockImportFromClipboard.mockResolvedValue(clipboardResult);
+
+    const job = createImportJobFixture({
+      sourceUrl: "clipboard://unknown",
+      sourcePlatform: "unknown",
+      importMethod: "clipboard",
+      status: "completed",
+    });
+    mockCreateClipboardImportJob.mockReturnValue(job);
+
+    const result = await client.imports.createFromClipboard({
+      plainText: "Hello world",
+    });
+
+    expect(result).toEqual(job);
+    expect(mockImportFromClipboard).toHaveBeenCalledWith({
+      html: undefined,
+      plainText: "Hello world",
+    });
   });
 });
 
