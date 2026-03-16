@@ -4,20 +4,28 @@
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
   "checkpoints_count": 1,
-  "files_touched": null,
+  "files_touched": [
+    "apps/server/src/lib/parser-dom-kit.ts"
+  ],
   "sessions": [
     {
       "metadata": "/25/201c10d286/0/metadata.json",
       "transcript": "/25/201c10d286/0/full.jsonl",
       "content_hash": "/25/201c10d286/0/content_hash.txt",
       "prompt": "/25/201c10d286/0/prompt.txt"
+    },
+    {
+      "metadata": "/25/201c10d286/1/metadata.json",
+      "transcript": "/25/201c10d286/1/full.jsonl",
+      "content_hash": "/25/201c10d286/1/content_hash.txt",
+      "prompt": "/25/201c10d286/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 167,
-    "cache_creation_tokens": 114682,
+    "input_tokens": 170,
+    "cache_creation_tokens": 148389,
     "cache_read_tokens": 10792891,
-    "output_tokens": 36956,
-    "api_call_count": 133
+    "output_tokens": 37207,
+    "api_call_count": 134
   }
 }
