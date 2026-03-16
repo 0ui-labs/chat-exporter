@@ -174,6 +174,7 @@ function createFixtureJob(conversation: Conversation): ImportJob {
     currentStage: "done",
     id: fixtureImportId,
     mode: "archive",
+    importMethod: "share-link",
     sourcePlatform: "chatgpt",
     sourceUrl: conversation.source.url,
     status: "completed",

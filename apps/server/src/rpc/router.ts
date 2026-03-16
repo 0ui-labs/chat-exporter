@@ -83,6 +83,12 @@ export const router = os.router({
       return { deleted };
     }),
 
+    createFromClipboard: os.imports.createFromClipboard.handler(() => {
+      throw new ORPCError("NOT_IMPLEMENTED", {
+        message: "Clipboard import is not yet implemented.",
+      });
+    }),
+
     create: os.imports.create.handler(({ input }) => {
       if (!isSupportedChatGptShareLink(input.url)) {
         throw new ORPCError("BAD_REQUEST", {

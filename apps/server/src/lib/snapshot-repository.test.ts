@@ -18,6 +18,7 @@ function createTestImportJob(overrides?: Partial<ImportJob>): ImportJob {
     sourceUrl: "https://chatgpt.com/share/snapshot-test",
     sourcePlatform: "chatgpt",
     mode: "archive",
+    importMethod: "share-link",
     status: "completed",
     currentStage: "done",
     createdAt: new Date().toISOString(),

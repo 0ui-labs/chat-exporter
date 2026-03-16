@@ -25,6 +25,7 @@ import {
   saveMessageEditRequestSchema,
 } from "./edits.js";
 import {
+  clipboardImportRequestSchema,
   importJobSchema,
   importListRequestSchema,
   importRequestSchema,
@@ -43,6 +44,10 @@ export const contract = {
       .output(z.object({ deleted: z.boolean() })),
 
     create: oc.input(importRequestSchema).output(importJobSchema),
+
+    createFromClipboard: oc
+      .input(clipboardImportRequestSchema)
+      .output(importJobSchema),
 
     get: oc.input(z.object({ id: z.string() })).output(importJobSchema),
 
