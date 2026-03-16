@@ -50,6 +50,25 @@ export function classifySourcePlatform(urlString: string): SourcePlatform {
     return "notebooklm";
   }
 
+  if (
+    hostname === "aistudio.google.com" ||
+    hostname.endsWith(".aistudio.google.com")
+  ) {
+    return "aistudio";
+  }
+
+  if (hostname === "perplexity.ai" || hostname.endsWith(".perplexity.ai")) {
+    return "perplexity";
+  }
+
+  if (hostname === "chat.mistral.ai" || hostname.endsWith(".mistral.ai")) {
+    return "lechat";
+  }
+
+  if (hostname === "kimi.moonshot.cn" || hostname.endsWith(".moonshot.cn")) {
+    return "kimi";
+  }
+
   return "unknown";
 }
 
