@@ -3,7 +3,7 @@
   "checkpoint_id": "169d2762f2f8",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/server/src/lib/generic-share-import.ts"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/16/9d2762f2f8/1/full.jsonl",
       "content_hash": "/16/9d2762f2f8/1/content_hash.txt",
       "prompt": "/16/9d2762f2f8/1/prompt.txt"
+    },
+    {
+      "metadata": "/16/9d2762f2f8/2/metadata.json",
+      "transcript": "/16/9d2762f2f8/2/full.jsonl",
+      "content_hash": "/16/9d2762f2f8/2/content_hash.txt",
+      "prompt": "/16/9d2762f2f8/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 185,
-    "cache_creation_tokens": 152941,
-    "cache_read_tokens": 11040312,
-    "output_tokens": 41225,
-    "api_call_count": 141
+    "input_tokens": 4806,
+    "cache_creation_tokens": 245139,
+    "cache_read_tokens": 11689652,
+    "output_tokens": 61380,
+    "api_call_count": 151
   }
 }
