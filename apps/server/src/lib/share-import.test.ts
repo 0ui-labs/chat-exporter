@@ -103,8 +103,30 @@ describe("importSharePage", () => {
     });
   });
 
-  test("routes unknown platforms to the generic parser", async () => {
+  test("routes deepseek URLs to the deepseek parser via registry", async () => {
     mockClassify.mockReturnValue("deepseek");
+
+    const result = await importSharePage(
+      "https://chat.deepseek.com/a/s/abc123",
+    );
+
+    expect(mockDeepSeekParser).toHaveBeenCalledOnce();
+    expect(mockDeepSeekParser).toHaveBeenCalledWith(
+      "https://chat.deepseek.com/a/s/abc123",
+      {
+        onStage: undefined,
+      },
+    );
+    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "deepseek-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://chat.deepseek.com/a/s/abc123" },
+    });
+  });
+
+  test("routes unknown platforms to the generic parser", async () => {
+    mockClassify.mockReturnValue("grok");
 
     const result = await importSharePage("https://example.com/share/xyz");
 
@@ -113,11 +135,12 @@ describe("importSharePage", () => {
       "https://example.com/share/xyz",
       {
         onStage: undefined,
-        sourcePlatform: "deepseek",
+        sourcePlatform: "grok",
       },
     );
     expect(mockChatGptParser).not.toHaveBeenCalled();
     expect(mockClaudeParser).not.toHaveBeenCalled();
+    expect(mockDeepSeekParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "generic-conv" },
       warnings: [],
@@ -199,7 +222,7 @@ describe("importSharePage", () => {
   });
 
   test("passes onStage callback to the generic parser", async () => {
-    mockClassify.mockReturnValue("deepseek");
+    mockClassify.mockReturnValue("grok");
     const onStage = vi.fn();
 
     await importSharePage("https://example.com/share/xyz", { onStage });
@@ -208,7 +231,7 @@ describe("importSharePage", () => {
       "https://example.com/share/xyz",
       {
         onStage,
-        sourcePlatform: "deepseek",
+        sourcePlatform: "grok",
       },
     );
   });
