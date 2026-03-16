@@ -68,6 +68,7 @@ function createJob(overrides: Partial<ImportJob> = {}): ImportJob {
     sourceUrl: "https://chatgpt.com/share/abc",
     sourcePlatform: "chatgpt",
     mode: "archive",
+    importMethod: "share-link",
     status: "running",
     currentStage: "fetch",
     createdAt: "2026-01-01T00:00:00Z",

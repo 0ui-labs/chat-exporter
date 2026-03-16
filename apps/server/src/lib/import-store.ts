@@ -86,6 +86,7 @@ export function createImportJob(input: ImportRequest) {
     sourceUrl: input.url,
     sourcePlatform: classifySourcePlatform(input.url),
     mode: input.mode,
+    importMethod: "share-link",
     status: "queued",
     currentStage: "validate",
     createdAt: timestamp,
