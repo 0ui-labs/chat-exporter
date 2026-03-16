@@ -531,7 +531,7 @@ function buildSelectionContext(input: RunAgentTurnInput) {
 }
 
 type InputMessage = {
-  content: Array<{ text: string; type: "input_text" }>;
+  content: Array<{ text: string; type: "input_text" | "output_text" }>;
   role: "system" | "user" | "assistant";
 };
 
@@ -551,9 +551,15 @@ function buildInputMessages(input: RunAgentTurnInput): InputMessage[] {
   // Add session messages as real multi-turn conversation so the model
   // understands the full dialog history and can reference prior turns.
   for (const msg of input.sessionDetail.messages) {
+    const role = msg.role === "user" ? "user" : "assistant";
     messages.push({
-      content: [{ text: msg.content, type: "input_text" }],
-      role: msg.role === "user" ? "user" : "assistant",
+      content: [
+        {
+          text: msg.content,
+          type: role === "assistant" ? "output_text" : "input_text",
+        },
+      ],
+      role,
     });
   }
 
