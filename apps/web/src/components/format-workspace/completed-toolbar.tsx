@@ -85,70 +85,48 @@ export function CompletedToolbar({
         data-testid="toolbar-action-row"
         className="flex flex-wrap items-center gap-2"
       >
-        {onDownloadMarkdown ? (
-          <Button
-            data-testid="toolbar-download"
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onDownloadMarkdown}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {adjustmentLabels.downloadAction}
-          </Button>
-        ) : (
-          <Button
-            data-testid="toolbar-download"
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {adjustmentLabels.downloadAction}
-          </Button>
-        )}
+        <Button
+          data-testid="toolbar-download"
+          type="button"
+          size="icon"
+          variant="outline"
+          title={adjustmentLabels.downloadAction}
+          disabled={!onDownloadMarkdown}
+          onClick={onDownloadMarkdown}
+        >
+          <Download className="h-4 w-4" />
+        </Button>
 
-        {onCopyAll ? (
-          <Button
-            data-testid="toolbar-copy-all"
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onCopyAll}
-          >
-            {copySuccess ? (
-              <Check className="mr-2 h-4 w-4" />
-            ) : (
-              <Copy className="mr-2 h-4 w-4" />
-            )}
-            {copySuccess
+        <Button
+          data-testid="toolbar-copy-all"
+          type="button"
+          size="icon"
+          variant="outline"
+          title={
+            copySuccess
               ? adjustmentLabels.copyAllSuccess
-              : adjustmentLabels.copyAllAction}
-          </Button>
-        ) : (
-          <Button
-            data-testid="toolbar-copy-all"
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            {adjustmentLabels.copyAllAction}
-          </Button>
-        )}
+              : adjustmentLabels.copyAllAction
+          }
+          disabled={!onCopyAll}
+          onClick={onCopyAll}
+        >
+          {copySuccess ? (
+            <Check className="h-4 w-4" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </Button>
 
         {snapshotCount && snapshotCount > 0 ? (
           <Button
             data-testid="toolbar-versions"
             type="button"
-            size="sm"
+            size="icon"
             variant="outline"
+            title={adjustmentLabels.versions}
             onClick={onVersionsClick}
           >
-            <History className="mr-2 h-4 w-4" />
-            {adjustmentLabels.versions}
+            <History className="h-4 w-4" />
           </Button>
         ) : null}
 
@@ -197,14 +175,16 @@ export function CompletedToolbar({
             <Button
               data-testid={`toggle-adjust-mode-${view}`}
               type="button"
-              size="sm"
+              size="icon"
               variant={adjustModeEnabled ? "default" : "outline"}
+              title={
+                adjustModeEnabled
+                  ? getEndAdjustLabel()
+                  : getAdjustViewLabel(view)
+              }
               onClick={onToggleAdjustMode}
             >
-              <Settings2 className="mr-2 h-4 w-4" />
-              {adjustModeEnabled
-                ? getEndAdjustLabel()
-                : getAdjustViewLabel(view)}
+              <Settings2 className="h-4 w-4" />
             </Button>
           </>
         ) : null}
@@ -213,16 +193,18 @@ export function CompletedToolbar({
           <Button
             data-testid="toggle-edit-mode"
             type="button"
-            size="sm"
+            size="icon"
             variant={editMode === "edit" ? "default" : "outline"}
+            title={
+              editMode === "edit"
+                ? adjustmentLabels.endEdit
+                : adjustmentLabels.edit
+            }
             onClick={() =>
               onEditModeChange(editMode === "edit" ? "view" : "edit")
             }
           >
-            <Pencil className="mr-2 h-4 w-4" />
-            {editMode === "edit"
-              ? adjustmentLabels.endEdit
-              : adjustmentLabels.edit}
+            <Pencil className="h-4 w-4" />
           </Button>
         ) : null}
       </div>

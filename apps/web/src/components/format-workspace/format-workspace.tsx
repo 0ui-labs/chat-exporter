@@ -430,12 +430,6 @@ export function FormatWorkspace({
         job={job}
       />
 
-      {job.warnings.length > 0 ? (
-        <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 px-4 py-3 text-sm text-amber-950">
-          {job.warnings[0]}
-        </div>
-      ) : null}
-
       {job.status === "failed" ? (
         <div className="rounded-2xl border border-red-300/40 bg-red-100/70 p-4 text-red-900">
           <p className="font-medium">{miscLabels.importFailed}</p>
