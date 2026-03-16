@@ -8,6 +8,22 @@ vi.mock("./chatgpt-share-import.js", () => ({
   }),
 }));
 
+vi.mock("./claude-share-import.js", () => ({
+  importClaudeSharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "claude-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://claude.ai/share/xyz" },
+  }),
+}));
+
+vi.mock("./deepseek-share-import.js", () => ({
+  importDeepSeekSharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "deepseek-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://chat.deepseek.com/a/s/abc123" },
+  }),
+}));
+
 vi.mock("./gemini-share-import.js", () => ({
   importGeminiSharePage: vi.fn().mockResolvedValue({
     conversation: { id: "gemini-conv" },
@@ -20,7 +36,7 @@ vi.mock("./generic-share-import.js", () => ({
   importGenericSharePage: vi.fn().mockResolvedValue({
     conversation: { id: "generic-conv" },
     warnings: [],
-    snapshot: { finalUrl: "https://claude.ai/share/xyz" },
+    snapshot: { finalUrl: "https://example.com/share/xyz" },
   }),
 }));
 
@@ -29,12 +45,16 @@ vi.mock("./source-platform.js", () => ({
 }));
 
 import { importChatGptSharePage } from "./chatgpt-share-import.js";
+import { importClaudeSharePage } from "./claude-share-import.js";
+import { importDeepSeekSharePage } from "./deepseek-share-import.js";
 import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGenericSharePage } from "./generic-share-import.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
 const mockChatGptParser = vi.mocked(importChatGptSharePage);
+const mockClaudeParser = vi.mocked(importClaudeSharePage);
+const mockDeepSeekParser = vi.mocked(importDeepSeekSharePage);
 const mockGeminiParser = vi.mocked(importGeminiSharePage);
 const mockGenericParser = vi.mocked(importGenericSharePage);
 const mockClassify = vi.mocked(classifySourcePlatform);
@@ -63,24 +83,45 @@ describe("importSharePage", () => {
     });
   });
 
-  test("routes unknown platforms to the generic parser", async () => {
+  test("routes claude URLs to the claude parser via registry", async () => {
     mockClassify.mockReturnValue("claude");
 
     const result = await importSharePage("https://claude.ai/share/xyz");
 
-    expect(mockGenericParser).toHaveBeenCalledOnce();
-    expect(mockGenericParser).toHaveBeenCalledWith(
+    expect(mockClaudeParser).toHaveBeenCalledOnce();
+    expect(mockClaudeParser).toHaveBeenCalledWith(
       "https://claude.ai/share/xyz",
       {
         onStage: undefined,
-        sourcePlatform: "claude",
+      },
+    );
+    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "claude-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://claude.ai/share/xyz" },
+    });
+  });
+
+  test("routes unknown platforms to the generic parser", async () => {
+    mockClassify.mockReturnValue("deepseek");
+
+    const result = await importSharePage("https://example.com/share/xyz");
+
+    expect(mockGenericParser).toHaveBeenCalledOnce();
+    expect(mockGenericParser).toHaveBeenCalledWith(
+      "https://example.com/share/xyz",
+      {
+        onStage: undefined,
+        sourcePlatform: "deepseek",
       },
     );
     expect(mockChatGptParser).not.toHaveBeenCalled();
+    expect(mockClaudeParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "generic-conv" },
       warnings: [],
-      snapshot: { finalUrl: "https://claude.ai/share/xyz" },
+      snapshot: { finalUrl: "https://example.com/share/xyz" },
     });
   });
 
@@ -143,17 +184,31 @@ describe("importSharePage", () => {
     );
   });
 
-  test("passes onStage callback to the generic parser", async () => {
+  test("passes onStage callback to the claude parser", async () => {
     mockClassify.mockReturnValue("claude");
     const onStage = vi.fn();
 
     await importSharePage("https://claude.ai/share/xyz", { onStage });
 
-    expect(mockGenericParser).toHaveBeenCalledWith(
+    expect(mockClaudeParser).toHaveBeenCalledWith(
       "https://claude.ai/share/xyz",
       {
         onStage,
-        sourcePlatform: "claude",
+      },
+    );
+  });
+
+  test("passes onStage callback to the generic parser", async () => {
+    mockClassify.mockReturnValue("deepseek");
+    const onStage = vi.fn();
+
+    await importSharePage("https://example.com/share/xyz", { onStage });
+
+    expect(mockGenericParser).toHaveBeenCalledWith(
+      "https://example.com/share/xyz",
+      {
+        onStage,
+        sourcePlatform: "deepseek",
       },
     );
   });
