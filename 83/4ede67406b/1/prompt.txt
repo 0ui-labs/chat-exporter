@@ -1,0 +1,27 @@
+kannst du dir das mal anschauen https://github.com/lightpanda-io/browser
+
+---
+
+Könnte das für unser projket interessant sein?
+
+---
+
+Kannst du dir serena mal anschauen https://github.com/oraios/serena
+
+---
+
+Ja, lass uns das machen
+
+---
+
+Die Website ist nicht erreichbar
+127.0.0.1 hat die Verbindung abgelehnt.
+Versuche Folgendes:
+
+Verbindung prüfen
+Proxy und Firewall prüfen
+ERR_CONNECTION_REFUSED
+
+---
+
+Habe ich und das dahsboard ist aufgegangen. Wie kann ich testen ob alles läuft?
