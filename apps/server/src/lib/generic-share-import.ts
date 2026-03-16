@@ -289,10 +289,7 @@ export async function importGenericSharePage(
         function normalizeTitle(rawTitle: string) {
           const title = rawTitle
             .replace(/\|\s*shared .*$/i, "")
-            .replace(
-              /^(chatgpt|claude|gemini|grok|deepseek|notebooklm)\s*[-|:]\s*/i,
-              "",
-            )
+            .replace(/^(notebooklm)\s*[-|:]\s*/i, "")
             .replace(/^shared\s+/i, "")
             .trim();
 
@@ -365,7 +362,7 @@ export async function importGenericSharePage(
         }
 
         function hasConversationHints(element: Element) {
-          return /(message|conversation|turn|chat|prompt|response|assistant|user|claude|gemini|grok|deepseek|notebooklm)/i.test(
+          return /(message|conversation|turn|chat|prompt|response|assistant|user|notebooklm)/i.test(
             attributeHintText(element),
           );
         }
@@ -562,7 +559,7 @@ export async function importGenericSharePage(
           }
 
           if (
-            /(^|\b)(assistant|model|bot|claude|gemini|grok|deepseek|notebooklm|response|answer|self-start|justify-start|mr-auto|text-left|start-)(\b|$)/.test(
+            /(^|\b)(assistant|model|bot|notebooklm|response|answer|self-start|justify-start|mr-auto|text-left|start-)(\b|$)/.test(
               hintText,
             )
           ) {
