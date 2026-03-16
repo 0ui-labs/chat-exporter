@@ -169,6 +169,7 @@ function createImportJobFixture(overrides: Record<string, unknown> = {}) {
     sourceUrl: "https://chatgpt.com/share/abc",
     sourcePlatform: "chatgpt",
     mode: "archive",
+    importMethod: "share-link",
     status: "completed",
     currentStage: "done",
     createdAt: "2026-03-08T12:00:00.000Z",
