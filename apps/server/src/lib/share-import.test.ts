@@ -32,8 +32,8 @@ vi.mock("./gemini-share-import.js", () => ({
   }),
 }));
 
-vi.mock("./generic-share-import.js", () => ({
-  importGenericSharePage: vi.fn().mockResolvedValue({
+vi.mock("./unknown-share-import.js", () => ({
+  importUnknownSharePage: vi.fn().mockResolvedValue({
     conversation: { id: "generic-conv" },
     warnings: [],
     snapshot: { finalUrl: "https://example.com/share/xyz" },
@@ -48,6 +48,14 @@ vi.mock("./grok-share-import.js", () => ({
   }),
 }));
 
+vi.mock("./perplexity-share-import.js", () => ({
+  importPerplexitySharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "perplexity-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://www.perplexity.ai/search/test-query" },
+  }),
+}));
+
 vi.mock("./source-platform.js", () => ({
   classifySourcePlatform: vi.fn().mockReturnValue("unknown"),
 }));
@@ -56,17 +64,19 @@ import { importChatGptSharePage } from "./chatgpt-share-import.js";
 import { importClaudeSharePage } from "./claude-share-import.js";
 import { importDeepSeekSharePage } from "./deepseek-share-import.js";
 import { importGeminiSharePage } from "./gemini-share-import.js";
-import { importGenericSharePage } from "./generic-share-import.js";
 import { importGrokSharePage } from "./grok-share-import.js";
+import { importPerplexitySharePage } from "./perplexity-share-import.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
+import { importUnknownSharePage } from "./unknown-share-import.js";
 
 const mockChatGptParser = vi.mocked(importChatGptSharePage);
 const mockClaudeParser = vi.mocked(importClaudeSharePage);
 const mockDeepSeekParser = vi.mocked(importDeepSeekSharePage);
 const mockGeminiParser = vi.mocked(importGeminiSharePage);
 const mockGrokParser = vi.mocked(importGrokSharePage);
-const mockGenericParser = vi.mocked(importGenericSharePage);
+const mockPerplexityParser = vi.mocked(importPerplexitySharePage);
+const mockUnknownParser = vi.mocked(importUnknownSharePage);
 const mockClassify = vi.mocked(classifySourcePlatform);
 
 describe("importSharePage", () => {
@@ -105,7 +115,7 @@ describe("importSharePage", () => {
         onStage: undefined,
       },
     );
-    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(mockUnknownParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "claude-conv" },
       warnings: [],
@@ -127,7 +137,7 @@ describe("importSharePage", () => {
         onStage: undefined,
       },
     );
-    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(mockUnknownParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "deepseek-conv" },
       warnings: [],
@@ -147,7 +157,7 @@ describe("importSharePage", () => {
         onStage: undefined,
       },
     );
-    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(mockUnknownParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "grok-conv" },
       warnings: [],
@@ -155,23 +165,46 @@ describe("importSharePage", () => {
     });
   });
 
-  test("routes unknown platforms to the generic parser", async () => {
+  test("routes perplexity URLs to the perplexity parser via registry", async () => {
     mockClassify.mockReturnValue("perplexity");
+
+    const result = await importSharePage(
+      "https://www.perplexity.ai/search/test-query",
+    );
+
+    expect(mockPerplexityParser).toHaveBeenCalledOnce();
+    expect(mockPerplexityParser).toHaveBeenCalledWith(
+      "https://www.perplexity.ai/search/test-query",
+      {
+        onStage: undefined,
+      },
+    );
+    expect(mockUnknownParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "perplexity-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://www.perplexity.ai/search/test-query" },
+    });
+  });
+
+  test("routes unknown platforms to the unknown-platform fallback parser", async () => {
+    mockClassify.mockReturnValue("unknown");
 
     const result = await importSharePage("https://example.com/share/xyz");
 
-    expect(mockGenericParser).toHaveBeenCalledOnce();
-    expect(mockGenericParser).toHaveBeenCalledWith(
+    expect(mockUnknownParser).toHaveBeenCalledOnce();
+    expect(mockUnknownParser).toHaveBeenCalledWith(
       "https://example.com/share/xyz",
       {
         onStage: undefined,
-        sourcePlatform: "perplexity",
+        sourcePlatform: "unknown",
       },
     );
     expect(mockChatGptParser).not.toHaveBeenCalled();
     expect(mockClaudeParser).not.toHaveBeenCalled();
     expect(mockDeepSeekParser).not.toHaveBeenCalled();
     expect(mockGrokParser).not.toHaveBeenCalled();
+    expect(mockPerplexityParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "generic-conv" },
       warnings: [],
@@ -191,7 +224,7 @@ describe("importSharePage", () => {
         onStage: undefined,
       },
     );
-    expect(mockGenericParser).not.toHaveBeenCalled();
+    expect(mockUnknownParser).not.toHaveBeenCalled();
     expect(result).toEqual({
       conversation: { id: "gemini-conv" },
       warnings: [],
@@ -266,17 +299,33 @@ describe("importSharePage", () => {
     );
   });
 
-  test("passes onStage callback to the generic parser", async () => {
+  test("passes onStage callback to the perplexity parser", async () => {
     mockClassify.mockReturnValue("perplexity");
+    const onStage = vi.fn();
+
+    await importSharePage("https://www.perplexity.ai/search/test", {
+      onStage,
+    });
+
+    expect(mockPerplexityParser).toHaveBeenCalledWith(
+      "https://www.perplexity.ai/search/test",
+      {
+        onStage,
+      },
+    );
+  });
+
+  test("passes onStage callback to the unknown-platform fallback parser", async () => {
+    mockClassify.mockReturnValue("unknown");
     const onStage = vi.fn();
 
     await importSharePage("https://example.com/share/xyz", { onStage });
 
-    expect(mockGenericParser).toHaveBeenCalledWith(
+    expect(mockUnknownParser).toHaveBeenCalledWith(
       "https://example.com/share/xyz",
       {
         onStage,
-        sourcePlatform: "perplexity",
+        sourcePlatform: "unknown",
       },
     );
   });

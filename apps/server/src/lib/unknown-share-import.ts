@@ -193,7 +193,7 @@ async function maybeDismissGoogleConsentGate(page: Page) {
   return !isGoogleConsentUrl(page.url());
 }
 
-export async function importGenericSharePage(
+export async function importUnknownSharePage(
   url: string,
   options: {
     onStage?: StageCallback;
