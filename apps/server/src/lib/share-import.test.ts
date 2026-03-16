@@ -48,6 +48,14 @@ vi.mock("./grok-share-import.js", () => ({
   }),
 }));
 
+vi.mock("./lechat-share-import.js", () => ({
+  importLeChatSharePage: vi.fn().mockResolvedValue({
+    conversation: { id: "lechat-conv" },
+    warnings: [],
+    snapshot: { finalUrl: "https://chat.mistral.ai/chat/share/abc123" },
+  }),
+}));
+
 vi.mock("./perplexity-share-import.js", () => ({
   importPerplexitySharePage: vi.fn().mockResolvedValue({
     conversation: { id: "perplexity-conv" },
@@ -65,6 +73,7 @@ import { importClaudeSharePage } from "./claude-share-import.js";
 import { importDeepSeekSharePage } from "./deepseek-share-import.js";
 import { importGeminiSharePage } from "./gemini-share-import.js";
 import { importGrokSharePage } from "./grok-share-import.js";
+import { importLeChatSharePage } from "./lechat-share-import.js";
 import { importPerplexitySharePage } from "./perplexity-share-import.js";
 import { importSharePage } from "./share-import.js";
 import { classifySourcePlatform } from "./source-platform.js";
@@ -75,6 +84,7 @@ const mockClaudeParser = vi.mocked(importClaudeSharePage);
 const mockDeepSeekParser = vi.mocked(importDeepSeekSharePage);
 const mockGeminiParser = vi.mocked(importGeminiSharePage);
 const mockGrokParser = vi.mocked(importGrokSharePage);
+const mockLeChatParser = vi.mocked(importLeChatSharePage);
 const mockPerplexityParser = vi.mocked(importPerplexitySharePage);
 const mockUnknownParser = vi.mocked(importUnknownSharePage);
 const mockClassify = vi.mocked(classifySourcePlatform);
@@ -162,6 +172,28 @@ describe("importSharePage", () => {
       conversation: { id: "grok-conv" },
       warnings: [],
       snapshot: { finalUrl: "https://grok.com/share/abc123" },
+    });
+  });
+
+  test("routes lechat URLs to the lechat parser via registry", async () => {
+    mockClassify.mockReturnValue("lechat");
+
+    const result = await importSharePage(
+      "https://chat.mistral.ai/chat/share/abc123",
+    );
+
+    expect(mockLeChatParser).toHaveBeenCalledOnce();
+    expect(mockLeChatParser).toHaveBeenCalledWith(
+      "https://chat.mistral.ai/chat/share/abc123",
+      {
+        onStage: undefined,
+      },
+    );
+    expect(mockUnknownParser).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      conversation: { id: "lechat-conv" },
+      warnings: [],
+      snapshot: { finalUrl: "https://chat.mistral.ai/chat/share/abc123" },
     });
   });
 
@@ -293,6 +325,22 @@ describe("importSharePage", () => {
 
     expect(mockGrokParser).toHaveBeenCalledWith(
       "https://grok.com/share/abc123",
+      {
+        onStage,
+      },
+    );
+  });
+
+  test("passes onStage callback to the lechat parser", async () => {
+    mockClassify.mockReturnValue("lechat");
+    const onStage = vi.fn();
+
+    await importSharePage("https://chat.mistral.ai/chat/share/abc123", {
+      onStage,
+    });
+
+    expect(mockLeChatParser).toHaveBeenCalledWith(
+      "https://chat.mistral.ai/chat/share/abc123",
       {
         onStage,
       },
