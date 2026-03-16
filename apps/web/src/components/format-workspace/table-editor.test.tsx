@@ -296,6 +296,30 @@ describe("TableEditor", () => {
     });
   });
 
+  describe("effects", () => {
+    test("containerStyle from effects is applied to the table container", () => {
+      const effects = [
+        {
+          type: "custom_style" as const,
+          containerStyle: { backgroundColor: "rgb(255, 0, 0)" },
+        },
+      ];
+
+      const { container } = render(
+        <TableEditor
+          block={createTableBlock()}
+          messageId="msg-1"
+          blockIndex={0}
+          effects={effects}
+          onBlockChange={vi.fn()}
+        />,
+      );
+
+      const wrapper = container.querySelector("[role='group']") as HTMLElement;
+      expect(wrapper.style.backgroundColor).toBe("rgb(255, 0, 0)");
+    });
+  });
+
   describe("tab navigation", () => {
     test("Tab moves focus to the next editable cell", () => {
       const { container } = renderTableEditor();

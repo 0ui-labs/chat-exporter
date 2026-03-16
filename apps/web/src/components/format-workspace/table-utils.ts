@@ -1,7 +1,7 @@
 import type { Block } from "@chat-exporter/shared";
 import { generateBlockId } from "@chat-exporter/shared";
 
-type TableBlock = Extract<Block, { type: "table" }>;
+export type TableBlock = Extract<Block, { type: "table" }>;
 
 export function createEmptyTable(cols: number, rows: number): TableBlock {
   return {

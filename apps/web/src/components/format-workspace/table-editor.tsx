@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { getReaderBlockStyle } from "@/components/format-workspace/rule-engine";
 
+import type { TableBlock } from "./table-utils";
 import {
   addColumn,
   addRow,
@@ -13,8 +14,6 @@ import {
   removeColumn,
   removeRow,
 } from "./table-utils";
-
-type TableBlock = Extract<Block, { type: "table" }>;
 
 interface TableEditorProps {
   block: TableBlock;
