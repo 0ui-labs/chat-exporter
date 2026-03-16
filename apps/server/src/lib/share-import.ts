@@ -8,6 +8,7 @@ import { importGrokSharePage } from "./grok-share-import.js";
 import type { PlatformParser, StageCallback } from "./parser-types.js";
 import { classifySourcePlatform } from "./source-platform.js";
 
+// Note: aistudio is classified but not registered — no public share links as of 2026-03
 /** Registry of platform-specific parsers. Platforms not in this map use the generic fallback. */
 const parserRegistry = new Map<SourcePlatform, PlatformParser>([
   ["chatgpt", importChatGptSharePage as PlatformParser],
