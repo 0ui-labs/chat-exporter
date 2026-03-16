@@ -13,6 +13,7 @@ data/*.db-*
 apps/server/.env
 apps/server/.env.local
 .turbo
+.serena
 docs
 .claude
 TESTING.md
