@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "5c50b7d475de",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/server/src/lib/parser-dom-kit.ts",
+    "apps/server/src/lib/parser-page-utils.test.ts",
+    "apps/server/src/lib/parser-page-utils.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5c/50b7d475de/0/metadata.json",
+      "transcript": "/5c/50b7d475de/0/full.jsonl",
+      "content_hash": "/5c/50b7d475de/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 65160,
+    "cache_read_tokens": 828787,
+    "output_tokens": 10365,
+    "api_call_count": 18
+  }
+}
