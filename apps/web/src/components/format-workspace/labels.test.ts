@@ -1,10 +1,9 @@
+// @vitest-environment node
 import {
   adjustmentLabels,
   formatMarkdownLinesLabel,
   formatMessageBlockLabel,
-  getAdjustViewLabel,
   getBlockTypeLabel,
-  getEndAdjustLabel,
   getImportStageDescription,
   getImportStageEntry,
   getImportStageLabel,
@@ -110,21 +109,67 @@ describe("getImportStageEntry", () => {
 });
 
 // ---------------------------------------------------------------------------
-// V-S5: Adjustment UI
+// S7: Simplified adjustment labels (adjustLabel / adjustDoneLabel)
 // ---------------------------------------------------------------------------
 
-describe("getAdjustViewLabel", () => {
-  test("gibt '{view} anpassen' für bekannte Views", () => {
-    expect(getAdjustViewLabel("reader")).toBe("HTML anpassen");
-    expect(getAdjustViewLabel("markdown")).toBe("Markdown anpassen");
-    expect(getAdjustViewLabel("handover")).toBe("Übergabe anpassen");
-    expect(getAdjustViewLabel("json")).toBe("JSON anpassen");
+describe("S7 — simplified adjustment labels", () => {
+  test("adjustLabel is 'Anpassen' (view-independent)", () => {
+    expect(adjustmentLabels.adjustLabel).toBe("Anpassen");
+  });
+
+  test("adjustDoneLabel is 'Fertig'", () => {
+    expect(adjustmentLabels.adjustDoneLabel).toBe("Fertig");
+  });
+
+  test("getAdjustViewLabel and getEndAdjustLabel are removed as exports", async () => {
+    // These functions should no longer exist on the module
+    // biome-ignore lint/suspicious/noExplicitAny: verifying removed exports
+    const labels = (await import("./labels")) as any;
+    expect(labels.getAdjustViewLabel).toBeUndefined();
+    expect(labels.getEndAdjustLabel).toBeUndefined();
+  });
+
+  test("endAdjustMode key no longer exists on adjustmentLabels", () => {
+    expect("endAdjustMode" in adjustmentLabels).toBe(false);
   });
 });
 
-describe("getEndAdjustLabel", () => {
-  test("gibt das endAdjustMode-Label zurück", () => {
-    expect(getEndAdjustLabel()).toBe("Anpassungsmodus beenden");
+// ---------------------------------------------------------------------------
+// S8: Guide text overhaul
+// ---------------------------------------------------------------------------
+
+describe("S8 — guide text overhaul", () => {
+  test("guideInstruction is the new shorter text", () => {
+    expect(adjustmentLabels.guideInstruction).toBe(
+      "Klicke auf eine Stelle, beschreibe deine Änderung — sie wird direkt übernommen.",
+    );
+  });
+
+  test("guideNote is empty string", () => {
+    expect(adjustmentLabels.guideNote).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S10: De-jargoned labels
+// ---------------------------------------------------------------------------
+
+describe("S10 — de-jargoned labels", () => {
+  test("getRuleKindLabel returns user-friendly values", () => {
+    expect(getRuleKindLabel("inline_semantics")).toBe("Textformatierung");
+    expect(getRuleKindLabel("export_profile")).toBe("Exportformat");
+    expect(getRuleKindLabel("render")).toBe("Aussehen");
+    expect(getRuleKindLabel("structure")).toBe("Aufbau");
+    expect(getRuleKindLabel("clipboard")).toBe("Kopieren");
+  });
+
+  test("markdown-lines block type is 'Textzeilen'", () => {
+    expect(getBlockTypeLabel("markdown-lines")).toBe("Textzeilen");
+  });
+
+  test("rulesLabels scope labels are simplified", () => {
+    expect(rulesLabels.allImports).toBe("Überall anwenden");
+    expect(rulesLabels.thisImportOnly).toBe("Nur hier");
   });
 });
 
@@ -149,11 +194,6 @@ describe("adjustmentLabels", () => {
     expect(adjustmentLabels.defaultHint).toBeTruthy();
     expect(adjustmentLabels.closeLabel).toBeTruthy();
     expect(adjustmentLabels.inputLabel).toBeTruthy();
-  });
-
-  test("enthält Guide-Texte", () => {
-    expect(adjustmentLabels.guideInstruction).toBeTruthy();
-    expect(adjustmentLabels.guideNote).toBeTruthy();
   });
 });
 
@@ -196,12 +236,12 @@ describe("getBlockTypeLabel", () => {
 });
 
 describe("getRuleKindLabel", () => {
-  test("gibt korrekte RuleKind-Labels zurück", () => {
-    expect(getRuleKindLabel("clipboard")).toBe("Zwischenablage");
-    expect(getRuleKindLabel("export_profile")).toBe("Export-Profil");
-    expect(getRuleKindLabel("inline_semantics")).toBe("Inline-Semantik");
-    expect(getRuleKindLabel("render")).toBe("Darstellung");
-    expect(getRuleKindLabel("structure")).toBe("Struktur");
+  test("gibt korrekte RuleKind-Labels zurück (S10 de-jargoned)", () => {
+    expect(getRuleKindLabel("clipboard")).toBe("Kopieren");
+    expect(getRuleKindLabel("export_profile")).toBe("Exportformat");
+    expect(getRuleKindLabel("inline_semantics")).toBe("Textformatierung");
+    expect(getRuleKindLabel("render")).toBe("Aussehen");
+    expect(getRuleKindLabel("structure")).toBe("Aufbau");
   });
 });
 
@@ -211,9 +251,9 @@ describe("getRuleKindLabel", () => {
 
 describe("formatMarkdownLinesLabel", () => {
   test("formatiert Zeilen-Range korrekt", () => {
-    expect(formatMarkdownLinesLabel(1, 10)).toBe("Markdown-Zeilen 1-10");
-    expect(formatMarkdownLinesLabel(5, 5)).toBe("Markdown-Zeilen 5-5");
-    expect(formatMarkdownLinesLabel(100, 200)).toBe("Markdown-Zeilen 100-200");
+    expect(formatMarkdownLinesLabel(1, 10)).toBe("Textzeilen 1-10");
+    expect(formatMarkdownLinesLabel(5, 5)).toBe("Textzeilen 5-5");
+    expect(formatMarkdownLinesLabel(100, 200)).toBe("Textzeilen 100-200");
   });
 });
 

@@ -10,11 +10,7 @@ import {
   Settings2,
 } from "lucide-react";
 
-import {
-  adjustmentLabels,
-  getAdjustViewLabel,
-  getEndAdjustLabel,
-} from "@/components/format-workspace/labels";
+import { adjustmentLabels } from "@/components/format-workspace/labels";
 import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
 import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
@@ -179,8 +175,8 @@ export function CompletedToolbar({
               variant={adjustModeEnabled ? "default" : "outline"}
               title={
                 adjustModeEnabled
-                  ? getEndAdjustLabel()
-                  : getAdjustViewLabel(view)
+                  ? adjustmentLabels.adjustDoneLabel
+                  : adjustmentLabels.adjustLabel
               }
               onClick={onToggleAdjustMode}
             >

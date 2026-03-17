@@ -25,18 +25,18 @@ const blockTypeLabels: Record<string, string> = {
   code: "Codeblock",
   heading: "Überschrift",
   list: "Liste",
-  "markdown-lines": "Markdown-Zeilen",
+  "markdown-lines": "Textzeilen",
   paragraph: "Absatz",
   quote: "Zitat",
   table: "Tabelle",
 };
 
 const ruleKindLabels: Record<FormatRuleKind, string> = {
-  clipboard: "Zwischenablage",
-  export_profile: "Export-Profil",
-  inline_semantics: "Inline-Semantik",
-  render: "Darstellung",
-  structure: "Struktur",
+  clipboard: "Kopieren",
+  export_profile: "Exportformat",
+  inline_semantics: "Textformatierung",
+  render: "Aussehen",
+  structure: "Aufbau",
 };
 
 // ---------------------------------------------------------------------------
@@ -136,13 +136,14 @@ export const adjustmentLabels = {
   createRuleLabel: "Regel erstellen",
   inputLabel: "Anpassungsanfrage",
 
-  // Guide
+  // Guide (S8)
   guideInstruction:
-    "Markiere die Stelle, die anders aussehen soll. Beschreibe dann kurz deinen Wunsch, und die Änderung erscheint direkt hier.",
-  guideNote: "Du musst kein Regel-JSON lesen oder eine Vorschau vergleichen.",
+    "Klicke auf eine Stelle, beschreibe deine Änderung — sie wird direkt übernommen.",
+  guideNote: "",
 
-  // Mode toggle
-  endAdjustMode: "Anpassungsmodus beenden",
+  // Mode toggle (S7)
+  adjustLabel: "Anpassen",
+  adjustDoneLabel: "Fertig",
 
   // Edit mode
   edit: "Bearbeiten",
@@ -157,14 +158,6 @@ export const adjustmentLabels = {
   copyAllAction: "Kopieren",
   copyAllSuccess: "Kopiert!",
 } as const;
-
-export function getAdjustViewLabel(view: ViewMode) {
-  return `${getViewLabel(view)} anpassen`;
-}
-
-export function getEndAdjustLabel() {
-  return adjustmentLabels.endAdjustMode;
-}
 
 // ---------------------------------------------------------------------------
 // View Labels
@@ -191,7 +184,7 @@ export function getRuleKindLabel(kind: FormatRuleKind) {
 // ---------------------------------------------------------------------------
 
 export function formatMarkdownLinesLabel(start: number, end: number) {
-  return `Markdown-Zeilen ${start}-${end}`;
+  return `Textzeilen ${start}-${end}`;
 }
 
 export function formatMessageBlockLabel(
@@ -210,8 +203,8 @@ export const rulesLabels = {
   activeRulesCount: (count: number) =>
     count > 0 ? `${count} ${count === 1 ? "Regel" : "Regeln"} aktiv` : "Regeln",
   noActiveRules: "Keine aktiven Regeln.",
-  allImports: "Für alle Imports",
-  thisImportOnly: "Nur dieser Import",
+  allImports: "Überall anwenden",
+  thisImportOnly: "Nur hier",
   loading: "Wird geladen...",
   rationale: "Begründung",
   defaultRationale:
