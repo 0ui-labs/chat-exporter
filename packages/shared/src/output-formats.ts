@@ -3,7 +3,12 @@
 // ---------------------------------------------------------------------------
 
 export interface OutputFormatDescriptor {
-  /** Unique ID, e.g. "reader", "markdown" */
+  /**
+   * Unique ID, e.g. "reader", "markdown".
+   *
+   * Must match a value accepted by `adjustmentTargetFormatSchema` if the
+   * format supports adjustments (i.e., `adjustable: true`).
+   */
   id: string;
   /** Display name for the UI, e.g. "Reader View" */
   label: string;
@@ -81,15 +86,16 @@ export class FormatRegistry {
     if (this.formats.has(format.id)) {
       throw new Error(`Format "${format.id}" is already registered.`);
     }
-    this.formats.set(format.id, format);
+    this.formats.set(format.id, { ...format });
   }
 
   get(id: string): OutputFormatDescriptor | undefined {
-    return this.formats.get(id);
+    const stored = this.formats.get(id);
+    return stored ? { ...stored } : undefined;
   }
 
   getAll(): OutputFormatDescriptor[] {
-    return [...this.formats.values()];
+    return [...this.formats.values()].map((f) => ({ ...f }));
   }
 
   getAdjustable(): OutputFormatDescriptor[] {

@@ -348,10 +348,13 @@ export async function importDeepSeekSharePage(
 
         // Remove thinking elements from content blocks to avoid duplication
         // (they were already extracted separately)
+        const filteredContentBlocks = contentBlocks.filter(
+          (block) => block.type !== "quote" || !String(block.text ?? "").startsWith("[Thinking]"),
+        );
         const combinedBlocks = [
           ...thinkingBlocks,
-          ...(contentBlocks.length > 0
-            ? contentBlocks
+          ...(filteredContentBlocks.length > 0
+            ? filteredContentBlocks
             : [{ type: "paragraph" as const, text: rawText }]),
         ];
 
