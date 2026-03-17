@@ -20,8 +20,8 @@ import {
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
-  adjustableViews,
   type EditMode,
+  getAdjustableViews,
   type ViewMode,
 } from "@/components/format-workspace/types";
 import { UndoToast } from "@/components/format-workspace/undo-toast";
@@ -81,7 +81,7 @@ export function FormatWorkspace({
   view,
   onViewChange,
 }: FormatWorkspaceProps) {
-  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustableView = getAdjustableViews().has(view);
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);

@@ -40,6 +40,10 @@ export type FloatingAdjustmentAnchor = {
 
 export type EditMode = "view" | "edit" | "adjust";
 
-export const adjustableViews = new Set(
-  defaultRegistry.getAdjustable().map((f) => f.id),
-);
+/**
+ * Returns the set of adjustable view IDs. Rebuilt from the registry each time
+ * so that formats registered after module load are included.
+ */
+export function getAdjustableViews(): Set<string> {
+  return new Set(defaultRegistry.getAdjustable().map((f) => f.id));
+}

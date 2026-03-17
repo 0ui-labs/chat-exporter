@@ -1,13 +1,15 @@
 import { describe, expect, test } from "vitest";
-import { adjustableViews } from "./types";
+import { getAdjustableViews } from "./types";
 
-describe("adjustableViews", () => {
+describe("getAdjustableViews", () => {
   test("contains reader and markdown", () => {
+    const adjustableViews = getAdjustableViews();
     expect(adjustableViews.has("reader")).toBe(true);
     expect(adjustableViews.has("markdown")).toBe(true);
   });
 
   test("does not contain non-adjustable formats", () => {
+    const adjustableViews = getAdjustableViews();
     expect(adjustableViews.has("json")).toBe(false);
     expect(adjustableViews.has("handover")).toBe(false);
   });
@@ -18,6 +20,7 @@ describe("adjustableViews", () => {
       .getAdjustable()
       .map((f) => f.id);
 
+    const adjustableViews = getAdjustableViews();
     for (const id of registryAdjustableIds) {
       expect(adjustableViews.has(id)).toBe(true);
     }

@@ -9,7 +9,7 @@ import {
 
 import {
   type AdjustmentSelection,
-  adjustableViews,
+  getAdjustableViews,
   type ViewMode,
   type ViewportAnchor,
 } from "@/components/format-workspace/types";
@@ -77,7 +77,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
   );
 
   // Derived values
-  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustableView = getAdjustableViews().has(view);
   const isAdjustModeEnabled = state.adjustModeByView[view];
   const activeSelection = state.selectionByView[view];
 
