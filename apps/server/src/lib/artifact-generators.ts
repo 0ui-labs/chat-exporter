@@ -28,6 +28,11 @@ export class ArtifactGeneratorRegistry {
   private generators = new Map<string, ArtifactGenerator>();
 
   register(generator: ArtifactGenerator): void {
+    if (this.generators.has(generator.formatId)) {
+      throw new Error(
+        `Artifact generator for format "${generator.formatId}" is already registered.`,
+      );
+    }
     this.generators.set(generator.formatId, generator);
   }
 

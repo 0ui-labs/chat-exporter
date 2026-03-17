@@ -121,22 +121,11 @@ describe("ArtifactGeneratorRegistry", () => {
     expect(all.map((g) => g.formatId)).toContain("json");
   });
 
-  test("registering a generator with duplicate formatId overwrites the previous one", () => {
+  test("registering a generator with duplicate formatId throws", () => {
     const registry = new ArtifactGeneratorRegistry();
-    const gen1: ArtifactGenerator = {
-      formatId: "test",
-      generate: () => "first",
-    };
-    const gen2: ArtifactGenerator = {
-      formatId: "test",
-      generate: () => "second",
-    };
-
-    registry.register(gen1);
-    registry.register(gen2);
-
-    const result = registry.generate("test", createConversation());
-    expect(result).toBe("second");
-    expect(registry.getAll()).toHaveLength(1);
+    registry.register(markdownGenerator);
+    expect(() => registry.register(markdownGenerator)).toThrow(
+      'Artifact generator for format "markdown" is already registered.',
+    );
   });
 });
