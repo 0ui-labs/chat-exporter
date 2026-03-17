@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a94c5b07c83a",
+  "strategy": "manual-commit",
+  "branch": "UX",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/a9/4c5b07c83a/0/metadata.json",
+      "transcript": "/a9/4c5b07c83a/0/full.jsonl",
+      "content_hash": "/a9/4c5b07c83a/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 588,
+    "cache_creation_tokens": 68344,
+    "cache_read_tokens": 515626,
+    "output_tokens": 9994,
+    "api_call_count": 11
+  }
+}
