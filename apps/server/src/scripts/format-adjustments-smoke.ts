@@ -7,11 +7,7 @@ import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import {
-  type Conversation,
-  generateBlockId,
-  type ImportJob,
-} from "@chat-exporter/shared";
+import type { Conversation, ImportJob } from "@chat-exporter/shared";
 import Database from "better-sqlite3";
 import { chromium } from "playwright";
 
@@ -20,6 +16,8 @@ import {
   conversationToMarkdown,
   conversationWordCount,
 } from "../lib/conversation-artifacts.js";
+
+const generateBlockId = () => crypto.randomUUID().slice(0, 8);
 
 const scriptPath = fileURLToPath(import.meta.url);
 const scriptDir = path.dirname(scriptPath);

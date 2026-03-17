@@ -268,10 +268,14 @@ function buildSelectorSchema(targetFormat: AdjustmentTargetFormat = "reader") {
         type: "string",
         description: "ID der Nachricht (aus dem Kontext übernehmen).",
       },
-      blockId: {
-        type: "string",
-        description: "ID des Blocks (aus dem Kontext übernehmen).",
-      },
+      ...(targetFormat === "reader"
+        ? {
+            blockId: {
+              type: "string",
+              description: "ID des Blocks (aus dem Kontext übernehmen).",
+            },
+          }
+        : {}),
       blockIndex: {
         type: "number",
         description: "Index des Blocks (aus dem Kontext übernehmen).",
