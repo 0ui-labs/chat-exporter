@@ -131,7 +131,7 @@ export async function importClaudeSharePage(
           // Determine role
           const testId = turn.getAttribute("data-testid") ?? "";
           const dataRole = turn.getAttribute("data-role") ?? "";
-          const className = (turn.className ?? "").toLowerCase();
+          const className = String(turn.className ?? "").toLowerCase();
 
           let role = "unknown";
           if (
@@ -231,6 +231,12 @@ export async function importClaudeSharePage(
     options?.onStage?.("normalize");
     const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
     truncateMessagesIfNeeded(normalizedPayload, MAX_MESSAGE_COUNT);
+
+    if (normalizedPayload.messages.length === 0) {
+      throw new Error(
+        "No importable messages were detected on this Claude share page.",
+      );
+    }
 
     options?.onStage?.("structure");
     const structured = await applyOpenAiStructuring(normalizedPayload.messages);
