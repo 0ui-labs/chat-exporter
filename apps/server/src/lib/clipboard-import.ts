@@ -67,13 +67,12 @@ function importFromClipboardHtml(
     warnings.push("Could not detect platform from clipboard HTML");
   }
 
-  const dom = new JSDOM(html, { runScripts: "dangerously" });
+  const dom = new JSDOM(html, { runScripts: "outside-only" });
   const { window } = dom;
 
-  // Inject DOM kit script into JSDOM
-  const scriptEl = window.document.createElement("script");
-  scriptEl.textContent = DOM_KIT_SCRIPT;
-  window.document.head.appendChild(scriptEl);
+  // Inject DOM kit helpers via eval — "outside-only" prevents user-supplied
+  // scripts from executing while allowing programmatic injection.
+  window.eval(DOM_KIT_SCRIPT);
 
   // biome-ignore lint/suspicious/noExplicitAny: JSDOM global access requires dynamic typing
   const domKit = (window as any).__domKit as
