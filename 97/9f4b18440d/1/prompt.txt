@@ -257,3 +257,7 @@ Ok bis dahin sollten wir uns tweakCC anschauen.
 ---
 
 Kannst du eien Anleitung mit etwas kontext zum warum in eine Datei schreiben
+
+---
+
+Haben die Bash tools eigentlich irgendwelche Nachteile gegenüber den nativen tools?
