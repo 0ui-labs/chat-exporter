@@ -52,6 +52,7 @@ export const adjustmentEventTypeSchema = z.enum([
 ]);
 
 export const adjustmentSelectionSchema = z.object({
+  // Optional for backward compatibility with pre-blockId imports. New rules should always include blockId.
   blockId: z.string().optional(),
   blockIndex: z.number().int().nonnegative(),
   blockType: z.string(),
