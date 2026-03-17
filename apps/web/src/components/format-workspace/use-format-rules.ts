@@ -4,6 +4,7 @@ import type {
 } from "@chat-exporter/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   getAdjustableViews,
   type ViewMode,
@@ -56,11 +57,13 @@ export function useFormatRules(view: ViewMode, jobId: string) {
       await rpc.rules.disable({ id: ruleId });
       invalidateRules();
       setHoveredRuleId((c) => (c === ruleId ? null : c));
+      toast.info("Regel deaktiviert");
       return true;
     } catch (error) {
       setDisableError(
         errorMsg(error, "Regel konnte nicht deaktiviert werden."),
       );
+      toast.error("Regel konnte nicht geändert werden");
       return false;
     } finally {
       setDisablingRuleById((c) => removeKey(c, ruleId));
@@ -99,11 +102,13 @@ export function useFormatRules(view: ViewMode, jobId: string) {
     try {
       await promoteFormatRule(ruleId);
       invalidateRules();
+      toast.success("Regel gilt jetzt für alle Imports");
       return true;
     } catch (error) {
       setPromoteError(
         errorMsg(error, "Regel konnte nicht hochgestuft werden."),
       );
+      toast.error("Regel konnte nicht geändert werden");
       return false;
     } finally {
       setPromotingRuleById((c) => removeKey(c, ruleId));
@@ -116,11 +121,13 @@ export function useFormatRules(view: ViewMode, jobId: string) {
     try {
       await demoteFormatRule(ruleId, jobId);
       invalidateRules();
+      toast.info("Regel gilt jetzt nur für diesen Import");
       return true;
     } catch (error) {
       setPromoteError(
         errorMsg(error, "Regel konnte nicht herabgestuft werden."),
       );
+      toast.error("Regel konnte nicht geändert werden");
       return false;
     } finally {
       setPromotingRuleById((c) => removeKey(c, ruleId));
