@@ -139,9 +139,11 @@ export function BlockToolbar({
   const isLast = blockIndex === totalBlocks - 1;
 
   // Track how many dropdowns are open so the parent can prevent unmounting
+  const [insertMenuOpen, setInsertMenuOpen] = useState(false);
   const [, setOpenCount] = useState(0);
   const handleDropdownOpenChange = useCallback(
     (open: boolean) => {
+      setInsertMenuOpen(open);
       setOpenCount((c) => {
         const next = c + (open ? 1 : -1);
         onMenuOpenChange?.(next > 0);
@@ -167,7 +169,10 @@ export function BlockToolbar({
   return (
     <div className="absolute -top-8 left-0 z-10 flex items-center gap-0.5 rounded-lg border border-border/60 bg-background px-1 py-0.5 shadow-sm">
       {/* Insert block dropdown */}
-      <DropdownMenu onOpenChange={handleDropdownOpenChange}>
+      <DropdownMenu
+        open={insertMenuOpen}
+        onOpenChange={handleDropdownOpenChange}
+      >
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -196,6 +201,8 @@ export function BlockToolbar({
                         blockIndex + 1,
                         createEmptyTable(cols, rows),
                       );
+                      // Close dropdown after table size selection
+                      handleDropdownOpenChange(false);
                     }}
                   />
                 </DropdownMenuSubContent>

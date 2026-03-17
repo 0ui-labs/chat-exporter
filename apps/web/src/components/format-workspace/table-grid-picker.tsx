@@ -36,6 +36,7 @@ function TableGridPicker({ onSelect }: TableGridPickerProps) {
               key={`${col}-${row}`}
               type="button"
               data-testid={`grid-cell-${col}-${row}`}
+              aria-label={`${col} × ${row} Tabelle`}
               className={cn(
                 "h-5 w-5 rounded-sm border border-border/60",
                 isHighlighted

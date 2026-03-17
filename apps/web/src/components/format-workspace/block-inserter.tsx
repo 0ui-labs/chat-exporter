@@ -9,7 +9,7 @@ import {
   Quote,
   Table,
 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import {
   DropdownMenu,
@@ -85,6 +85,8 @@ export function BlockInserter({
   onInsertBlock,
   visible = false,
 }: BlockInserterProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const handleSelect = useCallback(
     (key: keyof typeof BLOCK_DEFAULTS) => {
       onInsertBlock(blockIndex, {
@@ -105,7 +107,7 @@ export function BlockInserter({
         )}
       />
 
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -130,6 +132,7 @@ export function BlockInserter({
                   <TableGridPicker
                     onSelect={(cols, rows) => {
                       onInsertBlock(blockIndex, createEmptyTable(cols, rows));
+                      setMenuOpen(false);
                     }}
                   />
                 </DropdownMenuSubContent>
