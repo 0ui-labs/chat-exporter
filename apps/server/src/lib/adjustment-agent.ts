@@ -34,9 +34,16 @@ type ActionRecord = {
   ruleId: string;
 };
 
+type SessionEvent = {
+  eventType: string;
+  ruleId: string | null;
+  createdAt: string;
+};
+
 type RunAgentTurnInput = {
   sessionDetail: AdjustmentSessionDetail;
   activeRules: FormatRule[];
+  sessionEvents?: SessionEvent[];
   job?: ImportJob;
   callbacks: {
     onCreateRule: (params: {
@@ -531,15 +538,20 @@ function buildSelectionContext(input: RunAgentTurnInput) {
     }
   }
 
+  const actionHistory = buildActionHistory(
+    input.sessionEvents ?? [],
+    activeRules,
+  );
+  if (actionHistory) {
+    lines.push("");
+    lines.push(actionHistory);
+  }
+
   return lines.join("\n");
 }
 
 function buildActionHistory(
-  sessionEvents: Array<{
-    eventType: string;
-    ruleId: string | null;
-    createdAt: string;
-  }>,
+  sessionEvents: SessionEvent[],
   activeRules: FormatRule[],
 ): string {
   if (sessionEvents.length === 0) return "";
@@ -914,6 +926,7 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 /** @internal — exported for testing only */
 export const _internal = {
   buildActionHistory,
+  buildSelectionContext,
   buildSelectorSchema,
   buildSystemPrompt,
 };

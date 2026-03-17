@@ -1140,6 +1140,51 @@ describe("buildActionHistory", () => {
   });
 });
 
+describe("buildSelectionContext", () => {
+  test("includes action history section when sessionEvents are provided", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      sessionEvents: [
+        {
+          eventType: "rule_applied",
+          ruleId: "rule-1",
+          createdAt: "2026-03-08T12:01:00.000Z",
+        },
+      ],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).toContain("## Deine bisherigen Aktionen in dieser Session");
+    expect(result).toContain("Regel erstellt");
+  });
+
+  test("omits action history section when no sessionEvents", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      sessionEvents: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).not.toContain(
+      "## Deine bisherigen Aktionen in dieser Session",
+    );
+  });
+
+  test("omits action history section when sessionEvents is undefined", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).not.toContain(
+      "## Deine bisherigen Aktionen in dieser Session",
+    );
+  });
+});
+
 describe("buildSystemPrompt", () => {
   test("reader prompt contains compound examples", () => {
     const prompt = _internal.buildSystemPrompt("reader");

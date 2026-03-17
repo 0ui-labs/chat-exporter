@@ -17,6 +17,7 @@ import {
   getAdjustmentSessionDetail,
   listAdjustmentSessions,
   listFormatRules,
+  listSessionEvents,
   markSessionApplied,
   promoteRuleToProfile,
   recordAdjustmentEvent,
@@ -268,9 +269,11 @@ export const router = os.router({
       // Phase 2 — no wrapper: async AI call
       try {
         const job = getImportJob(detail.session.importId);
+        const sessionEvents = listSessionEvents(input.sessionId);
         const result = await runAgentTurn({
           sessionDetail: latestDetail,
           activeRules,
+          sessionEvents,
           job,
           callbacks: {
             onCreateRule: async ({ selector, effect, description }) => {

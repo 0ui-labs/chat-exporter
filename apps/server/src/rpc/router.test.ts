@@ -32,6 +32,7 @@ vi.mock("../lib/adjustment-repository.js", () => ({
   promoteRuleToProfile: vi.fn(),
   demoteRuleToLocal: vi.fn(),
   markSessionApplied: vi.fn(),
+  listSessionEvents: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("../lib/adjustment-agent.js", () => ({
