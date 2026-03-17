@@ -24,15 +24,19 @@ vi.mock("./browser-pool.js", () => ({
 
 // Mock openai-structuring to avoid external dependency
 vi.mock("./openai-structuring.js", () => ({
-  applyOpenAiStructuring: vi.fn().mockReturnValue({
-    conversation: {
-      id: "test-id",
-      title: "Test",
-      createTime: 0,
-      messages: [],
-    },
+  applyOpenAiStructuring: vi.fn().mockImplementation((messages) => ({
+    messages,
     warnings: [],
-  }),
+    structuring: {
+      status: "skipped",
+      provider: "deterministic",
+      candidateCount: 0,
+      attemptedCount: 0,
+      repairedCount: 0,
+      failedCount: 0,
+      skippedCount: 0,
+    },
+  })),
 }));
 
 import {
@@ -115,6 +119,63 @@ describe("importClaudeSharePage", () => {
 
     // Assert
     expect(mockReleaseContext).toHaveBeenCalledWith(mockContext);
+  });
+
+  test("returns structured conversation on success path", async () => {
+    // Arrange — page.evaluate resolves with realistic extracted data
+    const extractedData = {
+      title: "Test Chat",
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          rawText: "Hello Claude",
+          blocks: [{ type: "paragraph", text: "Hello Claude" }],
+          parser: {
+            source: "claude-structured",
+            blockCount: 1,
+            usedFallback: false,
+            strategy: "deterministic",
+          },
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          rawText: "Hi there! How can I help?",
+          blocks: [{ type: "paragraph", text: "Hi there! How can I help?" }],
+          parser: {
+            source: "claude-structured",
+            blockCount: 1,
+            usedFallback: false,
+            strategy: "deterministic",
+          },
+        },
+      ],
+      warnings: [],
+    };
+    const mockPage = {
+      addInitScript: vi.fn().mockResolvedValue(undefined),
+      goto: vi.fn().mockResolvedValue(undefined),
+      waitForFunction: vi.fn().mockResolvedValue(undefined),
+      waitForTimeout: vi.fn().mockResolvedValue(undefined),
+      url: vi.fn().mockReturnValue("https://claude.ai/share/test"),
+      content: vi.fn().mockResolvedValue("<html><body>mock</body></html>"),
+      evaluate: vi.fn().mockResolvedValue(extractedData),
+    };
+    mockContext.newPage.mockResolvedValue(mockPage);
+
+    // Act
+    const result = await importClaudeSharePage("https://claude.ai/share/test");
+
+    // Assert — success path returns conversation with messages
+    expect(result.conversation).toBeDefined();
+    expect(result.conversation.messages).toHaveLength(2);
+    expect(result.conversation.messages[0]?.role).toBe("user");
+    expect(result.conversation.messages[1]?.role).toBe("assistant");
+    expect(result.conversation.source.platform).toBe("claude");
+    expect(result.warnings).toEqual([]);
+    expect(result.snapshot).toBeDefined();
+    expect(result.snapshot.rawHtml).toBe("<html><body>mock</body></html>");
   });
 
   test("applies resource blocking for non-essential resources", async () => {

@@ -24,15 +24,19 @@ vi.mock("./browser-pool.js", () => ({
 
 // Mock openai-structuring to avoid external dependency
 vi.mock("./openai-structuring.js", () => ({
-  applyOpenAiStructuring: vi.fn().mockReturnValue({
-    conversation: {
-      id: "test-id",
-      title: "Test",
-      createTime: 0,
-      messages: [],
-    },
+  applyOpenAiStructuring: vi.fn().mockImplementation((messages) => ({
+    messages,
     warnings: [],
-  }),
+    structuring: {
+      status: "skipped",
+      provider: "deterministic",
+      candidateCount: 0,
+      attemptedCount: 0,
+      repairedCount: 0,
+      failedCount: 0,
+      skippedCount: 0,
+    },
+  })),
 }));
 
 import {
@@ -170,7 +174,9 @@ describe("importGeminiSharePage", () => {
       () => {},
     );
 
-    // Assert — context.route should NOT have been called (no resource blocking)
+    // Assert — verify the import function actually ran (positive guard)
+    // then confirm resource blocking was intentionally skipped for Gemini
+    expect(mockContext.newPage).toHaveBeenCalledOnce();
     expect(mockContext.route).not.toHaveBeenCalled();
   });
 

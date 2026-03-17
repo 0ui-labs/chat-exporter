@@ -267,6 +267,12 @@ export async function importGrokSharePage(
         }
       }
 
+      // Filter out nested elements that are children of other matches
+      turnElements = turnElements.filter(
+        (el, _i, arr) =>
+          !arr.some((other) => other !== el && other.contains(el)),
+      );
+
       if (turnElements.length === 0) {
         return {
           title: normalizeTitle(document.title),
