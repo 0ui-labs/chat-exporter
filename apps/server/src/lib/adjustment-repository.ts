@@ -465,6 +465,21 @@ export function listAdjustmentMessages(sessionId: string) {
     .map(deserializeAdjustmentMessage);
 }
 
+export function listSessionEvents(sessionId: string) {
+  return db
+    .select({
+      id: adjustmentEvents.id,
+      eventType: adjustmentEvents.eventType,
+      ruleId: adjustmentEvents.ruleId,
+      payloadJson: adjustmentEvents.payloadJson,
+      createdAt: adjustmentEvents.createdAt,
+    })
+    .from(adjustmentEvents)
+    .where(eq(adjustmentEvents.sessionId, sessionId))
+    .orderBy(asc(adjustmentEvents.createdAt))
+    .all();
+}
+
 export function getFormatRule(ruleId: string) {
   const row = db
     .select()
