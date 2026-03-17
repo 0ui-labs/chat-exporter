@@ -17,6 +17,7 @@ import React, {
 } from "react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlockErrorFallback } from "@/components/format-workspace/block-error-fallback";
+import { BlockInserter } from "@/components/format-workspace/block-inserter";
 import { BlockToolbar } from "@/components/format-workspace/block-toolbar";
 import { EditableBlock } from "@/components/format-workspace/editable-block";
 import { getRoleLabel } from "@/components/format-workspace/labels";
@@ -139,6 +140,13 @@ const ReaderMessage = memo(function ReaderMessage({
   blocksRef.current = message.blocks;
   const handleToolbarMenuOpenChange = useCallback((open: boolean) => {
     toolbarMenuOpen.current = open;
+  }, []);
+
+  // Clean up hover-leave timer on unmount to prevent state updates after unmount
+  useEffect(() => {
+    return () => {
+      if (hoverLeaveTimer.current) clearTimeout(hoverLeaveTimer.current);
+    };
   }, []);
 
   const handleBlockMouseEnter = useCallback(
@@ -277,166 +285,179 @@ const ReaderMessage = memo(function ReaderMessage({
         )}
       </div>
       <div className="space-y-4">
-        {message.blocks.map((block, blockIndex) => {
-          const blockText = blockToPlainText(block);
-          const blockEffects =
-            effectsMap.get(`${message.id}:${block.id}`) ?? [];
-          const isSelected =
-            selectedBlock?.messageId === message.id &&
-            selectedBlock.blockIndex === blockIndex;
-          const isHighlighted = highlightedBlocks.has(
-            `${message.id}:${block.id}`,
-          );
-          const emitSelection = (
-            anchor: ViewportAnchor,
-            selectedText: string,
-          ) => {
-            lastSelectionInteractionAt.current = Date.now();
-
-            onSelectBlock(
-              {
-                blockId: block.id,
-                blockIndex,
-                blockType: block.type,
-                messageId: message.id,
-                messageIndex,
-                messageRole: message.role,
-                selectedText,
-                textQuote: truncateSelectionText(selectedText),
-              },
-              anchor,
+        {message.blocks.length === 0 && editMode && onBlocksChange ? (
+          <BlockInserter
+            blockIndex={0}
+            onInsertBlock={handleInsertBlock}
+            visible
+          />
+        ) : (
+          message.blocks.map((block, blockIndex) => {
+            const blockText = blockToPlainText(block);
+            const blockEffects =
+              effectsMap.get(
+                block.id
+                  ? `${message.id}:${block.id}`
+                  : `${message.id}:idx-${blockIndex}`,
+              ) ?? [];
+            const isSelected =
+              selectedBlock?.messageId === message.id &&
+              (selectedBlock.blockId
+                ? selectedBlock.blockId === block.id
+                : selectedBlock.blockIndex === blockIndex);
+            const isHighlighted = highlightedBlocks.has(
+              `${message.id}:${block.id}`,
             );
-          };
+            const emitSelection = (
+              anchor: ViewportAnchor,
+              selectedText: string,
+            ) => {
+              lastSelectionInteractionAt.current = Date.now();
 
-          const inserts = collectInserts(blockEffects);
+              onSelectBlock(
+                {
+                  blockId: block.id,
+                  blockIndex,
+                  blockType: block.type,
+                  messageId: message.id,
+                  messageIndex,
+                  messageRole: message.role,
+                  selectedText,
+                  textQuote: truncateSelectionText(selectedText),
+                },
+                anchor,
+              );
+            };
 
-          return (
-            <React.Fragment key={block.id}>
-              {inserts.insertBefore === "hr" && (
-                <hr className="border-border/40" />
-              )}
-              {inserts.insertBefore === "spacer" && <div className="h-6" />}
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: hover tracking for block toolbar */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleBlockMouseEnter(blockIndex)}
-                onMouseLeave={handleBlockMouseLeave}
-              >
-                {editMode &&
-                  onBlocksChange &&
-                  hoveredBlockIndex === blockIndex && (
-                    <BlockToolbar
-                      block={block}
-                      blockIndex={blockIndex}
-                      totalBlocks={message.blocks.length}
-                      onDelete={handleDeleteBlock}
-                      onDuplicate={handleDuplicateBlock}
-                      onInsertBlock={handleInsertBlock}
-                      onMenuOpenChange={handleToolbarMenuOpenChange}
-                      onMoveUp={handleMoveUp}
-                      onMoveDown={handleMoveDown}
-                    />
-                  )}
-                {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
-                {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+            const inserts = collectInserts(blockEffects);
+
+            return (
+              <React.Fragment key={block.id}>
+                {inserts.insertBefore === "hr" && (
+                  <hr className="border-border/40" />
+                )}
+                {inserts.insertBefore === "spacer" && <div className="h-6" />}
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: hover tracking for block toolbar */}
                 <div
-                  data-testid={`reader-block-${message.id}-${blockIndex}`}
-                  className={getReaderBlockClassName({
-                    adjustModeEnabled,
-                    effects: blockEffects,
-                    isHighlighted,
-                    isSelected,
-                  })}
-                  style={getReaderBlockStyle(blockEffects)}
-                  data-selected={isSelected ? "true" : "false"}
-                  onPointerUp={(event) => {
-                    if (!adjustModeEnabled) {
-                      return;
-                    }
-
-                    const selection = window.getSelection();
-                    const range =
-                      selection && selection.rangeCount > 0
-                        ? selection.getRangeAt(0)
-                        : null;
-                    const selectedText = selection?.toString().trim() ?? "";
-                    const container = event.currentTarget;
-                    const rangeStartContainer = range?.startContainer ?? null;
-                    const rangeEndContainer = range?.endContainer ?? null;
-                    const hasLocalTextSelection =
-                      Boolean(selectedText) &&
-                      Boolean(rangeStartContainer) &&
-                      Boolean(rangeEndContainer) &&
-                      container.contains(rangeStartContainer) &&
-                      container.contains(rangeEndContainer);
-                    const anchorRect =
-                      hasLocalTextSelection && range
-                        ? range.getBoundingClientRect()
-                        : container.getBoundingClientRect();
-
-                    emitSelection(
-                      toViewportAnchor(anchorRect),
-                      hasLocalTextSelection ? selectedText : blockText,
-                    );
-
-                    if (selection && hasLocalTextSelection) {
-                      selection.removeAllRanges();
-                    }
-                  }}
-                  onClick={(event) => {
-                    if (!adjustModeEnabled) {
-                      return;
-                    }
-
-                    if (
-                      Date.now() - lastSelectionInteractionAt.current <
-                      SELECTION_DEBOUNCE_MS
-                    ) {
-                      return;
-                    }
-
-                    emitSelection(
-                      toViewportAnchor(
-                        event.currentTarget.getBoundingClientRect(),
-                      ),
-                      blockText,
-                    );
-                  }}
+                  className="relative"
+                  onMouseEnter={() => handleBlockMouseEnter(blockIndex)}
+                  onMouseLeave={handleBlockMouseLeave}
                 >
-                  <ErrorBoundary
-                    fallback={<BlockErrorFallback blockType={block.type} />}
-                  >
-                    {editMode && onBlockChange && block.type === "table" ? (
-                      <TableEditor
+                  {editMode &&
+                    onBlocksChange &&
+                    hoveredBlockIndex === blockIndex && (
+                      <BlockToolbar
                         block={block}
-                        messageId={message.id}
                         blockIndex={blockIndex}
-                        effects={blockEffects}
-                        onBlockChange={onBlockChange}
+                        totalBlocks={message.blocks.length}
+                        onDelete={handleDeleteBlock}
+                        onDuplicate={handleDuplicateBlock}
+                        onInsertBlock={handleInsertBlock}
+                        onMenuOpenChange={handleToolbarMenuOpenChange}
+                        onMoveUp={handleMoveUp}
+                        onMoveDown={handleMoveDown}
                       />
-                    ) : editMode && onBlockChange ? (
-                      <EditableBlock
-                        block={block}
-                        blockIndex={blockIndex}
-                        messageId={message.id}
-                        onBlockChange={onBlockChange}
-                      >
-                        <BlockRenderer block={block} effects={blockEffects} />
-                      </EditableBlock>
-                    ) : (
-                      <BlockRenderer block={block} effects={blockEffects} />
                     )}
-                  </ErrorBoundary>
+                  {/* biome-ignore lint/a11y/useKeyWithClickEvents: block selection is pointer-only by design */}
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: block selection uses onPointerUp + onClick */}
+                  <div
+                    data-testid={`reader-block-${message.id}-${blockIndex}`}
+                    className={getReaderBlockClassName({
+                      adjustModeEnabled,
+                      effects: blockEffects,
+                      isHighlighted,
+                      isSelected,
+                    })}
+                    style={getReaderBlockStyle(blockEffects)}
+                    data-selected={isSelected ? "true" : "false"}
+                    onPointerUp={(event) => {
+                      if (!adjustModeEnabled) {
+                        return;
+                      }
+
+                      const selection = window.getSelection();
+                      const range =
+                        selection && selection.rangeCount > 0
+                          ? selection.getRangeAt(0)
+                          : null;
+                      const selectedText = selection?.toString().trim() ?? "";
+                      const container = event.currentTarget;
+                      const rangeStartContainer = range?.startContainer ?? null;
+                      const rangeEndContainer = range?.endContainer ?? null;
+                      const hasLocalTextSelection =
+                        Boolean(selectedText) &&
+                        Boolean(rangeStartContainer) &&
+                        Boolean(rangeEndContainer) &&
+                        container.contains(rangeStartContainer) &&
+                        container.contains(rangeEndContainer);
+                      const anchorRect =
+                        hasLocalTextSelection && range
+                          ? range.getBoundingClientRect()
+                          : container.getBoundingClientRect();
+
+                      emitSelection(
+                        toViewportAnchor(anchorRect),
+                        hasLocalTextSelection ? selectedText : blockText,
+                      );
+
+                      if (selection && hasLocalTextSelection) {
+                        selection.removeAllRanges();
+                      }
+                    }}
+                    onClick={(event) => {
+                      if (!adjustModeEnabled) {
+                        return;
+                      }
+
+                      if (
+                        Date.now() - lastSelectionInteractionAt.current <
+                        SELECTION_DEBOUNCE_MS
+                      ) {
+                        return;
+                      }
+
+                      emitSelection(
+                        toViewportAnchor(
+                          event.currentTarget.getBoundingClientRect(),
+                        ),
+                        blockText,
+                      );
+                    }}
+                  >
+                    <ErrorBoundary
+                      fallback={<BlockErrorFallback blockType={block.type} />}
+                    >
+                      {editMode && onBlockChange && block.type === "table" ? (
+                        <TableEditor
+                          block={block}
+                          messageId={message.id}
+                          blockIndex={blockIndex}
+                          effects={blockEffects}
+                          onBlockChange={onBlockChange}
+                        />
+                      ) : editMode && onBlockChange ? (
+                        <EditableBlock
+                          block={block}
+                          blockIndex={blockIndex}
+                          messageId={message.id}
+                          onBlockChange={onBlockChange}
+                        >
+                          <BlockRenderer block={block} effects={blockEffects} />
+                        </EditableBlock>
+                      ) : (
+                        <BlockRenderer block={block} effects={blockEffects} />
+                      )}
+                    </ErrorBoundary>
+                  </div>
                 </div>
-                {/* BlockInserter removed — insert is now in BlockToolbar */}
-              </div>
-              {inserts.insertAfter === "hr" && (
-                <hr className="border-border/40" />
-              )}
-              {inserts.insertAfter === "spacer" && <div className="h-6" />}
-            </React.Fragment>
-          );
-        })}
+                {inserts.insertAfter === "hr" && (
+                  <hr className="border-border/40" />
+                )}
+                {inserts.insertAfter === "spacer" && <div className="h-6" />}
+              </React.Fragment>
+            );
+          })
+        )}
       </div>
     </article>
   );
