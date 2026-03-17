@@ -349,13 +349,22 @@ export async function importDeepSeekSharePage(
         // Remove thinking elements from content blocks to avoid duplication
         // (they were already extracted separately)
         const filteredContentBlocks = contentBlocks.filter(
-          (block) => block.type !== "quote" || !String(block.text ?? "").startsWith("[Thinking]"),
+          (block) =>
+            block.type !== "quote" ||
+            !String(block.text ?? "").startsWith("[Thinking]"),
         );
+        // If all content blocks were thinking blocks (filteredContentBlocks is empty)
+        // and we already have thinking blocks extracted, don't fall back to rawText
+        // as that would duplicate the thinking content as a paragraph.
+        const hasOnlyThinkingContent =
+          contentBlocks.length > 0 && filteredContentBlocks.length === 0;
         const combinedBlocks = [
           ...thinkingBlocks,
           ...(filteredContentBlocks.length > 0
             ? filteredContentBlocks
-            : [{ type: "paragraph" as const, text: rawText }]),
+            : hasOnlyThinkingContent
+              ? []
+              : [{ type: "paragraph" as const, text: rawText }]),
         ];
 
         const usedFallback = contentBlocks.length === 0;
