@@ -121,6 +121,10 @@ export function EditableBlock({
     }
     const element = ref.current;
     if (!element) return;
+    // Only sync textContent for paragraph blocks. Complex block types (list,
+    // table, code) use structured DOM — setting textContent would flatten them
+    // into plain text, destroying their structure.
+    if (block.type !== "paragraph") return;
     const currentText = element.textContent ?? "";
     const propText = blockToPlainText(block);
     if (currentText !== propText) {
