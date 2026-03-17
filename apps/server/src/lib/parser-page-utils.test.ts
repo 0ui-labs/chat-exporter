@@ -175,10 +175,10 @@ describe("parser-page-utils", () => {
 
       const payload = makePayload(5);
 
-      const result = truncateMessagesIfNeeded(payload, 10);
+      truncateMessagesIfNeeded(payload, 10);
 
-      expect(result.messages).toHaveLength(5);
-      expect(result.warnings).toHaveLength(0);
+      expect(payload.messages).toHaveLength(5);
+      expect(payload.warnings).toHaveLength(0);
     });
 
     test("does not modify payload when message count equals limit", async () => {
@@ -188,10 +188,10 @@ describe("parser-page-utils", () => {
 
       const payload = makePayload(10);
 
-      const result = truncateMessagesIfNeeded(payload, 10);
+      truncateMessagesIfNeeded(payload, 10);
 
-      expect(result.messages).toHaveLength(10);
-      expect(result.warnings).toHaveLength(0);
+      expect(payload.messages).toHaveLength(10);
+      expect(payload.warnings).toHaveLength(0);
     });
 
     test("truncates messages to last N when over limit", async () => {
@@ -201,11 +201,11 @@ describe("parser-page-utils", () => {
 
       const payload = makePayload(15);
 
-      const result = truncateMessagesIfNeeded(payload, 10);
+      truncateMessagesIfNeeded(payload, 10);
 
-      expect(result.messages).toHaveLength(10);
-      expect(result.messages[0]!.id).toBe("msg-5");
-      expect(result.messages[9]!.id).toBe("msg-14");
+      expect(payload.messages).toHaveLength(10);
+      expect(payload.messages[0]!.id).toBe("msg-5");
+      expect(payload.messages[9]!.id).toBe("msg-14");
     });
 
     test("adds warning with original and truncated count", async () => {
@@ -215,28 +215,24 @@ describe("parser-page-utils", () => {
 
       const payload = makePayload(25);
 
-      const result = truncateMessagesIfNeeded(payload, 10);
+      truncateMessagesIfNeeded(payload, 10);
 
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain("25");
-      expect(result.warnings[0]).toContain("10");
+      expect(payload.warnings).toHaveLength(1);
+      expect(payload.warnings[0]).toContain("25");
+      expect(payload.warnings[0]).toContain("10");
     });
 
-    test("returns a new payload without mutating the original", async () => {
+    test("mutates the payload in-place when truncating", async () => {
       const { truncateMessagesIfNeeded } = await import(
         "./parser-page-utils.js"
       );
 
       const payload = makePayload(15);
-      const originalMessages = [...payload.messages];
-      const originalWarnings = [...payload.warnings];
 
-      const result = truncateMessagesIfNeeded(payload, 10);
+      truncateMessagesIfNeeded(payload, 10);
 
-      expect(result).not.toBe(payload);
-      expect(payload.messages).toEqual(originalMessages);
-      expect(payload.warnings).toEqual(originalWarnings);
-      expect(result.messages).toHaveLength(10);
+      expect(payload.messages).toHaveLength(10);
+      expect(payload.warnings).toHaveLength(1);
     });
   });
 
