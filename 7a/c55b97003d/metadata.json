@@ -3,9 +3,10 @@
   "checkpoint_id": "7ac55b97003d",
   "strategy": "manual-commit",
   "branch": "feat/2.4-pluggable-output-formate",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
-    "apps/web/src/components/format-workspace/editable-block.tsx"
+    "apps/web/src/components/format-workspace/editable-block.tsx",
+    "apps/web/src/components/format-workspace/table-editor.tsx"
   ],
   "sessions": [
     {
@@ -13,13 +14,19 @@
       "transcript": "/7a/c55b97003d/0/full.jsonl",
       "content_hash": "/7a/c55b97003d/0/content_hash.txt",
       "prompt": "/7a/c55b97003d/0/prompt.txt"
+    },
+    {
+      "metadata": "/7a/c55b97003d/1/metadata.json",
+      "transcript": "/7a/c55b97003d/1/full.jsonl",
+      "content_hash": "/7a/c55b97003d/1/content_hash.txt",
+      "prompt": "/7a/c55b97003d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 167,
-    "cache_creation_tokens": 114682,
-    "cache_read_tokens": 10792891,
-    "output_tokens": 36956,
-    "api_call_count": 133
+    "input_tokens": 2616,
+    "cache_creation_tokens": 486138,
+    "cache_read_tokens": 16299827,
+    "output_tokens": 54809,
+    "api_call_count": 192
   }
 }

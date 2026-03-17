@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "7ac55b97003d",
+  "session_id": "94cd963e-7e1c-4041-9fe6-d8539edb5a2e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T16:23:17.049118Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/table-editor.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6a2997a7b293",
+  "token_usage": {
+    "input_tokens": 2449,
+    "cache_creation_tokens": 371456,
+    "cache_read_tokens": 5506936,
+    "output_tokens": 17853,
+    "api_call_count": 59
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T16:23:16.476528Z",
+    "agent_lines": 0,
+    "human_added": 427,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 427,
+    "agent_percentage": 0
+  }
+}
