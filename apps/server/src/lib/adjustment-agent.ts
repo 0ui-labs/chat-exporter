@@ -534,6 +534,36 @@ function buildSelectionContext(input: RunAgentTurnInput) {
   return lines.join("\n");
 }
 
+function buildActionHistory(
+  sessionEvents: Array<{
+    eventType: string;
+    ruleId: string | null;
+    createdAt: string;
+  }>,
+  activeRules: FormatRule[],
+): string {
+  if (sessionEvents.length === 0) return "";
+
+  const ruleMap = new Map(activeRules.map((r) => [r.id, r]));
+  const lines: string[] = ["## Deine bisherigen Aktionen in dieser Session"];
+
+  for (let i = 0; i < sessionEvents.length; i++) {
+    const event = sessionEvents[i]!;
+    const num = i + 1;
+    const ruleId = event.ruleId ?? "unknown";
+
+    if (event.eventType === "rule_disabled") {
+      lines.push(`${num}. Regel gelöscht (ID: ${ruleId})`);
+    } else if (event.eventType === "rule_applied") {
+      const rule = ruleMap.get(ruleId);
+      const description = rule?.instruction ?? "(unbekannte Regel)";
+      lines.push(`${num}. Regel erstellt: "${description}" (ID: ${ruleId})`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 type InputMessage = {
   content: Array<{ text: string; type: "input_text" | "output_text" }>;
   role: "system" | "user" | "assistant";
@@ -791,10 +821,13 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 
   const inputMessages = buildInputMessages(input);
 
+  const isFirstTurn =
+    input.sessionDetail.messages.filter((m) => m.role === "user").length <= 1;
+
   let payload = await requestOpenAiResponse(
     {
       input: inputMessages,
-      tool_choice: "auto",
+      tool_choice: isFirstTurn ? "required" : "auto",
       tools: buildTools(targetFormat),
     },
     config,
@@ -880,4 +913,8 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 }
 
 /** @internal — exported for testing only */
-export const _internal = { buildSelectorSchema, buildSystemPrompt };
+export const _internal = {
+  buildActionHistory,
+  buildSelectorSchema,
+  buildSystemPrompt,
+};

@@ -81,6 +81,51 @@ function createCallbacks() {
   };
 }
 
+/** Creates a session with multiple user messages (simulates later turns). */
+function createMultiTurnSessionDetail(): AdjustmentSessionDetail {
+  return {
+    messages: [
+      {
+        content: "Wie kann ich helfen?",
+        createdAt: "2026-03-08T12:00:00.000Z",
+        id: "assistant-1",
+        role: "assistant" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Mach den Text größer",
+        createdAt: "2026-03-08T12:01:00.000Z",
+        id: "user-1",
+        role: "user" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Die Schriftgröße wurde angepasst.",
+        createdAt: "2026-03-08T12:02:00.000Z",
+        id: "assistant-2",
+        role: "assistant" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Jetzt noch fetter bitte",
+        createdAt: "2026-03-08T12:03:00.000Z",
+        id: "user-2",
+        role: "user" satisfies Role,
+        sessionId: "session-1",
+      },
+    ],
+    session: {
+      createdAt: "2026-03-08T12:00:00.000Z",
+      id: "session-1",
+      importId: "import-1",
+      selection: createSelection(),
+      status: "open",
+      targetFormat: "reader",
+      updatedAt: "2026-03-08T12:03:00.000Z",
+    },
+  };
+}
+
 // --- OpenAI mock helper ---
 
 function mockResponsesApi(output: unknown[]) {
@@ -739,6 +784,118 @@ describe("AdjustmentAgent", () => {
     // Agent should still return
     expect(result.assistantMessage).toBeTruthy();
   });
+
+  test("first turn (1 user message) sends tool_choice 'required'", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Wie soll ich das ändern?"),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+
+    expect(body.tool_choice).toBe("required");
+  });
+
+  test("later turns (>1 user messages) sends tool_choice 'auto'", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Wie soll ich das ändern?"),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createMultiTurnSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+
+    expect(body.tool_choice).toBe("auto");
+  });
+
+  test("tool loop follow-up calls use tool_choice 'auto' even on first turn", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+
+    // First call should be "required" (first turn)
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const firstBody = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+    expect(firstBody.tool_choice).toBe("required");
+
+    // Second call (tool loop follow-up) should be "auto"
+    const secondCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondBody = JSON.parse(String(secondCall[1].body)) as {
+      tool_choice?: string;
+    };
+    expect(secondBody.tool_choice).toBe("auto");
+  });
 });
 
 describe("buildSelectorSchema", () => {
@@ -856,6 +1013,130 @@ describe("buildSelectorSchema", () => {
       expect(schema.properties).toHaveProperty("textPattern");
       expect(schema.properties).toHaveProperty("context");
     });
+  });
+});
+
+describe("buildActionHistory", () => {
+  function createFormatRule(
+    overrides: Partial<import("@chat-exporter/shared").FormatRule> = {},
+  ): import("@chat-exporter/shared").FormatRule {
+    return {
+      id: "rule-1",
+      importId: null,
+      targetFormat: "reader",
+      kind: "render",
+      scope: "import_local",
+      status: "active",
+      selector: { strategy: "block_type", blockType: "paragraph" },
+      instruction: "Default instruction",
+      createdAt: "2026-03-08T12:00:00.000Z",
+      updatedAt: "2026-03-08T12:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  test("returns empty string for empty event list", () => {
+    const result = _internal.buildActionHistory([], []);
+
+    expect(result).toBe("");
+  });
+
+  test("maps rule_applied events to rule description", () => {
+    const rules = [
+      createFormatRule({
+        id: "abc-123",
+        instruction: "Liste weiter eingerückt",
+      }),
+      createFormatRule({ id: "def-456", instruction: "Überschrift kleiner" }),
+    ];
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "abc-123",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+      {
+        eventType: "rule_applied",
+        ruleId: "def-456",
+        createdAt: "2026-03-08T12:02:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, rules);
+
+    expect(result).toContain("## Deine bisherigen Aktionen in dieser Session");
+    expect(result).toContain(
+      '1. Regel erstellt: "Liste weiter eingerückt" (ID: abc-123)',
+    );
+    expect(result).toContain(
+      '2. Regel erstellt: "Überschrift kleiner" (ID: def-456)',
+    );
+  });
+
+  test("maps rule_disabled events to deletion text", () => {
+    const events = [
+      {
+        eventType: "rule_disabled",
+        ruleId: "ghi-789",
+        createdAt: "2026-03-08T12:03:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, []);
+
+    expect(result).toContain("1. Regel gelöscht (ID: ghi-789)");
+  });
+
+  test("uses fallback text when rule_applied event has no matching rule", () => {
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "unknown-id",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, []);
+
+    expect(result).toContain(
+      '1. Regel erstellt: "(unbekannte Regel)" (ID: unknown-id)',
+    );
+  });
+
+  test("correct numbering with mixed event types", () => {
+    const rules = [
+      createFormatRule({
+        id: "abc-123",
+        instruction: "Liste weiter eingerückt",
+      }),
+    ];
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "abc-123",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+      {
+        eventType: "rule_disabled",
+        ruleId: "def-456",
+        createdAt: "2026-03-08T12:02:00.000Z",
+      },
+      {
+        eventType: "rule_applied",
+        ruleId: "unknown",
+        createdAt: "2026-03-08T12:03:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, rules);
+
+    expect(result).toContain(
+      '1. Regel erstellt: "Liste weiter eingerückt" (ID: abc-123)',
+    );
+    expect(result).toContain("2. Regel gelöscht (ID: def-456)");
+    expect(result).toContain(
+      '3. Regel erstellt: "(unbekannte Regel)" (ID: unknown)',
+    );
   });
 });
 
