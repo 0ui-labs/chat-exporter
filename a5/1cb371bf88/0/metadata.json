@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "a51cb371bf88",
+  "session_id": "a13a60a7-3fec-4131-995b-cd9f99f629ab",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T16:08:17.09699Z",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/server/src/lib/deepseek-share-import.ts",
+    "packages/shared/src/output-formats.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bfd7062aedb8",
+  "checkpoint_transcript_start": 433,
+  "transcript_lines_at_start": 433,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T16:08:16.720502Z",
+    "agent_lines": 15,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 100
+  }
+}
