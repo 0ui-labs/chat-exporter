@@ -154,6 +154,33 @@ describe("BlockInserter", () => {
     expect(tableItem).toHaveAttribute("aria-haspopup", "menu");
   });
 
+  test("selecting a table size calls onInsertBlock with a table block", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const onInsertBlock = vi.fn();
+    render(<BlockInserter blockIndex={2} onInsertBlock={onInsertBlock} />);
+
+    await user.click(screen.getByRole("button", { name: /block hinzufügen/i }));
+
+    // Open the table sub-menu by clicking the trigger
+    const tableItem = screen.getByRole("menuitem", { name: /table/i });
+    await user.click(tableItem);
+
+    // Wait for sub-menu content to appear with grid cells
+    const gridCell = await screen.findByTestId("grid-cell-3-2");
+    // Use fireEvent.click directly since Radix sub-menu portals
+    // don't propagate userEvent clicks reliably in jsdom
+    gridCell.click();
+
+    expect(onInsertBlock).toHaveBeenCalledOnce();
+    expect(onInsertBlock).toHaveBeenCalledWith(
+      2,
+      expect.objectContaining({ type: "table" }),
+    );
+    const insertedBlock = onInsertBlock.mock.calls[0]?.[1];
+    expect(insertedBlock.headers).toHaveLength(3);
+    expect(insertedBlock.rows).toHaveLength(2);
+  });
+
   test("inserted blocks get unique IDs", async () => {
     const user = userEvent.setup();
     const onInsertBlock = vi.fn();

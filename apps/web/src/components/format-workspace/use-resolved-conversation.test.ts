@@ -15,15 +15,15 @@ function createConversation(
   };
 }
 
-function textBlock(text: string): Block {
-  return { id: "tb", type: "paragraph", text };
+function textBlock(id: string, text: string): Block {
+  return { id, type: "paragraph", text };
 }
 
 describe("useResolvedConversation", () => {
   test("returns original messages when editedMessagesMap is empty", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Hello")] },
-      { id: "m2", role: "assistant", blocks: [textBlock("Hi there")] },
+      { id: "m1", role: "user", blocks: [textBlock("b1", "Hello")] },
+      { id: "m2", role: "assistant", blocks: [textBlock("b2", "Hi there")] },
     ]);
 
     const { result } = renderHook(() =>
@@ -31,13 +31,13 @@ describe("useResolvedConversation", () => {
     );
 
     expect(result.current).toHaveLength(2);
-    expect(result.current.at(0)?.blocks).toEqual([textBlock("Hello")]);
-    expect(result.current.at(1)?.blocks).toEqual([textBlock("Hi there")]);
+    expect(result.current.at(0)?.blocks).toEqual([textBlock("b1", "Hello")]);
+    expect(result.current.at(1)?.blocks).toEqual([textBlock("b2", "Hi there")]);
   });
 
   test("marks non-edited messages with isEdited: false", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Hello")] },
+      { id: "m1", role: "user", blocks: [textBlock("b3", "Hello")] },
     ]);
 
     const { result } = renderHook(() =>
@@ -49,26 +49,36 @@ describe("useResolvedConversation", () => {
 
   test("replaces blocks for edited messages", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Original")] },
-      { id: "m2", role: "assistant", blocks: [textBlock("Original reply")] },
+      { id: "m1", role: "user", blocks: [textBlock("b4", "Original")] },
+      {
+        id: "m2",
+        role: "assistant",
+        blocks: [textBlock("b5", "Original reply")],
+      },
     ]);
-    const editedBlocks: Block[] = [textBlock("Edited content")];
+    const editedBlocks: Block[] = [textBlock("b6", "Edited content")];
     const editsMap = new Map<string, Block[]>([["m1", editedBlocks]]);
 
     const { result } = renderHook(() =>
       useResolvedConversation(conversation, editsMap),
     );
 
-    expect(result.current.at(0)?.blocks).toEqual([textBlock("Edited content")]);
-    expect(result.current.at(1)?.blocks).toEqual([textBlock("Original reply")]);
+    expect(result.current.at(0)?.blocks).toEqual([
+      textBlock("b6", "Edited content"),
+    ]);
+    expect(result.current.at(1)?.blocks).toEqual([
+      textBlock("b5", "Original reply"),
+    ]);
   });
 
   test("marks edited messages with isEdited: true", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Original")] },
-      { id: "m2", role: "assistant", blocks: [textBlock("Reply")] },
+      { id: "m1", role: "user", blocks: [textBlock("b7", "Original")] },
+      { id: "m2", role: "assistant", blocks: [textBlock("b8", "Reply")] },
     ]);
-    const editsMap = new Map<string, Block[]>([["m1", [textBlock("Edited")]]]);
+    const editsMap = new Map<string, Block[]>([
+      ["m1", [textBlock("b9", "Edited")]],
+    ]);
 
     const { result } = renderHook(() =>
       useResolvedConversation(conversation, editsMap),
@@ -98,9 +108,11 @@ describe("useResolvedConversation", () => {
 
   test("preserves message id and role in resolved output", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Hello")] },
+      { id: "m1", role: "user", blocks: [textBlock("b10", "Hello")] },
     ]);
-    const editsMap = new Map<string, Block[]>([["m1", [textBlock("Edited")]]]);
+    const editsMap = new Map<string, Block[]>([
+      ["m1", [textBlock("b11", "Edited")]],
+    ]);
 
     const { result } = renderHook(() =>
       useResolvedConversation(conversation, editsMap),
@@ -112,7 +124,7 @@ describe("useResolvedConversation", () => {
 
   test("memoizes result when inputs do not change", () => {
     const conversation = createConversation([
-      { id: "m1", role: "user", blocks: [textBlock("Hello")] },
+      { id: "m1", role: "user", blocks: [textBlock("b12", "Hello")] },
     ]);
     const editsMap = new Map<string, Block[]>();
 

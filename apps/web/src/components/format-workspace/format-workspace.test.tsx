@@ -701,7 +701,17 @@ describe("FormatWorkspace", () => {
   });
 
   describe("plugin registry integration", () => {
-    test("handleDownload looks up plugin from registry for each view", () => {
+    test("handleDownload looks up plugin from registry and uses its descriptor", () => {
+      const mockPrepareDownload = vi.fn((content: string) => content);
+      mockGet.mockImplementation((id: string) => {
+        if (id !== "markdown") return undefined;
+        return {
+          descriptor: pluginDescriptors.markdown,
+          ViewComponent: MockMarkdownView,
+          prepareDownload: mockPrepareDownload,
+        };
+      });
+
       renderWithProviders(
         <FormatWorkspace
           activeStage={null}
@@ -712,7 +722,14 @@ describe("FormatWorkspace", () => {
         />,
       );
 
+      // Plugin was looked up with the active view
       expect(mockGet).toHaveBeenCalledWith("markdown");
+      // The returned plugin descriptor has the expected export properties
+      const plugin = mockGet.mock.results.find(
+        (r) => r.type === "return" && r.value,
+      )?.value;
+      expect(plugin?.descriptor.exportMimeType).toBe("text/markdown");
+      expect(plugin?.descriptor.exportExtension).toBe(".md");
     });
 
     test("handleDownload returns undefined when plugin is not registered", () => {
@@ -733,7 +750,16 @@ describe("FormatWorkspace", () => {
       expect(mockGet).toHaveBeenCalledWith("json");
     });
 
-    test("handleCopyAll looks up plugin from registry", () => {
+    test("handleCopyAll looks up plugin from registry and uses its descriptor", () => {
+      mockGet.mockImplementation((id: string) => {
+        if (id !== "reader") return undefined;
+        return {
+          descriptor: pluginDescriptors.reader,
+          ViewComponent: MockReaderView,
+          prepareConversationExport: vi.fn().mockReturnValue("<html></html>"),
+        };
+      });
+
       renderWithProviders(
         <FormatWorkspace
           activeStage={null}
@@ -745,6 +771,12 @@ describe("FormatWorkspace", () => {
       );
 
       expect(mockGet).toHaveBeenCalledWith("reader");
+      // The returned plugin descriptor has the expected export properties for copy
+      const plugin = mockGet.mock.results.find(
+        (r) => r.type === "return" && r.value,
+      )?.value;
+      expect(plugin?.descriptor.exportMimeType).toBe("text/html");
+      expect(plugin?.prepareConversationExport).toBeTypeOf("function");
     });
 
     test("handleCopyAll returns undefined when plugin is not registered", () => {
