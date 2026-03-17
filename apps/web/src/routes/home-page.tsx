@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
 import { getImportStageEntry } from "@/components/format-workspace/labels";
@@ -167,6 +168,7 @@ export function HomePage() {
       onSuccess: (nextJob) => {
         queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
         setHasEditedUrl(false);
+        toast.info("Import gestartet");
         startTransition(() => setActiveImport(nextJob.id));
       },
     }),
@@ -178,6 +180,7 @@ export function HomePage() {
         queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
         setPastedContent(null);
         setPreviewText("");
+        toast.info("Import gestartet");
         startTransition(() => setActiveImport(nextJob.id));
       },
     }),
@@ -196,6 +199,15 @@ export function HomePage() {
       setUrl(job.sourceUrl);
     }
   }, [hasEditedUrl, job]);
+
+  const jobStatus = job?.status;
+  useEffect(() => {
+    if (jobStatus === "completed") {
+      toast.success("Import abgeschlossen");
+    } else if (jobStatus === "failed") {
+      toast.error("Import fehlgeschlagen");
+    }
+  }, [jobStatus]);
 
   useEffect(() => {
     setNow(Date.now());
