@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "40b82ae8f138",
+  "strategy": "manual-commit",
+  "branch": "feat/2.4-pluggable-output-formate",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "apps/web/src/components/format-workspace/format-workspace.tsx",
+    "apps/web/src/components/format-workspace/types.test.ts",
+    "apps/web/src/components/format-workspace/types.ts",
+    "apps/web/src/components/format-workspace/use-adjustment-session.ts",
+    "apps/web/src/components/format-workspace/use-format-rules.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/b82ae8f138/0/metadata.json",
+      "transcript": "/40/b82ae8f138/0/full.jsonl",
+      "content_hash": "/40/b82ae8f138/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 65160,
+    "cache_read_tokens": 828787,
+    "output_tokens": 10365,
+    "api_call_count": 18
+  }
+}
