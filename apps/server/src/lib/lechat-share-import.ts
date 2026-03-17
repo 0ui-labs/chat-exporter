@@ -69,6 +69,35 @@ export async function importLeChatSharePage(
       .catch(() => undefined);
     await page.waitForTimeout(LECHAT_PAGE_STABILIZATION_MS);
 
+    // Validate that this is actually a Le Chat share page with conversation content
+    const hasConversationContent = await page
+      .evaluate(() => {
+        const selectors = [
+          "[class*='message']",
+          "[class*='Message']",
+          "[class*='turn']",
+          "[class*='chat']",
+          "[data-testid*='message']",
+          "[data-message-id]",
+          "[data-role]",
+        ];
+        for (const selector of selectors) {
+          if (document.querySelectorAll(selector).length > 0) return true;
+        }
+        // Fallback: check for substantial content in main area
+        const root =
+          document.querySelector("main, [role='main'], article") ??
+          document.body;
+        return (root.textContent ?? "").trim().length > 100;
+      })
+      .catch(() => false);
+
+    if (!hasConversationContent) {
+      throw new Error(
+        "This URL does not appear to be a public Le Chat share page.",
+      );
+    }
+
     options?.onStage?.("extract");
     const extracted = await page.evaluate(() => {
       const { normalizeWhitespace, elementToBlocks } = globalThis.__domKit;
