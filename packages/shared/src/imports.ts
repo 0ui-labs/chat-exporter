@@ -47,7 +47,7 @@ export const importArtifactsSchema = z.record(z.string(), z.string());
 
 export const importJobSchema = z.object({
   id: z.string(),
-  sourceUrl: z.string().url(),
+  sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
   importMethod: importMethodSchema.default("share-link"),
@@ -77,7 +77,7 @@ export type ImportJob = z.infer<typeof importJobSchema>;
 
 export const importSummarySchema = z.object({
   id: z.string(),
-  sourceUrl: z.string().url(),
+  sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
   importMethod: importMethodSchema.default("share-link"),
