@@ -650,7 +650,7 @@ async function requestOpenAiResponse(
     },
     body: JSON.stringify({
       model: config.model,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "medium" },
       store: true,
       ...body,
     }),

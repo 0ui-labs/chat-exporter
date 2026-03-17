@@ -540,6 +540,30 @@ describe("AdjustmentAgent", () => {
     );
   });
 
+  test("sends reasoning effort 'medium' in the request body", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      reasoning?: { effort?: string };
+    };
+
+    expect(body.reasoning).toBeDefined();
+    expect(body.reasoning?.effort).toBe("medium");
+  });
+
   test("throws AgentUnavailableError when AI is not configured", async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.CEREBRAS_API_KEY;
