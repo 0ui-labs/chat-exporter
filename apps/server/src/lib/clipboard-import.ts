@@ -267,8 +267,26 @@ function importFromClipboardText(
 
   for (const line of lines) {
     const trimmed = line.trim();
+    // Try header-only format first ("User:" or "User")
     const normalizedHeader = trimmed.toLowerCase().replace(/:$/, "");
-    const headerRole = ROLE_HEADERS[normalizedHeader];
+    let headerRole = ROLE_HEADERS[normalizedHeader];
+    let inlineContent: string | undefined;
+
+    // Try "Role: message" format (e.g. "User: Hello there")
+    if (!headerRole) {
+      const colonIndex = trimmed.indexOf(":");
+      if (colonIndex > 0) {
+        const prefix = trimmed.slice(0, colonIndex).trim().toLowerCase();
+        const candidate = ROLE_HEADERS[prefix];
+        if (candidate) {
+          headerRole = candidate;
+          const rest = trimmed.slice(colonIndex + 1).trim();
+          if (rest) {
+            inlineContent = rest;
+          }
+        }
+      }
+    }
 
     if (headerRole) {
       // Flush previous message
@@ -283,14 +301,14 @@ function importFromClipboardText(
         }
       }
       currentRole = headerRole;
-      currentContent = [];
+      currentContent = inlineContent ? [inlineContent] : [];
 
       // Detect platform from header
-      if (
-        detectedPlatform === "unknown" &&
-        PLATFORM_FROM_HEADER[normalizedHeader]
-      ) {
-        detectedPlatform = PLATFORM_FROM_HEADER[normalizedHeader];
+      const platformKey = inlineContent
+        ? trimmed.slice(0, trimmed.indexOf(":")).trim().toLowerCase()
+        : normalizedHeader;
+      if (detectedPlatform === "unknown" && PLATFORM_FROM_HEADER[platformKey]) {
+        detectedPlatform = PLATFORM_FROM_HEADER[platformKey];
       }
     } else {
       currentContent.push(line);

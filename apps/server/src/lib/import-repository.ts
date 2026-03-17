@@ -188,22 +188,26 @@ export function listImportSummaries(
   }
 
   return query.all().flatMap((row) => {
-    const parsed = importSummarySchema.safeParse({
-      id: row.id,
-      sourceUrl: row.sourceUrl,
-      sourcePlatform: row.sourcePlatform,
-      mode: row.mode,
-      importMethod: row.importMethod,
-      status: row.status,
-      currentStage: row.currentStage,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      warnings: parseJson<string[]>(row.warningsJson) ?? [],
-      error: row.error ?? undefined,
-      summary: parseJson<ImportJob["summary"]>(row.summaryJson),
-      pageTitle: row.pageTitle ?? undefined,
-    });
-    return parsed.success ? [parsed.data] : [];
+    try {
+      const parsed = importSummarySchema.safeParse({
+        id: row.id,
+        sourceUrl: row.sourceUrl,
+        sourcePlatform: row.sourcePlatform,
+        mode: row.mode,
+        importMethod: row.importMethod,
+        status: row.status,
+        currentStage: row.currentStage,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        warnings: parseJson<string[]>(row.warningsJson) ?? [],
+        error: row.error ?? undefined,
+        summary: parseJson<ImportJob["summary"]>(row.summaryJson),
+        pageTitle: row.pageTitle ?? undefined,
+      });
+      return parsed.success ? [parsed.data] : [];
+    } catch {
+      return [];
+    }
   });
 }
 
