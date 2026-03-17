@@ -3,6 +3,7 @@ import { Clock3, LoaderCircle } from "lucide-react";
 
 import { getJobStatusLabel } from "@/components/format-workspace/labels";
 import { SaveIndicator } from "@/components/format-workspace/save-indicator";
+import { getStatusVariant } from "@/components/format-workspace/status-variant";
 import { Badge } from "@/components/ui/badge";
 
 type ActiveStage = {
@@ -27,7 +28,7 @@ export function StatusHeader({
 }: StatusHeaderProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Badge variant={job.status === "completed" ? "default" : "outline"}>
+      <Badge variant={getStatusVariant(job.status)}>
         {getJobStatusLabel(job.status)}
       </Badge>
       {job.summary ? (
