@@ -1,6 +1,5 @@
 import {
   conversationSchema,
-  type ImportStage,
   normalizedSnapshotPayloadSchema,
   type SourcePlatform,
 } from "@chat-exporter/shared";
@@ -9,6 +8,13 @@ import type { Page } from "playwright";
 import { acquireContext, releaseContext } from "./browser-pool.js";
 import { MAX_MESSAGE_COUNT, MAX_RAW_HTML_BYTES } from "./constants.js";
 import { applyOpenAiStructuring } from "./openai-structuring.js";
+import {
+  blockNonEssentialResources,
+  preparePageScripts,
+  truncateMessagesIfNeeded,
+  validateRawHtmlSize,
+} from "./parser-page-utils.js";
+import type { StageCallback } from "./parser-types.js";
 import { looksLikeSharedConversationUrl } from "./source-platform.js";
 
 /* ── Navigation Timeouts ──────────────────────────────────── */
@@ -110,10 +116,6 @@ export const MAX_HINT_CLASSES = 24;
 
 /* ─────────────────────────────────────────────────────────── */
 
-type StageCallback = (
-  stage: Extract<ImportStage, "fetch" | "extract" | "normalize" | "structure">,
-) => void;
-
 function normalizeHostname(hostname: string) {
   return hostname.toLowerCase().replace(/^www\./, "");
 }
@@ -191,7 +193,7 @@ async function maybeDismissGoogleConsentGate(page: Page) {
   return !isGoogleConsentUrl(page.url());
 }
 
-export async function importGenericSharePage(
+export async function importUnknownSharePage(
   url: string,
   options: {
     onStage?: StageCallback;
@@ -202,25 +204,11 @@ export async function importGenericSharePage(
 
   try {
     if (!isGoogleSourcePlatform(options.sourcePlatform)) {
-      await context.route("**/*", (route) => {
-        const resourceType = route.request().resourceType();
-
-        if (
-          resourceType === "image" ||
-          resourceType === "media" ||
-          resourceType === "font"
-        ) {
-          return route.abort();
-        }
-
-        return route.continue();
-      });
+      await blockNonEssentialResources(context);
     }
 
     const page = await context.newPage();
-    await page.addInitScript({
-      content: "globalThis.__name = (value) => value;",
-    });
+    await preparePageScripts(page);
 
     const navigationTimeout = isGoogleSourcePlatform(options.sourcePlatform)
       ? GOOGLE_NAVIGATION_TIMEOUT_MS
@@ -296,337 +284,12 @@ export async function importGenericSharePage(
     };
     const extracted = await page.evaluate(
       ({ platform, cfg }) => {
-        const wrapperTags = new Set([
-          "ARTICLE",
-          "SECTION",
-          "DIV",
-          "SPAN",
-          "FIGURE",
-          "MAIN",
-        ]);
-        const blockTags = new Set([
-          "P",
-          "H1",
-          "H2",
-          "H3",
-          "H4",
-          "H5",
-          "H6",
-          "UL",
-          "OL",
-          "PRE",
-          "BLOCKQUOTE",
-          "TABLE",
-          "HR",
-        ]);
-        const codeLanguageLabels = new Set([
-          "plain text",
-          "text",
-          "json",
-          "javascript",
-          "typescript",
-          "ts",
-          "js",
-          "python",
-          "bash",
-          "shell",
-          "sql",
-          "html",
-          "css",
-          "markdown",
-          "md",
-          "yaml",
-          "yml",
-        ]);
-
-        function normalizeWhitespace(value: string | null | undefined) {
-          return (value ?? "")
-            .replace(/\u00a0/g, " ")
-            .replace(/\r/g, "")
-            .replace(/[ \t\f\v]+/g, " ")
-            .replace(/ *\n */g, "\n")
-            .replace(/\n{3,}/g, "\n\n")
-            .trim();
-        }
-
-        function inlineText(node: Node): string {
-          if (node.nodeType === Node.TEXT_NODE) {
-            return node.textContent ?? "";
-          }
-
-          if (node.nodeType !== Node.ELEMENT_NODE) {
-            return "";
-          }
-
-          const element = node as HTMLElement;
-          const tagName = element.tagName.toUpperCase();
-
-          if (
-            tagName === "BUTTON" ||
-            tagName === "SVG" ||
-            tagName === "PATH" ||
-            tagName === "USE" ||
-            tagName === "IMG" ||
-            tagName === "NOSCRIPT"
-          ) {
-            return "";
-          }
-
-          if (tagName === "BR") {
-            return "\n";
-          }
-
-          const childText = Array.from(element.childNodes)
-            .map(inlineText)
-            .join("");
-
-          switch (tagName) {
-            case "A": {
-              const text = normalizeWhitespace(childText);
-              const href = element.getAttribute("href");
-              return href && text ? `[${text}](${href})` : text;
-            }
-            case "STRONG":
-            case "B": {
-              const text = normalizeWhitespace(childText);
-              return text ? `**${text}**` : "";
-            }
-            case "EM":
-            case "I": {
-              const text = normalizeWhitespace(childText);
-              return text ? `*${text}*` : "";
-            }
-            case "CODE": {
-              if (element.closest("pre")) {
-                return "";
-              }
-
-              const text = normalizeWhitespace(childText);
-              return text ? `\`${text}\`` : "";
-            }
-            case "DEL":
-            case "S": {
-              const text = normalizeWhitespace(childText);
-              return text ? `~~${text}~~` : "";
-            }
-            default:
-              return childText;
-          }
-        }
-
-        function inlineFromElement(element: Element) {
-          return normalizeWhitespace(
-            Array.from(element.childNodes).map(inlineText).join(""),
-          );
-        }
-
-        function extractListItems(listElement: Element, depth = 0): string[] {
-          const items: string[] = [];
-          const listItems = Array.from(listElement.children).filter(
-            (child) => child.tagName === "LI",
-          );
-
-          for (const listItem of listItems) {
-            let ownText = "";
-
-            for (const childNode of Array.from(listItem.childNodes)) {
-              if (
-                childNode.nodeType === Node.ELEMENT_NODE &&
-                ["UL", "OL"].includes((childNode as Element).tagName)
-              ) {
-                continue;
-              }
-
-              ownText += inlineText(childNode);
-            }
-
-            const normalized = normalizeWhitespace(ownText);
-            if (normalized) {
-              items.push(`${"  ".repeat(depth)}${normalized}`);
-            }
-
-            const nestedLists = Array.from(listItem.children).filter((child) =>
-              ["UL", "OL"].includes(child.tagName),
-            );
-
-            for (const nestedList of nestedLists) {
-              items.push(...extractListItems(nestedList, depth + 1));
-            }
-          }
-
-          return items;
-        }
-
-        function detectCodeLanguage(preElement: HTMLElement) {
-          const firstLine =
-            preElement.innerText.split("\n")[0]?.trim().toLowerCase() ?? "";
-
-          if (codeLanguageLabels.has(firstLine)) {
-            return firstLine === "plain text" ? "text" : firstLine;
-          }
-
-          const classHint = Array.from(preElement.querySelectorAll("[class]"))
-            .map((element) => element.className)
-            .join(" ");
-          const languageMatch = classHint.match(/language-([a-z0-9#+-]+)/i);
-          return languageMatch?.[1]?.toLowerCase() ?? "text";
-        }
-
-        function extractCodeText(preElement: HTMLElement) {
-          const lines = preElement.innerText.replace(/\r/g, "").split("\n");
-
-          while (lines.length > 1) {
-            const firstLine = lines[0]?.trim().toLowerCase() ?? "";
-            if (
-              !codeLanguageLabels.has(firstLine) &&
-              firstLine !== "kopieren" &&
-              firstLine !== "copy"
-            ) {
-              break;
-            }
-            lines.shift();
-          }
-
-          return lines.join("\n").trim();
-        }
-
-        function extractTable(tableElement: HTMLTableElement) {
-          const headerRows = Array.from(
-            tableElement.querySelectorAll("thead tr"),
-          );
-          const bodyRows = Array.from(
-            tableElement.querySelectorAll("tbody tr"),
-          );
-          const fallbackRows = Array.from(tableElement.querySelectorAll("tr"));
-          const firstHeaderRow = headerRows[0];
-
-          const headers = firstHeaderRow
-            ? Array.from(firstHeaderRow.querySelectorAll("th,td")).map((cell) =>
-                inlineFromElement(cell),
-              )
-            : [];
-
-          const rowSource =
-            bodyRows.length > 0
-              ? bodyRows
-              : fallbackRows.slice(headers.length > 0 ? 1 : 0);
-          const rows = rowSource
-            .map((row) =>
-              Array.from(row.querySelectorAll("th,td")).map((cell) =>
-                inlineFromElement(cell),
-              ),
-            )
-            .filter((row) => row.some(Boolean));
-
-          if (headers.length === 0 && rows.length === 0) {
-            return null;
-          }
-
-          return {
-            type: "table" as const,
-            headers,
-            rows,
-          };
-        }
-
-        function elementToBlocks(
-          element: Element,
-        ): Array<Record<string, unknown>> {
-          const tagName = element.tagName.toUpperCase();
-
-          if (tagName === "P") {
-            const text = inlineFromElement(element);
-            return text ? [{ type: "paragraph", text }] : [];
-          }
-
-          if (/^H[1-6]$/.test(tagName)) {
-            const text = inlineFromElement(element);
-            const level = Number(tagName.slice(1));
-            return text ? [{ type: "heading", level, text }] : [];
-          }
-
-          if (tagName === "UL" || tagName === "OL") {
-            const items = extractListItems(element);
-            return items.length > 0
-              ? [
-                  {
-                    type: "list",
-                    ordered: tagName === "OL",
-                    items,
-                  },
-                ]
-              : [];
-          }
-
-          if (tagName === "PRE") {
-            const text = extractCodeText(element as HTMLElement);
-            return text
-              ? [
-                  {
-                    type: "code",
-                    language: detectCodeLanguage(element as HTMLElement),
-                    text,
-                  },
-                ]
-              : [];
-          }
-
-          if (tagName === "BLOCKQUOTE") {
-            const text = inlineFromElement(element);
-            return text ? [{ type: "quote", text }] : [];
-          }
-
-          if (tagName === "TABLE") {
-            const table = extractTable(element as HTMLTableElement);
-            return table ? [table] : [];
-          }
-
-          if (tagName === "HR") {
-            return [];
-          }
-
-          if (wrapperTags.has(tagName)) {
-            const childBlocks = Array.from(element.childNodes).flatMap(
-              (childNode) => {
-                if (childNode.nodeType === Node.TEXT_NODE) {
-                  const text = normalizeWhitespace(childNode.textContent ?? "");
-                  return text ? [{ type: "paragraph" as const, text }] : [];
-                }
-
-                if (childNode.nodeType !== Node.ELEMENT_NODE) {
-                  return [];
-                }
-
-                return elementToBlocks(childNode as Element);
-              },
-            );
-
-            if (childBlocks.length > 0) {
-              return childBlocks;
-            }
-          }
-
-          const hasBlockChildren = Array.from(element.children).some((child) =>
-            blockTags.has(child.tagName),
-          );
-
-          if (hasBlockChildren) {
-            return Array.from(element.children).flatMap((child) =>
-              elementToBlocks(child),
-            );
-          }
-
-          const text = inlineFromElement(element);
-          return text ? [{ type: "paragraph", text }] : [];
-        }
+        const { normalizeWhitespace, elementToBlocks } = globalThis.__domKit;
 
         function normalizeTitle(rawTitle: string) {
           const title = rawTitle
             .replace(/\|\s*shared .*$/i, "")
-            .replace(
-              /^(chatgpt|claude|gemini|grok|deepseek|notebooklm)\s*[-|:]\s*/i,
-              "",
-            )
+            .replace(/^(notebooklm)\s*[-|:]\s*/i, "")
             .replace(/^shared\s+/i, "")
             .trim();
 
@@ -699,7 +362,7 @@ export async function importGenericSharePage(
         }
 
         function hasConversationHints(element: Element) {
-          return /(message|conversation|turn|chat|prompt|response|assistant|user|claude|gemini|grok|deepseek|notebooklm)/i.test(
+          return /(message|conversation|turn|chat|prompt|response|assistant|user|notebooklm)/i.test(
             attributeHintText(element),
           );
         }
@@ -896,7 +559,7 @@ export async function importGenericSharePage(
           }
 
           if (
-            /(^|\b)(assistant|model|bot|claude|gemini|grok|deepseek|notebooklm|response|answer|self-start|justify-start|mr-auto|text-left|start-)(\b|$)/.test(
+            /(^|\b)(assistant|model|bot|notebooklm|response|answer|self-start|justify-start|mr-auto|text-left|start-)(\b|$)/.test(
               hintText,
             )
           ) {
@@ -937,159 +600,7 @@ export async function importGenericSharePage(
           return role === "user" ? "assistant" : "user";
         }
 
-        function pickGeminiTitle() {
-          const explicitTitle =
-            document.querySelector(".share-landing-page_content h1") ??
-            document.querySelector("main h1") ??
-            document.querySelector("h1");
-
-          if (explicitTitle) {
-            const title = normalizeWhitespace(
-              (explicitTitle as HTMLElement).innerText,
-            );
-
-            if (title) {
-              return normalizeTitle(title);
-            }
-          }
-
-          return normalizeTitle(document.title);
-        }
-
-        function normalizeGeminiUserQuery(text: string) {
-          return normalizeWhitespace(text.replace(/^you said\s*/i, ""));
-        }
-
-        function parseGeminiTurns() {
-          const turnElements = Array.from(
-            document.querySelectorAll(".share-turn-viewer"),
-          ).filter((element) => isVisible(element) && !isExcluded(element));
-
-          if (turnElements.length === 0) {
-            return null;
-          }
-
-          const messages: Array<{
-            id: string;
-            role: "user" | "assistant";
-            rawText: string;
-            rawHtml: string;
-            blocks: Array<Record<string, unknown>>;
-            parser: {
-              source: string;
-              blockCount: number;
-              usedFallback: boolean;
-              strategy: "deterministic" | "fallback";
-            };
-          }> = [];
-
-          turnElements.forEach((turnElement, index) => {
-            const turnId =
-              turnElement.getAttribute("data-turn-id") ??
-              `gemini-turn-${index + 1}`;
-            const userElement =
-              turnElement.querySelector("user-query .user-query-container") ??
-              turnElement.querySelector(".user-query-container");
-            const responseElement =
-              turnElement.querySelector(
-                "response-container .response-container-with-gpi, response-container",
-              ) ?? turnElement.querySelector("response-container");
-
-            const userText = userElement
-              ? normalizeGeminiUserQuery((userElement as HTMLElement).innerText)
-              : "";
-
-            if (userText) {
-              messages.push({
-                id: `${turnId}-user`,
-                role: "user" as const,
-                rawText: userText,
-                rawHtml: (userElement as HTMLElement).innerHTML,
-                blocks: [{ type: "paragraph", text: userText }],
-                parser: {
-                  source: "gemini-user-query",
-                  blockCount: 1,
-                  usedFallback: false,
-                  strategy: "deterministic" as const,
-                },
-              });
-            }
-
-            if (!responseElement) {
-              return;
-            }
-
-            const responseRoot = contentRootFor(responseElement);
-            const responseText = normalizeWhitespace(
-              (responseRoot as HTMLElement).innerText,
-            );
-
-            if (!responseText) {
-              return;
-            }
-
-            const responseBlocks = Array.from(responseRoot.childNodes).flatMap(
-              (childNode) => {
-                if (childNode.nodeType === Node.TEXT_NODE) {
-                  const text = normalizeWhitespace(childNode.textContent ?? "");
-                  return text ? [{ type: "paragraph" as const, text }] : [];
-                }
-
-                if (childNode.nodeType !== Node.ELEMENT_NODE) {
-                  return [];
-                }
-
-                return elementToBlocks(childNode as Element);
-              },
-            );
-            const finalBlocks =
-              responseBlocks.length > 0
-                ? responseBlocks
-                : [{ type: "paragraph" as const, text: responseText }];
-
-            messages.push({
-              id: `${turnId}-assistant`,
-              role: "assistant" as const,
-              rawText: responseText,
-              rawHtml: (responseRoot as HTMLElement).innerHTML,
-              blocks: finalBlocks,
-              parser: {
-                source:
-                  responseBlocks.length > 0
-                    ? "gemini-response-container"
-                    : "gemini-response-fallback",
-                blockCount: finalBlocks.length,
-                usedFallback: responseBlocks.length === 0,
-                strategy:
-                  responseBlocks.length > 0
-                    ? ("deterministic" as const)
-                    : ("fallback" as const),
-              },
-            });
-          });
-
-          if (messages.length === 0) {
-            return null;
-          }
-
-          return {
-            title: pickGeminiTitle(),
-            messages,
-            warnings: [
-              `Parsed ${turnElements.length} Gemini share turn(s) from provider-specific containers.`,
-            ],
-          };
-        }
-
         const warnings: string[] = [];
-
-        if (platform === "gemini") {
-          const geminiTurns = parseGeminiTurns();
-
-          if (geminiTurns) {
-            return geminiTurns;
-          }
-        }
 
         const extractionRoot = pickExtractionRoot();
         const rootText = normalizeWhitespace(
@@ -1331,16 +842,7 @@ export async function importGenericSharePage(
 
     options.onStage?.("normalize");
     const normalizedPayload = normalizedSnapshotPayloadSchema.parse(extracted);
-
-    if (normalizedPayload.messages.length > MAX_MESSAGE_COUNT) {
-      const originalCount = normalizedPayload.messages.length;
-      normalizedPayload.messages = normalizedPayload.messages.slice(
-        -MAX_MESSAGE_COUNT,
-      );
-      normalizedPayload.warnings.push(
-        `Nachrichtenlimit überschritten: ${originalCount} Nachrichten gefunden, auf die letzten ${MAX_MESSAGE_COUNT} gekürzt.`,
-      );
-    }
+    truncateMessagesIfNeeded(normalizedPayload, MAX_MESSAGE_COUNT);
 
     const previewText = normalizedPayload.messages
       .slice(0, 3)
@@ -1358,6 +860,8 @@ export async function importGenericSharePage(
                 return block.items.join(" ");
               case "table":
                 return [...block.headers, ...block.rows.flat()].join(" ");
+              default:
+                return undefined;
             }
           })
           .filter(Boolean),
@@ -1397,14 +901,7 @@ export async function importGenericSharePage(
       structuring: structured.structuring,
     });
     const rawHtml = await page.content();
-    const rawHtmlBytes = Buffer.byteLength(rawHtml, "utf8");
-    if (rawHtmlBytes > MAX_RAW_HTML_BYTES) {
-      const sizeMb = (rawHtmlBytes / (1024 * 1024)).toFixed(1);
-      const limitMb = (MAX_RAW_HTML_BYTES / (1024 * 1024)).toFixed(1);
-      throw new Error(
-        `HTML-Größe überschritten: ${sizeMb} MB (Limit: ${limitMb} MB).`,
-      );
-    }
+    const rawHtmlBytes = validateRawHtmlSize(rawHtml, MAX_RAW_HTML_BYTES);
     const fetchedAt = new Date().toISOString();
 
     const conversation = conversationSchema.parse({
@@ -1429,7 +926,7 @@ export async function importGenericSharePage(
         fetchMetadata: {
           articleCount: normalizedPayload.messages.length,
           messageCount: conversation.messages.length,
-          rawHtmlBytes: Buffer.byteLength(rawHtml, "utf8"),
+          rawHtmlBytes,
         },
       },
     };

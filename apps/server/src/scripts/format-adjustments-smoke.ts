@@ -17,6 +17,8 @@ import {
   conversationWordCount,
 } from "../lib/conversation-artifacts.js";
 
+const generateBlockId = () => crypto.randomUUID().slice(0, 8);
+
 const scriptPath = fileURLToPath(import.meta.url);
 const scriptDir = path.dirname(scriptPath);
 const projectRoot = path.resolve(scriptDir, "../../../..");
@@ -110,6 +112,7 @@ function createFixtureConversation(): Conversation {
         role: "user",
         blocks: [
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Please draft the release rollout checklist.",
           },
@@ -120,19 +123,23 @@ function createFixtureConversation(): Conversation {
         role: "assistant",
         blocks: [
           {
+            id: generateBlockId(),
             type: "heading",
             level: 2,
             text: "Project plan",
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Important: check the logs before deploying.",
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "Reminder: keep the rollback command handy.",
           },
           {
+            id: generateBlockId(),
             type: "list",
             ordered: false,
             items: [
@@ -141,6 +148,7 @@ function createFixtureConversation(): Conversation {
             ],
           },
           {
+            id: generateBlockId(),
             type: "paragraph",
             text: "**Wichtig für den Launch:** Zuständigkeiten müssen sichtbar bleiben.",
           },
@@ -164,6 +172,7 @@ function createFixtureJob(conversation: Conversation): ImportJob {
     currentStage: "done",
     id: fixtureImportId,
     mode: "archive",
+    importMethod: "share-link",
     sourcePlatform: "chatgpt",
     sourceUrl: conversation.source.url,
     status: "completed",

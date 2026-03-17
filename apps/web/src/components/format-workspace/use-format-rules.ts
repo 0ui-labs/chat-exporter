@@ -5,7 +5,7 @@ import type {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  adjustableViews,
+  getAdjustableViews,
   type ViewMode,
 } from "@/components/format-workspace/types";
 import { useRuleExplanations } from "@/components/format-workspace/use-rule-explanations";
@@ -27,7 +27,7 @@ function removeKey(
 
 export function useFormatRules(view: ViewMode, jobId: string) {
   const queryClient = useQueryClient();
-  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustableView = getAdjustableViews().has(view);
   const rulesQuery = useQuery({
     ...orpc.rules.list.queryOptions({
       input: { importId: jobId, format: view },

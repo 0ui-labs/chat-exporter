@@ -7,9 +7,6 @@ export const adjustmentTargetFormatSchema = z.enum([
   "markdown",
   "handover",
   "json",
-  "html",
-  "rich_text",
-  "clipboard_html",
 ]);
 
 export const adjustmentSessionStatusSchema = z.enum([
@@ -55,6 +52,8 @@ export const adjustmentEventTypeSchema = z.enum([
 ]);
 
 export const adjustmentSelectionSchema = z.object({
+  // Optional for backward compatibility with pre-blockId imports. New rules should always include blockId.
+  blockId: z.string().optional(),
   blockIndex: z.number().int().nonnegative(),
   blockType: z.string(),
   lineEnd: z.number().int().positive().optional(),
@@ -79,6 +78,7 @@ export const appendAdjustmentMessageRequestSchema = z.object({
 
 export const exactReaderSelectorSchema = z
   .object({
+    blockId: z.string().optional(),
     blockIndex: z.number().int().nonnegative(),
     blockType: z.string(),
     messageId: z.string(),

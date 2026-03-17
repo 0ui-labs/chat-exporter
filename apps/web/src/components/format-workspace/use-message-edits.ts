@@ -11,6 +11,11 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+  // Ref tracks the latest snapshotId so that saveEdit/deleteEdit always read
+  // the current value, even when called from a stale closure (e.g. after
+  // ensureSnapshot() creates a new snapshot but before React re-renders).
+  const snapshotIdRef = useRef(snapshotId);
+  snapshotIdRef.current = snapshotId;
   // pendingTimerCount triggers re-renders when debounce timers are added or
   // removed so that hasPendingEdits reflects the current state synchronously.
   const [pendingTimerCount, setPendingTimerCount] = useState(0);
@@ -58,8 +63,15 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
   }, [editsQuery.data]);
 
   const saveEdit = useCallback(
-    (messageId: string, blocks: Block[], annotation?: string) => {
-      if (!snapshotId) return;
+    (
+      messageId: string,
+      blocks: Block[],
+      annotation?: string,
+      snapshotIdOverride?: string,
+    ) => {
+      // Use explicit override (from ensureSnapshot result) or fall back to ref.
+      const currentSnapshotId = snapshotIdOverride ?? snapshotIdRef.current;
+      if (!currentSnapshotId) return;
 
       const existing = debounceTimers.current.get(messageId);
       if (existing) {
@@ -70,13 +82,25 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
         setPendingTimerCount((c) => c + 1);
       }
 
+      // Capture the resolved snapshot ID before scheduling the debounce timer.
+      // snapshotIdOverride may be lost by the time the timer fires (stale closure).
+      const resolvedSnapshotId = snapshotIdOverride ?? snapshotIdRef.current;
+
       const timer = setTimeout(() => {
+        // Prefer the snapshot ID captured at schedule time; fall back to the
+        // ref in case it was still undefined then and has since arrived.
+        const sid = resolvedSnapshotId ?? snapshotIdRef.current;
+        if (!sid) {
+          debounceTimers.current.delete(messageId);
+          setPendingTimerCount((c) => c - 1);
+          return;
+        }
         debounceTimers.current.delete(messageId);
         setPendingTimerCount((c) => c - 1);
         setInFlightMutationCount((c) => c + 1);
         saveMutation.mutate({
           importId,
-          snapshotId,
+          snapshotId: sid,
           messageId,
           editedBlocks: blocks,
           annotation,
@@ -85,12 +109,13 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
 
       debounceTimers.current.set(messageId, timer);
     },
-    [importId, snapshotId, saveMutation.mutate],
+    [importId, saveMutation.mutate],
   );
 
   const deleteEdit = useCallback(
     (messageId: string) => {
-      if (!snapshotId) return;
+      const currentSnapshotId = snapshotIdRef.current;
+      if (!currentSnapshotId) return;
 
       // Cancel any pending debounced save for this message
       const existing = debounceTimers.current.get(messageId);
@@ -102,11 +127,11 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
 
       return deleteMutation.mutateAsync({
         importId,
-        snapshotId,
+        snapshotId: currentSnapshotId,
         messageId,
       });
     },
-    [importId, snapshotId, deleteMutation.mutateAsync],
+    [importId, deleteMutation.mutateAsync],
   );
 
   return {

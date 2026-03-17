@@ -50,6 +50,26 @@ export function classifySourcePlatform(urlString: string): SourcePlatform {
     return "notebooklm";
   }
 
+  if (
+    hostname === "aistudio.google.com" ||
+    hostname.endsWith(".aistudio.google.com")
+  ) {
+    // TODO: aistudio falls through to generic importer — missing consent-handling and longer timeout
+    return "aistudio";
+  }
+
+  if (hostname === "perplexity.ai" || hostname.endsWith(".perplexity.ai")) {
+    return "perplexity";
+  }
+
+  if (hostname === "chat.mistral.ai") {
+    return "lechat";
+  }
+
+  if (hostname === "kimi.moonshot.cn" || hostname.endsWith(".moonshot.cn")) {
+    return "kimi";
+  }
+
   return "unknown";
 }
 

@@ -1,6 +1,16 @@
 import type { Block } from "@chat-exporter/shared";
-import { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
+import { blockToPlainText } from "@/components/format-workspace/reader-block-render";
 import { cn } from "@/lib/utils";
+
+/**
+ * Renders children only on initial mount — prevents React from reconciling
+ * DOM nodes that the browser's contentEditable engine has modified.
+ */
+const FrozenChildren = React.memo(
+  ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  () => true,
+);
 
 interface EditableBlockProps {
   block: Block;
@@ -22,21 +32,31 @@ interface EditableBlockProps {
 function readBlockFromDom(element: HTMLElement, original: Block): Block {
   switch (original.type) {
     case "paragraph":
-      return { type: "paragraph", text: element.textContent ?? "" };
+      return {
+        id: original.id,
+        type: "paragraph",
+        text: element.textContent ?? "",
+      };
 
     case "heading":
       return {
+        id: original.id,
         type: "heading",
         level: original.level,
         text: element.textContent ?? "",
       };
 
     case "quote":
-      return { type: "quote", text: element.textContent ?? "" };
+      return {
+        id: original.id,
+        type: "quote",
+        text: element.textContent ?? "",
+      };
 
     case "code": {
       const codeEl = element.querySelector("pre code");
       return {
+        id: original.id,
         type: "code",
         language: original.language,
         text: codeEl ? (codeEl.textContent ?? "") : (element.textContent ?? ""),
@@ -47,6 +67,7 @@ function readBlockFromDom(element: HTMLElement, original: Block): Block {
       const listItems = element.querySelectorAll("li");
       const items = Array.from(listItems).map((li) => li.textContent ?? "");
       return {
+        id: original.id,
         type: "list",
         ordered: original.ordered,
         items: items.length > 0 ? items : [element.textContent ?? ""],
@@ -63,7 +84,7 @@ function readBlockFromDom(element: HTMLElement, original: Block): Block {
         return Array.from(cells).map((td) => td.textContent ?? "");
       });
 
-      return { type: "table", headers, rows };
+      return { id: original.id, type: "table", headers, rows };
     }
 
     default:
@@ -79,11 +100,43 @@ export function EditableBlock({
   children,
 }: EditableBlockProps) {
   const ref = useRef<HTMLDivElement>(null);
+  // Skip the initial mount — FrozenChildren handles the first render.
+  const hasMounted = useRef(false);
+  // Tracks whether the last change came from the editor itself (blur commit).
+  // When true, the useEffect below skips re-setting DOM content to avoid
+  // fighting with the user's cursor.
+  const isLocalChange = useRef(false);
+
+  // Update editor DOM when block props change externally (e.g. undo, reorder).
+  // Skips the initial mount (FrozenChildren renders the initial content) and
+  // skips changes that originated from this editor's own blur commit.
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
+    if (isLocalChange.current) {
+      isLocalChange.current = false;
+      return;
+    }
+    const element = ref.current;
+    if (!element) return;
+    // Only sync textContent for paragraph blocks. Complex block types (list,
+    // table, code) use structured DOM — setting textContent would flatten them
+    // into plain text, destroying their structure.
+    if (block.type !== "paragraph") return;
+    const currentText = element.textContent ?? "";
+    const propText = blockToPlainText(block);
+    if (currentText !== propText) {
+      element.textContent = propText;
+    }
+  }, [block]);
 
   const handleBlur = useCallback(() => {
     const element = ref.current;
     if (!element) return;
 
+    isLocalChange.current = true;
     const newBlock = readBlockFromDom(element, block);
     onBlockChange(messageId, blockIndex, newBlock);
   }, [block, blockIndex, messageId, onBlockChange]);
@@ -114,22 +167,6 @@ export function EditableBlock({
 
   const isCodeBlock = block.type === "code";
 
-  const isEmpty = useMemo(() => {
-    if (
-      block.type === "paragraph" ||
-      block.type === "heading" ||
-      block.type === "quote" ||
-      block.type === "code"
-    ) {
-      return block.text === "";
-    }
-    return false;
-  }, [block]);
-
-  const placeholderProps = isEmpty
-    ? { "data-placeholder": "Text eingeben..." }
-    : {};
-
   return (
     /* biome-ignore lint/a11y/useSemanticElements: contentEditable div wraps arbitrary block content, not a simple text input */
     <div
@@ -145,12 +182,9 @@ export function EditableBlock({
       className={cn(
         "outline-none rounded-md ring-0 focus:ring-1 focus:ring-blue-300 transition-shadow",
         isCodeBlock && "whitespace-pre-wrap",
-        isEmpty &&
-          "[&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-400 [&:empty]:before:pointer-events-none",
       )}
-      {...placeholderProps}
     >
-      {children}
+      <FrozenChildren>{children}</FrozenChildren>
     </div>
   );
 }

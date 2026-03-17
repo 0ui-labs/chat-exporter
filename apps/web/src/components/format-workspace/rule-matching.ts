@@ -21,6 +21,7 @@ export function matchesReaderRule(
   blockType: Block["type"],
   blockText: string,
   context?: ReaderMatchContext,
+  blockId?: string,
 ) {
   const parsed = ruleSelectorSchema.safeParse(rule.selector);
 
@@ -53,11 +54,16 @@ export function matchesReaderRule(
   }
 
   // exact match (strategy === "exact")
+  // Prefer blockId match when available; fall back to blockIndex for legacy rules
+  const blockMatch =
+    "blockId" in selector && selector.blockId && blockId
+      ? selector.blockId === blockId
+      : "blockIndex" in selector && selector.blockIndex === blockIndex;
+
   return (
     "messageId" in selector &&
     selector.messageId === messageId &&
-    "blockIndex" in selector &&
-    selector.blockIndex === blockIndex &&
+    blockMatch &&
     "blockType" in selector &&
     selector.blockType === blockType
   );
@@ -181,8 +187,16 @@ function matchesSiblingFilter(
 export function getBlocksMatchingRule(
   rule: FormatRule,
   conversation: Conversation,
-): Array<{ messageId: string; blockIndex: number }> {
-  const matches: Array<{ messageId: string; blockIndex: number }> = [];
+): Array<{
+  messageId: string;
+  blockIndex: number;
+  blockId: string | undefined;
+}> {
+  const matches: Array<{
+    messageId: string;
+    blockIndex: number;
+    blockId: string | undefined;
+  }> = [];
 
   for (const message of conversation.messages) {
     const context: ReaderMatchContext = {
@@ -209,9 +223,14 @@ export function getBlocksMatchingRule(
           block.type,
           blockToPlainText(block),
           context,
+          block.id,
         )
       ) {
-        matches.push({ messageId: message.id, blockIndex });
+        matches.push({
+          messageId: message.id,
+          blockIndex,
+          blockId: block.id || undefined,
+        });
       }
     }
   }

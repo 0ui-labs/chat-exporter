@@ -1,3 +1,4 @@
+import { defaultRegistry } from "@chat-exporter/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -112,6 +113,16 @@ describe("CompletedToolbar", () => {
       expect(screen.getByTestId("format-view-json")).toBeInTheDocument();
     });
 
+    test("renders tab labels matching the defaultRegistry", () => {
+      renderToolbar();
+
+      const registryFormats = defaultRegistry.getAll();
+      for (const format of registryFormats) {
+        const button = screen.getByTestId(`format-view-${format.id}`);
+        expect(button).toHaveTextContent(format.label);
+      }
+    });
+
     test("renders action buttons row with download button", () => {
       renderToolbar();
 
@@ -222,18 +233,20 @@ describe("CompletedToolbar", () => {
       expect(onCopyAll).toHaveBeenCalledTimes(1);
     });
 
-    test("shows success label when copySuccess is true", () => {
+    test("shows success title when copySuccess is true", () => {
       renderToolbar({ onCopyAll: vi.fn(), copySuccess: true });
 
-      expect(screen.getByTestId("toolbar-copy-all")).toHaveTextContent(
+      expect(screen.getByTestId("toolbar-copy-all")).toHaveAttribute(
+        "title",
         "Kopiert!",
       );
     });
 
-    test("shows default label when copySuccess is false", () => {
+    test("shows default title when copySuccess is false", () => {
       renderToolbar({ onCopyAll: vi.fn(), copySuccess: false });
 
-      expect(screen.getByTestId("toolbar-copy-all")).toHaveTextContent(
+      expect(screen.getByTestId("toolbar-copy-all")).toHaveAttribute(
+        "title",
         "Kopieren",
       );
     });

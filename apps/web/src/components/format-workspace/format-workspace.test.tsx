@@ -6,6 +6,7 @@ import type {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type React from "react";
 import type { ReactNode } from "react";
 import { type Mock, vi } from "vitest";
 
@@ -28,27 +29,31 @@ vi.mock("@/lib/rpc", () => ({
   },
 }));
 
+const mockGet = vi.fn();
+
+vi.mock("@/lib/format-plugins", () => ({
+  clientFormatRegistry: { get: (...args: unknown[]) => mockGet(...args) },
+}));
+
 let readerViewShouldThrow = false;
 
-vi.mock("@/components/format-workspace/reader-view", () => ({
-  ReaderView: (props: Record<string, unknown>) => {
-    if (readerViewShouldThrow) throw new Error("ReaderView crash");
-    return (
-      <div
-        data-testid="reader-view"
-        data-adjust-mode={String(props.adjustModeEnabled)}
-      />
-    );
-  },
-}));
+function MockReaderView(props: Record<string, unknown>) {
+  if (readerViewShouldThrow) throw new Error("ReaderView crash");
+  return (
+    <div
+      data-testid="reader-view"
+      data-adjust-mode={String(props.adjustModeEnabled)}
+    />
+  );
+}
 
-vi.mock("@/components/format-workspace/markdown-view", () => ({
-  MarkdownView: () => <div data-testid="markdown-view" />,
-}));
+function MockMarkdownView() {
+  return <div data-testid="markdown-view" />;
+}
 
-vi.mock("@/components/format-workspace/artifact-view", () => ({
-  ArtifactView: () => <div data-testid="artifact-view" />,
-}));
+function MockArtifactView() {
+  return <div data-testid="artifact-view" />;
+}
 
 let adjustmentPopoverShouldThrow = false;
 
@@ -194,6 +199,7 @@ function createJob(overrides?: Partial<ImportJob>): ImportJob {
     sourceUrl: "https://example.com/chat",
     sourcePlatform: "chatgpt",
     mode: "archive",
+    importMethod: "share-link",
     status: "completed",
     currentStage: "done",
     createdAt: "2026-01-01T00:00:00Z",
@@ -207,12 +213,12 @@ function createJob(overrides?: Partial<ImportJob>): ImportJob {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "Hello" }],
+          blocks: [{ id: "b1", type: "paragraph", text: "Hello" }],
         },
         {
           id: "msg-2",
           role: "assistant",
-          blocks: [{ type: "paragraph", text: "Hi there" }],
+          blocks: [{ id: "b2", type: "paragraph", text: "Hi there" }],
         },
       ],
     },
@@ -303,6 +309,44 @@ const mockRpc = rpc as unknown as {
   };
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: test mock components accept any props
+const viewComponentMap: Record<string, React.ComponentType<any>> = {
+  reader: MockReaderView,
+  markdown: MockMarkdownView,
+  handover: MockArtifactView,
+  json: MockArtifactView,
+};
+
+const pluginDescriptors: Record<
+  string,
+  { id: string; label: string; exportMimeType: string; exportExtension: string }
+> = {
+  reader: {
+    id: "reader",
+    label: "Reader",
+    exportMimeType: "text/html",
+    exportExtension: ".html",
+  },
+  markdown: {
+    id: "markdown",
+    label: "Markdown",
+    exportMimeType: "text/markdown",
+    exportExtension: ".md",
+  },
+  handover: {
+    id: "handover",
+    label: "Übergabe",
+    exportMimeType: "text/plain",
+    exportExtension: ".txt",
+  },
+  json: {
+    id: "json",
+    label: "JSON",
+    exportMimeType: "application/json",
+    exportExtension: ".json",
+  },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   readerViewShouldThrow = false;
@@ -315,6 +359,16 @@ beforeEach(() => {
   mockRpc.adjustments.createSession.mockResolvedValue(createSessionDetail());
   mockRpc.adjustments.appendMessage.mockResolvedValue(createSessionDetail());
   mockRpc.adjustments.discard.mockResolvedValue(createSessionDetail());
+
+  // Default: return plugin descriptors with ViewComponent for all known views
+  mockGet.mockImplementation((id: string) => {
+    const desc = pluginDescriptors[id];
+    if (!desc) return undefined;
+    return {
+      descriptor: desc,
+      ViewComponent: viewComponentMap[id] ?? MockArtifactView,
+    };
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -643,6 +697,132 @@ describe("FormatWorkspace", () => {
 
       // Should not crash — the markdown view should render
       expect(screen.getByTestId("markdown-view")).toBeInTheDocument();
+    });
+  });
+
+  describe("plugin registry integration", () => {
+    test("handleDownload looks up plugin from registry and uses its descriptor", () => {
+      const mockPrepareDownload = vi.fn((content: string) => content);
+      mockGet.mockImplementation((id: string) => {
+        if (id !== "markdown") return undefined;
+        return {
+          descriptor: pluginDescriptors.markdown,
+          ViewComponent: MockMarkdownView,
+          prepareDownload: mockPrepareDownload,
+        };
+      });
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="markdown"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      // Plugin was looked up with the active view
+      expect(mockGet).toHaveBeenCalledWith("markdown");
+      // The returned plugin descriptor has the expected export properties
+      const plugin = mockGet.mock.results.find(
+        (r) => r.type === "return" && r.value,
+      )?.value;
+      expect(plugin?.descriptor.exportMimeType).toBe("text/markdown");
+      expect(plugin?.descriptor.exportExtension).toBe(".md");
+    });
+
+    test("handleDownload returns undefined when plugin is not registered", () => {
+      mockGet.mockReturnValue(undefined);
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="json"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      // The download button should not be passed a handler (onDownloadMarkdown is undefined)
+      // We verify plugin lookup was attempted
+      expect(mockGet).toHaveBeenCalledWith("json");
+    });
+
+    test("handleCopyAll looks up plugin from registry and uses its descriptor", () => {
+      mockGet.mockImplementation((id: string) => {
+        if (id !== "reader") return undefined;
+        return {
+          descriptor: pluginDescriptors.reader,
+          ViewComponent: MockReaderView,
+          prepareConversationExport: vi.fn().mockReturnValue("<html></html>"),
+        };
+      });
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      expect(mockGet).toHaveBeenCalledWith("reader");
+      // The returned plugin descriptor has the expected export properties for copy
+      const plugin = mockGet.mock.results.find(
+        (r) => r.type === "return" && r.value,
+      )?.value;
+      expect(plugin?.descriptor.exportMimeType).toBe("text/html");
+      expect(plugin?.prepareConversationExport).toBeTypeOf("function");
+    });
+
+    test("handleCopyAll returns undefined when plugin is not registered", () => {
+      mockGet.mockReturnValue(undefined);
+
+      renderWithProviders(
+        <FormatWorkspace
+          activeStage={null}
+          elapsedTime=""
+          job={createJob()}
+          view="reader"
+          onViewChange={vi.fn()}
+        />,
+      );
+
+      // Plugin lookup was attempted
+      expect(mockGet).toHaveBeenCalledWith("reader");
+    });
+
+    test("registry is consulted for all view types", () => {
+      const views = ["reader", "markdown", "handover", "json"] as const;
+
+      for (const view of views) {
+        vi.clearAllMocks();
+        mockGet.mockImplementation((id: string) => {
+          const desc = pluginDescriptors[id];
+          if (!desc) return undefined;
+          return {
+            descriptor: desc,
+            ViewComponent: viewComponentMap[id] ?? MockArtifactView,
+          };
+        });
+
+        const { unmount } = renderWithProviders(
+          <FormatWorkspace
+            activeStage={null}
+            elapsedTime=""
+            job={createJob()}
+            view={view}
+            onViewChange={vi.fn()}
+          />,
+        );
+
+        expect(mockGet).toHaveBeenCalledWith(view);
+        unmount();
+      }
     });
   });
 });

@@ -13,6 +13,7 @@ export const imports = sqliteTable(
     sourceUrl: text("source_url").notNull(),
     sourcePlatform: text("source_platform").notNull(),
     mode: text("mode").notNull(),
+    importMethod: text("import_method").notNull().default("share-link"),
     status: text("status").notNull(),
     currentStage: text("current_stage").notNull(),
     createdAt: text("created_at").notNull(),

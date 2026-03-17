@@ -23,6 +23,7 @@ import {
   reopenAdjustmentSession,
   updateFormatRuleEffect,
 } from "../lib/adjustment-repository.js";
+import { importFromClipboard } from "../lib/clipboard-import.js";
 import {
   listDeletions,
   restoreMessage,
@@ -36,6 +37,7 @@ import {
 } from "../lib/edit-repository.js";
 import { getPersistedImportSnapshot } from "../lib/import-repository.js";
 import {
+  createClipboardImportJob,
   createImportJob,
   deleteImportJob,
   getImportJob,
@@ -51,18 +53,9 @@ import {
   listSnapshots,
   renameSnapshot,
 } from "../lib/snapshot-repository.js";
+import { hasSupportedImportProtocol } from "../lib/source-platform.js";
 
 export const RAW_HTML_PREVIEW_LENGTH = 16_000;
-
-function isSupportedChatGptShareLink(urlString: string) {
-  let url: URL;
-  try {
-    url = new URL(urlString);
-  } catch {
-    return false;
-  }
-  return url.hostname === "chatgpt.com" && url.pathname.startsWith("/share/");
-}
 
 const os = implement(contract);
 
@@ -83,11 +76,28 @@ export const router = os.router({
       return { deleted };
     }),
 
+    createFromClipboard: os.imports.createFromClipboard.handler(
+      async ({ input }) => {
+        const result = await importFromClipboard({
+          html: input.html,
+          plainText: input.plainText,
+        });
+
+        const job = createClipboardImportJob({
+          conversation: result.conversation,
+          warnings: result.warnings,
+          detectedPlatform: result.detectedPlatform,
+          mode: input.mode ?? "archive",
+        });
+
+        return job;
+      },
+    ),
+
     create: os.imports.create.handler(({ input }) => {
-      if (!isSupportedChatGptShareLink(input.url)) {
+      if (!hasSupportedImportProtocol(input.url)) {
         throw new ORPCError("BAD_REQUEST", {
-          message:
-            "Dieser erste Stand akzeptiert nur öffentliche ChatGPT-Share-Links.",
+          message: "Nur HTTP/HTTPS URLs werden unterstützt.",
         });
       }
 
@@ -151,25 +161,16 @@ export const router = os.router({
     // format_profile-Rules). Änderungen hier dürfen diese Trennung nicht aufheben.
     exportArtifact: os.imports.exportArtifact.handler(({ input }) => {
       const job = getImportJob(input.id);
+      const artifacts = job?.artifacts ?? {};
 
-      if (!job || !job.artifacts) {
+      if (!Object.hasOwn(artifacts, input.format)) {
         throw new ORPCError("NOT_FOUND", {
           message: "Export-Artefakt nicht gefunden.",
         });
       }
 
-      switch (input.format) {
-        case "markdown":
-          return job.artifacts.markdown;
-        case "handover":
-          return job.artifacts.handover;
-        case "json":
-          return job.artifacts.json;
-        default:
-          throw new ORPCError("BAD_REQUEST", {
-            message: "Nicht unterstütztes Exportformat.",
-          });
-      }
+      const artifact = artifacts[input.format] as string;
+      return artifact;
     }),
   },
 

@@ -1,4 +1,4 @@
-import type { Block } from "@chat-exporter/shared";
+import { type Block, generateBlockId } from "@chat-exporter/shared";
 import {
   Code,
   Heading2,
@@ -9,32 +9,52 @@ import {
   Quote,
   Table,
 } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { TableGridPicker } from "./table-grid-picker";
+import { createEmptyTable } from "./table-utils";
 
 // ---------------------------------------------------------------------------
 // Block defaults
 // ---------------------------------------------------------------------------
 
 export const BLOCK_DEFAULTS = {
-  paragraph: { type: "paragraph" as const, text: "" },
-  h2: { type: "heading" as const, level: 2 as const, text: "" },
-  h3: { type: "heading" as const, level: 3 as const, text: "" },
-  list: { type: "list" as const, ordered: false, items: [""] },
-  code: { type: "code" as const, language: "text", text: "" },
-  quote: { type: "quote" as const, text: "" },
-  table: {
-    type: "table" as const,
-    headers: ["Spalte 1", "Spalte 2"],
-    rows: [["", ""]],
+  paragraph: {
+    type: "paragraph" as const,
+    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
   },
-} as const satisfies Record<string, Block>;
+  h2: {
+    type: "heading" as const,
+    level: 2 as const,
+    text: "Neue Überschrift",
+  },
+  h3: {
+    type: "heading" as const,
+    level: 3 as const,
+    text: "Neue Unterüberschrift",
+  },
+  list: {
+    type: "list" as const,
+    ordered: false,
+    items: ["Erster Punkt", "Zweiter Punkt", "Dritter Punkt"],
+  },
+  code: {
+    type: "code" as const,
+    language: "text",
+    text: "// Code hier eingeben",
+  },
+  quote: { type: "quote" as const, text: "Zitat hier eingeben" },
+} as const;
 
 // ---------------------------------------------------------------------------
 // Menu items configuration
@@ -57,41 +77,73 @@ const BLOCK_TYPE_ITEMS = [
 interface BlockInserterProps {
   blockIndex: number;
   onInsertBlock: (blockIndex: number, block: Block) => void;
+  visible?: boolean;
 }
 
 export function BlockInserter({
   blockIndex,
   onInsertBlock,
+  visible = false,
 }: BlockInserterProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const handleSelect = useCallback(
     (key: keyof typeof BLOCK_DEFAULTS) => {
-      onInsertBlock(blockIndex, { ...BLOCK_DEFAULTS[key] } as Block);
+      onInsertBlock(blockIndex, {
+        ...BLOCK_DEFAULTS[key],
+        id: generateBlockId(),
+      } as Block);
     },
     [blockIndex, onInsertBlock],
   );
 
   return (
-    <div className="group relative flex items-center justify-center py-0.5">
+    <div className="relative flex items-center justify-center pointer-events-none">
       {/* Hover line */}
-      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/0 transition-colors group-hover:bg-border/60" />
+      <div
+        className={cn(
+          "absolute inset-x-0 top-1/2 h-px -translate-y-1/2 transition-colors",
+          visible ? "bg-border/60" : "bg-border/0",
+        )}
+      />
 
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+            className={cn(
+              "pointer-events-auto relative z-10 flex h-5 w-5 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-opacity hover:bg-secondary hover:text-foreground",
+              visible ? "opacity-100" : "opacity-0 pointer-events-none",
+            )}
             aria-label="Block hinzufügen"
           >
             <Plus className="h-3 w-3" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="w-44">
-          {BLOCK_TYPE_ITEMS.map(({ key, label, icon: Icon }) => (
-            <DropdownMenuItem key={key} onSelect={() => handleSelect(key)}>
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </DropdownMenuItem>
-          ))}
+          {BLOCK_TYPE_ITEMS.map(({ key, label, icon: Icon }) =>
+            key === "table" ? (
+              <DropdownMenuSub key={key}>
+                <DropdownMenuSubTrigger>
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <TableGridPicker
+                    onSelect={(cols, rows) => {
+                      onInsertBlock(blockIndex, createEmptyTable(cols, rows));
+                      setMenuOpen(false);
+                    }}
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : (
+              <DropdownMenuItem key={key} onSelect={() => handleSelect(key)}>
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </DropdownMenuItem>
+            ),
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

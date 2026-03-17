@@ -1,10 +1,8 @@
 import type { Block, ImportJob } from "@chat-exporter/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AdjustmentModeGuide } from "@/components/format-workspace/adjustment-mode-guide";
 import { AdjustmentPopover } from "@/components/format-workspace/adjustment-popover";
-import { ArtifactView } from "@/components/format-workspace/artifact-view";
 import { CompletedToolbar } from "@/components/format-workspace/completed-toolbar";
 import { DeleteMessageDialog } from "@/components/format-workspace/delete-message-dialog";
 import {
@@ -14,20 +12,16 @@ import {
   miscLabels,
 } from "@/components/format-workspace/labels";
 import { LoadingStateBlock } from "@/components/format-workspace/loading-state-block";
-import { MarkdownView } from "@/components/format-workspace/markdown-view";
 import { copyMessageToClipboard } from "@/components/format-workspace/message-clipboard";
-import { buildReaderHtml } from "@/components/format-workspace/reader-html-export";
-import { ReaderView } from "@/components/format-workspace/reader-view";
 import {
   applyMarkdownRules,
   buildReaderEffectsMap,
 } from "@/components/format-workspace/rule-engine";
-import { SaveIndicator } from "@/components/format-workspace/save-indicator";
 import { StatusHeader } from "@/components/format-workspace/status-header";
 import {
   type AdjustmentSelection,
-  adjustableViews,
   type EditMode,
+  getAdjustableViews,
   type ViewMode,
 } from "@/components/format-workspace/types";
 import { UndoToast } from "@/components/format-workspace/undo-toast";
@@ -41,6 +35,7 @@ import { useMessageEdits } from "@/components/format-workspace/use-message-edits
 import { useResolvedConversation } from "@/components/format-workspace/use-resolved-conversation";
 import { useSnapshots } from "@/components/format-workspace/use-snapshots";
 import { VersionsModal } from "@/components/format-workspace/versions-modal";
+import { clientFormatRegistry } from "@/lib/format-plugins";
 
 type ActiveStage = {
   detail: string;
@@ -67,19 +62,16 @@ function _describeSelectionLabel(selection: AdjustmentSelection) {
   );
 }
 
-function renderArtifact(view: Exclude<ViewMode, "reader">, job: ImportJob) {
-  if (!job.artifacts) {
-    return "Artefakt ist noch nicht verfügbar.";
-  }
-
-  switch (view) {
-    case "markdown":
-      return job.artifacts.markdown;
-    case "handover":
-      return job.artifacts.handover;
-    case "json":
-      return job.artifacts.json;
-  }
+function downloadBlob(content: string, mimeType: string, filename: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 export function FormatWorkspace({
@@ -89,7 +81,7 @@ export function FormatWorkspace({
   view,
   onViewChange,
 }: FormatWorkspaceProps) {
-  const isAdjustableView = adjustableViews.has(view);
+  const isAdjustableView = getAdjustableViews().has(view);
 
   const session = useAdjustmentSession(view, job.id);
   const rules = useFormatRules(view, job.id);
@@ -143,9 +135,9 @@ export function FormatWorkspace({
 
   const handleBlocksChange = useCallback(
     (messageId: string, blocks: Block[]) => {
-      void autoSnapshot.ensureSnapshot().then((ready) => {
-        if (ready) {
-          messageEdits.saveEdit(messageId, blocks);
+      void autoSnapshot.ensureSnapshot().then((snapshotId) => {
+        if (snapshotId) {
+          messageEdits.saveEdit(messageId, blocks, undefined, snapshotId);
         }
       });
     },
@@ -219,7 +211,10 @@ export function FormatWorkspace({
     [session.sectionRef, popover.containerRef],
   );
 
-  const artifact = view === "reader" ? "" : renderArtifact(view, job);
+  const artifact =
+    view === "reader"
+      ? ""
+      : (job.artifacts?.[view] ?? "Artefakt ist noch nicht verfügbar.");
   // Design-Entscheidung: Downloads erfolgen aus `displayedMarkdown`, das
   // `applyMarkdownRules` inklusive format_profile-Rules enthält. Der Server-
   // Endpoint `imports.exportArtifact` liefert hingegen rohe Artefakte ohne Rules.
@@ -267,6 +262,9 @@ export function FormatWorkspace({
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleCopyAll = useMemo(() => {
+    const plugin = clientFormatRegistry.get(view);
+    if (!plugin) return undefined;
+
     const doCopy = async (content: string, isHtml: boolean) => {
       try {
         if (isHtml) {
@@ -289,14 +287,11 @@ export function FormatWorkspace({
       }
     };
 
-    if (view === "markdown") {
+    // Formats with conversation-based export (reader)
+    if (plugin.prepareConversationExport && resolvedConversation) {
+      const exportFn = plugin.prepareConversationExport;
       return () => {
-        void doCopy(displayedMarkdown, false);
-      };
-    }
-    if (view === "reader" && resolvedConversation) {
-      return () => {
-        const html = buildReaderHtml(
+        const html = exportFn(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
@@ -304,7 +299,16 @@ export function FormatWorkspace({
         void doCopy(html, true);
       };
     }
-    if ((view === "handover" || view === "json") && artifact) {
+
+    // Markdown: displayedMarkdown already has rules applied
+    if (view === "markdown") {
+      return () => {
+        void doCopy(displayedMarkdown, false);
+      };
+    }
+
+    // Others: raw artifact
+    if (artifact) {
       return () => {
         void doCopy(artifact, false);
       };
@@ -320,52 +324,39 @@ export function FormatWorkspace({
   ]);
 
   const handleDownload = useMemo(() => {
-    if (view === "markdown") {
+    const plugin = clientFormatRegistry.get(view);
+    if (!plugin) return undefined;
+
+    // Formats with conversation-based export (reader)
+    if (plugin.prepareConversationExport && resolvedConversation) {
+      const exportFn = plugin.prepareConversationExport;
       return () => {
-        const blob = new Blob([displayedMarkdown], { type: "text/markdown" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      };
-    }
-    if (view === "reader" && resolvedConversation) {
-      return () => {
-        const html = buildReaderHtml(
+        const html = exportFn(
           resolvedConversation,
           readerEffectsMap,
           resolvedConversation.title ?? `export-${job.id}`,
         );
-        const blob = new Blob([html], { type: "text/html" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        downloadBlob(
+          html,
+          plugin.descriptor.exportMimeType,
+          `export-${job.id}${plugin.descriptor.exportExtension}`,
+        );
       };
     }
-    if ((view === "handover" || view === "json") && artifact) {
-      return () => {
-        const ext = view === "json" ? "json" : "md";
-        const blob = new Blob([artifact], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export-${job.id}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-      };
-    }
-    return undefined;
+
+    // For all other formats: use prepareDownload if available, else raw content
+    const content = view === "markdown" ? displayedMarkdown : artifact;
+    if (!content) return undefined;
+
+    return () => {
+      const finalContent =
+        plugin.prepareDownload?.(content, rules.activeRules) ?? content;
+      downloadBlob(
+        finalContent,
+        plugin.descriptor.exportMimeType,
+        `export-${job.id}${plugin.descriptor.exportExtension}`,
+      );
+    };
   }, [
     view,
     displayedMarkdown,
@@ -373,6 +364,7 @@ export function FormatWorkspace({
     resolvedConversation,
     readerEffectsMap,
     artifact,
+    rules.activeRules,
   ]);
   const showPopover =
     session.adjustModeEnabled &&
@@ -433,14 +425,10 @@ export function FormatWorkspace({
       <StatusHeader
         activeStage={activeStage}
         elapsedTime={elapsedTime}
+        hasEdits={hasEdits}
+        isSaving={messageEdits.isSaving}
         job={job}
       />
-
-      {job.warnings.length > 0 ? (
-        <div className="rounded-2xl border border-amber-300/40 bg-amber-100/60 px-4 py-3 text-sm text-amber-950">
-          {job.warnings[0]}
-        </div>
-      ) : null}
 
       {job.status === "failed" ? (
         <div className="rounded-2xl border border-red-300/40 bg-red-100/70 p-4 text-red-900">
@@ -483,16 +471,19 @@ export function FormatWorkspace({
             </div>
           ) : null}
 
-          {view === "reader" ? (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <div className="space-y-2">
-                <div className="flex justify-end">
-                  <SaveIndicator
-                    isSaving={messageEdits.isSaving}
-                    hasEdits={hasEdits}
-                  />
-                </div>
-                <ReaderView
+          <ErrorBoundary fallback={viewErrorFallback}>
+            {(() => {
+              const plugin = clientFormatRegistry.get(view);
+              if (!plugin) {
+                return (
+                  <div className="text-sm text-muted-foreground">
+                    Format nicht verfügbar
+                  </div>
+                );
+              }
+              const { ViewComponent } = plugin;
+              const viewElement = (
+                <ViewComponent
                   activeRules={rules.activeRules}
                   conversation={resolvedConversation}
                   adjustModeEnabled={session.adjustModeEnabled}
@@ -510,25 +501,15 @@ export function FormatWorkspace({
                   onDeleteMessage={handleDeleteMessage}
                   onDeleteRound={handleDeleteRound}
                   onRestoreMessage={deletion.restoreMessage}
+                  content={view === "markdown" ? displayedMarkdown : artifact}
+                  selectedRange={session.activeSelection}
+                  onSelectLines={session.handleSelectionChange}
+                  rules={rules.activeRules}
                 />
-              </div>
-            </ErrorBoundary>
-          ) : view === "markdown" ? (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <MarkdownView
-                activeRules={rules.activeRules}
-                content={displayedMarkdown}
-                adjustModeEnabled={session.adjustModeEnabled}
-                highlightedRuleId={rules.hoveredRuleId}
-                selectedRange={session.activeSelection}
-                onSelectLines={session.handleSelectionChange}
-              />
-            </ErrorBoundary>
-          ) : (
-            <ErrorBoundary fallback={viewErrorFallback}>
-              <ArtifactView content={artifact} />
-            </ErrorBoundary>
-          )}
+              );
+              return viewElement;
+            })()}
+          </ErrorBoundary>
 
           {session.showGuide ? (
             <AdjustmentModeGuide

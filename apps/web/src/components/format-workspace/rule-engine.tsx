@@ -5,6 +5,7 @@ import type {
   RuleEffect,
 } from "@chat-exporter/shared";
 import {
+  defaultRegistry,
   normalizeLegacyEffect,
   ruleEffectSchema,
   ruleSelectorSchema,
@@ -23,6 +24,13 @@ export {
 } from "./reader-block-render";
 export { getBlocksMatchingRule } from "./rule-matching";
 
+export function canApplyRule(
+  formatId: string,
+  ruleEffect: RuleEffect,
+): boolean {
+  return defaultRegistry.supportsRuleKind(formatId, ruleEffect.type);
+}
+
 export function resolveReaderBlockEffects(
   rules: FormatRule[],
   messageId: string,
@@ -30,6 +38,7 @@ export function resolveReaderBlockEffects(
   blockType: Block["type"],
   blockText: string,
   context?: ReaderMatchContext,
+  blockId?: string,
 ) {
   return rules
     .filter(
@@ -42,6 +51,7 @@ export function resolveReaderBlockEffects(
           blockType,
           blockText,
           context,
+          blockId,
         ),
     )
     .map((rule) => rule.compiledRule)
@@ -82,6 +92,7 @@ export function buildReaderEffectsMap(
             block.type,
             blockToPlainText(block),
             context,
+            block.id,
           ),
         )
         .map((rule) => rule.compiledRule)
@@ -89,7 +100,10 @@ export function buildReaderEffectsMap(
         .map(normalizeLegacyEffect);
 
       if (effects.length > 0) {
-        effectsMap.set(`${message.id}:${blockIndex}`, effects);
+        const blockKey = block.id
+          ? `${message.id}:${block.id}`
+          : `${message.id}:idx-${blockIndex}`;
+        effectsMap.set(blockKey, effects);
       }
     }
   }

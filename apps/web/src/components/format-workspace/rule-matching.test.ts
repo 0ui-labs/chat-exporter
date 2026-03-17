@@ -62,8 +62,8 @@ function createConversation(overrides?: Partial<Conversation>): Conversation {
         id: "msg-1",
         role: "assistant",
         blocks: [
-          { type: "heading", text: "Title", level: 1 },
-          { type: "paragraph", text: "Hello world" },
+          { id: "b1", type: "heading", text: "Title", level: 1 },
+          { id: "b2", type: "paragraph", text: "Hello world" },
         ],
       },
     ],
@@ -77,9 +77,9 @@ function createContext(
   return {
     messageRole: "assistant",
     blocks: [
-      { type: "heading", text: "Title", level: 1 },
-      { type: "paragraph", text: "Hello world" },
-      { type: "code", text: "const x = 1", language: "ts" },
+      { id: "b1", type: "heading", text: "Title", level: 1 },
+      { id: "b2", type: "paragraph", text: "Hello world" },
+      { id: "b3", type: "code", text: "const x = 1", language: "ts" },
     ],
     ...overrides,
   };
@@ -123,7 +123,9 @@ describe("matchesReaderRule — compound strategy", () => {
     const rule = createRule({
       selector: { strategy: "compound", headingLevel: 2 },
     });
-    const blocks: Block[] = [{ type: "heading", text: "Sub", level: 2 }];
+    const blocks: Block[] = [
+      { id: "b4", type: "heading", text: "Sub", level: 2 },
+    ];
     const ctx = createContext({ blocks });
 
     const result = matchesReaderRule(rule, "msg-1", 0, "heading", "Sub", ctx);
@@ -502,17 +504,17 @@ describe("getBlocksMatchingRule — compound integration", () => {
           id: "msg-1",
           role: "assistant",
           blocks: [
-            { type: "heading", text: "Title", level: 1 },
-            { type: "paragraph", text: "After heading" },
-            { type: "paragraph", text: "Not after heading" },
+            { id: "b5", type: "heading", text: "Title", level: 1 },
+            { id: "b6", type: "paragraph", text: "After heading" },
+            { id: "b7", type: "paragraph", text: "Not after heading" },
           ],
         },
         {
           id: "msg-2",
           role: "user",
           blocks: [
-            { type: "heading", text: "Question", level: 2 },
-            { type: "paragraph", text: "After heading 2" },
+            { id: "b8", type: "heading", text: "Question", level: 2 },
+            { id: "b9", type: "paragraph", text: "After heading 2" },
           ],
         },
       ],
@@ -521,8 +523,8 @@ describe("getBlocksMatchingRule — compound integration", () => {
     const matches = getBlocksMatchingRule(rule, conversation);
 
     expect(matches).toEqual([
-      { messageId: "msg-1", blockIndex: 1 },
-      { messageId: "msg-2", blockIndex: 1 },
+      { messageId: "msg-1", blockIndex: 1, blockId: "b6" },
+      { messageId: "msg-2", blockIndex: 1, blockId: "b9" },
     ]);
   });
 
@@ -539,18 +541,20 @@ describe("getBlocksMatchingRule — compound integration", () => {
         {
           id: "msg-1",
           role: "assistant",
-          blocks: [{ type: "paragraph", text: "Assistant text" }],
+          blocks: [{ id: "b10", type: "paragraph", text: "Assistant text" }],
         },
         {
           id: "msg-2",
           role: "user",
-          blocks: [{ type: "paragraph", text: "User text" }],
+          blocks: [{ id: "b11", type: "paragraph", text: "User text" }],
         },
       ],
     });
 
     const matches = getBlocksMatchingRule(rule, conversation);
 
-    expect(matches).toEqual([{ messageId: "msg-1", blockIndex: 0 }]);
+    expect(matches).toEqual([
+      { messageId: "msg-1", blockIndex: 0, blockId: "b10" },
+    ]);
   });
 });

@@ -5,7 +5,11 @@ vi.mock("@/lib/utils", () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
-import { applyMarkdownRules, buildReaderEffectsMap } from "./rule-engine";
+import {
+  applyMarkdownRules,
+  buildReaderEffectsMap,
+  canApplyRule,
+} from "./rule-engine";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -41,7 +45,7 @@ function createConversation(overrides?: Partial<Conversation>): Conversation {
       {
         id: "msg-1",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Hello world" }],
+        blocks: [{ id: "b1", type: "paragraph", text: "Hello world" }],
       },
     ],
     ...overrides,
@@ -64,7 +68,7 @@ describe("buildReaderEffectsMap", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "No heading here" }],
+          blocks: [{ id: "b2", type: "paragraph", text: "No heading here" }],
         },
       ],
     });
@@ -80,8 +84,8 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    const effects = result.get("msg-1:0");
+    expect(result.has("msg-1:b1")).toBe(true);
+    const effects = result.get("msg-1:b1");
     expect(effects).toBeDefined();
     expect(effects).toEqual([
       { type: "custom_style", textTransform: "bold_prefix_before_colon" },
@@ -98,7 +102,7 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
     expect(effects).toBeDefined();
     expect(effects).toHaveLength(1);
     expect(effects).toEqual([
@@ -114,16 +118,16 @@ describe("buildReaderEffectsMap", () => {
           id: "msg-1",
           role: "user",
           blocks: [
-            { type: "paragraph", text: "First block" },
-            { type: "paragraph", text: "Second block" },
+            { id: "b3", type: "paragraph", text: "First block" },
+            { id: "b4", type: "paragraph", text: "Second block" },
           ],
         },
         {
           id: "msg-2",
           role: "assistant",
           blocks: [
-            { type: "paragraph", text: "Reply block" },
-            { type: "heading", level: 1, text: "A heading" },
+            { id: "b5", type: "paragraph", text: "Reply block" },
+            { id: "b6", type: "heading", level: 1, text: "A heading" },
           ],
         },
       ],
@@ -131,11 +135,11 @@ describe("buildReaderEffectsMap", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    expect(result.has("msg-1:1")).toBe(true);
-    expect(result.has("msg-2:0")).toBe(true);
+    expect(result.has("msg-1:b3")).toBe(true);
+    expect(result.has("msg-1:b4")).toBe(true);
+    expect(result.has("msg-2:b5")).toBe(true);
     // heading block should not match the paragraph rule
-    expect(result.has("msg-2:1")).toBe(false);
+    expect(result.has("msg-2:b6")).toBe(false);
     expect(result.size).toBe(3);
   });
 
@@ -150,7 +154,7 @@ describe("buildReaderEffectsMap", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "No match" }],
+          blocks: [{ id: "b7", type: "paragraph", text: "No match" }],
         },
       ],
     });
@@ -182,7 +186,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject({
@@ -200,7 +204,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject({
@@ -219,7 +223,7 @@ describe("buildReaderEffectsMap — legacy normalization", () => {
     const conversation = createConversation();
 
     const result = buildReaderEffectsMap(rules, conversation);
-    const effects = result.get("msg-1:0");
+    const effects = result.get("msg-1:b1");
 
     expect(effects).toBeDefined();
     expect(effects?.[0]).toMatchObject(customEffect);
@@ -358,8 +362,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "assistant",
           blocks: [
-            { type: "paragraph", text: "Intro" },
-            { type: "heading", level: 2, text: "Title" },
+            { id: "b8", type: "paragraph", text: "Intro" },
+            { id: "b9", type: "heading", level: 2, text: "Title" },
           ],
         },
       ],
@@ -367,8 +371,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-1:1")).toBe(true);
+    expect(result.has("msg-1:b8")).toBe(false);
+    expect(result.has("msg-1:b9")).toBe(true);
   });
 
   test("compound messageRole filter matches only assistant messages", () => {
@@ -390,20 +394,20 @@ describe("buildReaderEffectsMap — compound selectors", () => {
         {
           id: "msg-1",
           role: "user",
-          blocks: [{ type: "paragraph", text: "User text" }],
+          blocks: [{ id: "b10", type: "paragraph", text: "User text" }],
         },
         {
           id: "msg-2",
           role: "assistant",
-          blocks: [{ type: "paragraph", text: "Assistant text" }],
+          blocks: [{ id: "b11", type: "paragraph", text: "Assistant text" }],
         },
       ],
     });
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-2:0")).toBe(true);
+    expect(result.has("msg-1:b10")).toBe(false);
+    expect(result.has("msg-2:b11")).toBe(true);
   });
 
   test("compound context.previousSibling matches paragraph after heading", () => {
@@ -426,9 +430,9 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "assistant",
           blocks: [
-            { type: "heading", level: 1, text: "Title" },
-            { type: "paragraph", text: "After heading" },
-            { type: "paragraph", text: "Not after heading" },
+            { id: "b12", type: "heading", level: 1, text: "Title" },
+            { id: "b13", type: "paragraph", text: "After heading" },
+            { id: "b14", type: "paragraph", text: "Not after heading" },
           ],
         },
       ],
@@ -436,9 +440,9 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(false);
-    expect(result.has("msg-1:1")).toBe(true);
-    expect(result.has("msg-1:2")).toBe(false);
+    expect(result.has("msg-1:b12")).toBe(false);
+    expect(result.has("msg-1:b13")).toBe(true);
+    expect(result.has("msg-1:b14")).toBe(false);
   });
 
   test("compound position: first matches only first block per message", () => {
@@ -461,8 +465,8 @@ describe("buildReaderEffectsMap — compound selectors", () => {
           id: "msg-1",
           role: "user",
           blocks: [
-            { type: "paragraph", text: "First" },
-            { type: "paragraph", text: "Second" },
+            { id: "b15", type: "paragraph", text: "First" },
+            { id: "b16", type: "paragraph", text: "Second" },
           ],
         },
       ],
@@ -470,7 +474,53 @@ describe("buildReaderEffectsMap — compound selectors", () => {
 
     const result = buildReaderEffectsMap(rules, conversation);
 
-    expect(result.has("msg-1:0")).toBe(true);
-    expect(result.has("msg-1:1")).toBe(false);
+    expect(result.has("msg-1:b15")).toBe(true);
+    expect(result.has("msg-1:b16")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// canApplyRule — registry-aware rule applicability
+// ---------------------------------------------------------------------------
+
+describe("canApplyRule", () => {
+  test("returns true for reader format with custom_style effect", () => {
+    const result = canApplyRule("reader", { type: "custom_style" });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns false for json format with custom_style effect", () => {
+    const result = canApplyRule("json", { type: "custom_style" });
+
+    expect(result).toBe(false);
+  });
+
+  test("returns true for reader with legacy adjust_block_spacing effect", () => {
+    const result = canApplyRule("reader", {
+      type: "adjust_block_spacing",
+      amount: "lg",
+      direction: "after",
+    });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns true for markdown format with custom_style effect", () => {
+    const result = canApplyRule("markdown", { type: "custom_style" });
+
+    expect(result).toBe(true);
+  });
+
+  test("returns false for unknown format", () => {
+    const result = canApplyRule("nonexistent", { type: "custom_style" });
+
+    expect(result).toBe(false);
+  });
+
+  test("returns false for handover format with custom_style effect", () => {
+    const result = canApplyRule("handover", { type: "custom_style" });
+
+    expect(result).toBe(false);
   });
 });

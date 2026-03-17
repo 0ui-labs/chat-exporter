@@ -16,20 +16,25 @@ function createConversation(
       {
         id: "msg-1",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Hello" }],
+        blocks: [{ id: "b1", type: "paragraph", text: "Hello" }],
       },
       {
         id: "msg-2",
         role: "assistant",
         blocks: [
-          { type: "paragraph", text: "Hi there" },
-          { type: "code", language: "typescript", text: "const x = 1;" },
+          { id: "b2", type: "paragraph", text: "Hi there" },
+          {
+            id: "b3",
+            type: "code",
+            language: "typescript",
+            text: "const x = 1;",
+          },
         ],
       },
       {
         id: "msg-3",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Thanks" }],
+        blocks: [{ id: "b4", type: "paragraph", text: "Thanks" }],
       },
     ],
     ...overrides,
@@ -59,7 +64,9 @@ describe("mergeEditsIntoConversation", () => {
 
   test("replaces blocks for a matching message", () => {
     const conversation = createConversation();
-    const newBlocks: Block[] = [{ type: "paragraph", text: "Edited greeting" }];
+    const newBlocks: Block[] = [
+      { id: "b5", type: "paragraph", text: "Edited greeting" },
+    ];
     const edits = [createEditEntry("msg-1", newBlocks)];
 
     const result = mergeEditsIntoConversation(conversation, edits);
@@ -69,7 +76,9 @@ describe("mergeEditsIntoConversation", () => {
 
   test("leaves non-matching messages unchanged", () => {
     const conversation = createConversation();
-    const newBlocks: Block[] = [{ type: "paragraph", text: "Edited greeting" }];
+    const newBlocks: Block[] = [
+      { id: "b5", type: "paragraph", text: "Edited greeting" },
+    ];
     const edits = [createEditEntry("msg-1", newBlocks)];
 
     const result = mergeEditsIntoConversation(conversation, edits);
@@ -85,11 +94,11 @@ describe("mergeEditsIntoConversation", () => {
   test("applies multiple edits to different messages", () => {
     const conversation = createConversation();
     const editedBlocks1: Block[] = [
-      { type: "paragraph", text: "Edited user msg" },
+      { id: "b6", type: "paragraph", text: "Edited user msg" },
     ];
     const editedBlocks2: Block[] = [
-      { type: "heading", level: 2, text: "New heading" },
-      { type: "paragraph", text: "Edited assistant response" },
+      { id: "b7", type: "heading", level: 2, text: "New heading" },
+      { id: "b8", type: "paragraph", text: "Edited assistant response" },
     ];
     const edits = [
       createEditEntry("msg-1", editedBlocks1),
@@ -109,7 +118,9 @@ describe("mergeEditsIntoConversation", () => {
     const conversation = createConversation();
     const originalFirstBlocks = conversation.messages[0]?.blocks;
     const edits = [
-      createEditEntry("msg-1", [{ type: "paragraph", text: "Changed" }]),
+      createEditEntry("msg-1", [
+        { id: "b9", type: "paragraph", text: "Changed" },
+      ]),
     ];
 
     const result = mergeEditsIntoConversation(conversation, edits);
@@ -122,7 +133,9 @@ describe("mergeEditsIntoConversation", () => {
   test("preserves conversation metadata when edits are applied", () => {
     const conversation = createConversation();
     const edits = [
-      createEditEntry("msg-1", [{ type: "paragraph", text: "Changed" }]),
+      createEditEntry("msg-1", [
+        { id: "b10", type: "paragraph", text: "Changed" },
+      ]),
     ];
 
     const result = mergeEditsIntoConversation(conversation, edits);
@@ -136,7 +149,7 @@ describe("mergeEditsIntoConversation", () => {
     const conversation = createConversation();
     const edits = [
       createEditEntry("non-existent-id", [
-        { type: "paragraph", text: "Ghost edit" },
+        { id: "b11", type: "paragraph", text: "Ghost edit" },
       ]),
     ];
 
@@ -148,14 +161,18 @@ describe("mergeEditsIntoConversation", () => {
   test("last edit wins when duplicate messageIds exist", () => {
     const conversation = createConversation();
     const edits = [
-      createEditEntry("msg-1", [{ type: "paragraph", text: "First edit" }]),
-      createEditEntry("msg-1", [{ type: "paragraph", text: "Second edit" }]),
+      createEditEntry("msg-1", [
+        { id: "b12", type: "paragraph", text: "First edit" },
+      ]),
+      createEditEntry("msg-1", [
+        { id: "b13", type: "paragraph", text: "Second edit" },
+      ]),
     ];
 
     const result = mergeEditsIntoConversation(conversation, edits);
 
     expect(result.messages[0]?.blocks).toEqual([
-      { type: "paragraph", text: "Second edit" },
+      { id: "b13", type: "paragraph", text: "Second edit" },
     ]);
   });
 });

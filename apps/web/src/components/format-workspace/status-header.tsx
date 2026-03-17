@@ -2,6 +2,7 @@ import type { ImportJob } from "@chat-exporter/shared";
 import { Clock3, LoaderCircle } from "lucide-react";
 
 import { getJobStatusLabel } from "@/components/format-workspace/labels";
+import { SaveIndicator } from "@/components/format-workspace/save-indicator";
 import { Badge } from "@/components/ui/badge";
 
 type ActiveStage = {
@@ -12,12 +13,16 @@ type ActiveStage = {
 type StatusHeaderProps = {
   activeStage: ActiveStage;
   elapsedTime: string;
+  hasEdits?: boolean;
+  isSaving?: boolean;
   job: ImportJob;
 };
 
 export function StatusHeader({
   activeStage,
   elapsedTime,
+  hasEdits = false,
+  isSaving = false,
   job,
 }: StatusHeaderProps) {
   return (
@@ -31,6 +36,7 @@ export function StatusHeader({
           Wörter
         </p>
       ) : null}
+      <SaveIndicator isSaving={isSaving} hasEdits={hasEdits} />
       {job.status !== "completed" && activeStage ? (
         <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
           {job.status === "queued" ? (

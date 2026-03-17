@@ -20,14 +20,14 @@ export function useAutoSnapshot({
   create,
   activate,
 }: UseAutoSnapshotOptions) {
-  const creatingPromiseRef = useRef<Promise<boolean> | null>(null);
+  const creatingPromiseRef = useRef<Promise<string | false> | null>(null);
 
-  const ensureSnapshot = useCallback(async (): Promise<boolean> => {
-    if (activeSnapshot) return true;
+  const ensureSnapshot = useCallback(async (): Promise<string | false> => {
+    if (activeSnapshot) return activeSnapshot.id;
 
     // If creation is already in-flight, wait for the same Promise.
     // This prevents the race condition where a concurrent caller would return
-    // true before activate() completes, leaving snapshotId undefined in the
+    // before activate() completes, leaving snapshotId undefined in the
     // caller and causing saveEdit to silently discard the edit.
     if (creatingPromiseRef.current) return creatingPromiseRef.current;
 
@@ -35,9 +35,9 @@ export function useAutoSnapshot({
       try {
         const snapshot = await create("Bearbeitet");
         await activate(snapshot.id);
-        return true;
+        return snapshot.id;
       } catch {
-        return false;
+        return false as const;
       } finally {
         creatingPromiseRef.current = null;
       }

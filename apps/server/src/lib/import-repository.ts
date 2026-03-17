@@ -18,6 +18,7 @@ function serializeImport(job: ImportJob) {
     sourceUrl: job.sourceUrl,
     sourcePlatform: job.sourcePlatform,
     mode: job.mode,
+    importMethod: job.importMethod,
     status: job.status,
     currentStage: job.currentStage,
     createdAt: job.createdAt,
@@ -47,6 +48,7 @@ function deserializeImport(row: Import) {
     sourceUrl: row.sourceUrl,
     sourcePlatform: row.sourcePlatform,
     mode: row.mode,
+    importMethod: row.importMethod,
     status: row.status,
     currentStage: row.currentStage,
     createdAt: row.createdAt,
@@ -146,6 +148,7 @@ export function listImportSummaries(
       sourceUrl: imports.sourceUrl,
       sourcePlatform: imports.sourcePlatform,
       mode: imports.mode,
+      importMethod: imports.importMethod,
       status: imports.status,
       currentStage: imports.currentStage,
       createdAt: imports.createdAt,
@@ -184,22 +187,28 @@ export function listImportSummaries(
     query = query.where(and(...conditions));
   }
 
-  return query.all().map((row) =>
-    importSummarySchema.parse({
-      id: row.id,
-      sourceUrl: row.sourceUrl,
-      sourcePlatform: row.sourcePlatform,
-      mode: row.mode,
-      status: row.status,
-      currentStage: row.currentStage,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      warnings: parseJson<string[]>(row.warningsJson) ?? [],
-      error: row.error ?? undefined,
-      summary: parseJson<ImportJob["summary"]>(row.summaryJson),
-      pageTitle: row.pageTitle ?? undefined,
-    }),
-  );
+  return query.all().flatMap((row) => {
+    try {
+      const parsed = importSummarySchema.safeParse({
+        id: row.id,
+        sourceUrl: row.sourceUrl,
+        sourcePlatform: row.sourcePlatform,
+        mode: row.mode,
+        importMethod: row.importMethod,
+        status: row.status,
+        currentStage: row.currentStage,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        warnings: parseJson<string[]>(row.warningsJson) ?? [],
+        error: row.error ?? undefined,
+        summary: parseJson<ImportJob["summary"]>(row.summaryJson),
+        pageTitle: row.pageTitle ?? undefined,
+      });
+      return parsed.success ? [parsed.data] : [];
+    } catch {
+      return [];
+    }
+  });
 }
 
 export function deleteImport(id: string): boolean {

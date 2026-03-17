@@ -63,8 +63,8 @@ function renderMessageHtml(
   const roleLabel = ROLE_LABELS[message.role] ?? message.role;
 
   const blocksHtml = message.blocks
-    .map((block, blockIndex) => {
-      const effects = effectsMap.get(`${message.id}:${blockIndex}`) ?? [];
+    .map((block) => {
+      const effects = effectsMap.get(`${message.id}:${block.id}`) ?? [];
       const style = collectContainerStyle(effects);
       const styleAttr = style ? ` style="${style}"` : "";
       return `<div class="block-wrapper"${styleAttr}>${renderBlockHtml(block)}</div>`;

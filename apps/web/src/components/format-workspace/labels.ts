@@ -7,7 +7,7 @@ import type {
 import type { ViewMode } from "@/components/format-workspace/types";
 
 const viewLabels: Record<ViewMode, string> = {
-  reader: "Reader",
+  reader: "HTML",
   markdown: "Markdown",
   handover: "Übergabe",
   json: "JSON",

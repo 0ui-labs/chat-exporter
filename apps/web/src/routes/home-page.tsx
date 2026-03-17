@@ -1,7 +1,13 @@
 import type { ImportJob } from "@chat-exporter/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink } from "lucide-react";
-import { type FormEvent, startTransition, useEffect, useState } from "react";
+import { ClipboardPaste, ExternalLink, Link2 } from "lucide-react";
+import {
+  type FormEvent,
+  type ReactNode,
+  startTransition,
+  useEffect,
+  useState,
+} from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
@@ -70,6 +76,33 @@ function getActiveStage(job: ImportJob) {
   return getImportStageEntry(job.currentStage);
 }
 
+type ImportTab = "link" | "paste";
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition",
+        active
+          ? "bg-foreground/10 text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5",
+      )}
+      type="button"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeImportId = searchParams.get("import");
@@ -79,6 +112,12 @@ export function HomePage() {
   const [hasEditedUrl, setHasEditedUrl] = useState(false);
   const [view, setView] = useState<ViewMode>("reader");
   const [now, setNow] = useState(() => Date.now());
+  const [activeTab, setActiveTab] = useState<ImportTab>("link");
+  const [pastedContent, setPastedContent] = useState<{
+    html?: string;
+    plainText?: string;
+  } | null>(null);
+  const [previewText, setPreviewText] = useState("");
 
   const { data: allJobs = [] } = useQuery(
     orpc.imports.list.queryOptions({ input: {} }),
@@ -104,6 +143,17 @@ export function HomePage() {
       onSuccess: (nextJob) => {
         queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
         setHasEditedUrl(false);
+        startTransition(() => setActiveImport(nextJob.id));
+      },
+    }),
+  );
+
+  const clipboardImport = useMutation(
+    orpc.imports.createFromClipboard.mutationOptions({
+      onSuccess: (nextJob) => {
+        queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
+        setPastedContent(null);
+        setPreviewText("");
         startTransition(() => setActiveImport(nextJob.id));
       },
     }),
@@ -164,6 +214,26 @@ export function HomePage() {
     });
   }
 
+  function handlePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const html = e.clipboardData.getData("text/html");
+    const plainText = e.clipboardData.getData("text/plain");
+
+    setPastedContent({
+      html: html || undefined,
+      plainText: plainText || undefined,
+    });
+    setPreviewText(plainText?.slice(0, 500) || "");
+  }
+
+  function handleClipboardSubmit() {
+    if (!pastedContent) return;
+    clipboardImport.mutate({
+      html: pastedContent.html,
+      plainText: pastedContent.plainText,
+    });
+  }
+
   const activeStage = job ? getActiveStage(job) : null;
   const activeSourceUrl = getSafeExternalUrl(job?.sourceUrl ?? url);
   const createdAtMs = job ? Date.parse(job.createdAt) : Number.NaN;
@@ -176,53 +246,114 @@ export function HomePage() {
       <Card className="border-border/90 bg-card/92 shadow-panel">
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-6">
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                <div className="relative flex-1">
-                  <Input
-                    aria-label="Freigabelink"
-                    className={cn(
-                      "h-12 pr-4 text-base",
-                      showInlineOriginalButton ? "pr-24 sm:pr-40" : null,
-                    )}
-                    inputMode="url"
-                    placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
-                    value={url}
-                    onChange={(event) => {
-                      setHasEditedUrl(true);
-                      setUrl(event.target.value);
-                    }}
-                  />
-
-                  {showInlineOriginalButton ? (
-                    <a
-                      className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-lg border border-border bg-background/95 px-3 text-xs font-medium text-foreground transition hover:bg-foreground/5"
-                      href={activeSourceUrl ?? undefined}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      <span className="sm:hidden">Öffnen</span>
-                      <span className="hidden sm:inline">Original öffnen</span>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  ) : null}
-                </div>
-
-                <Button
-                  className="h-12 px-5 lg:min-w-[8rem]"
-                  disabled={createImport.isPending}
-                  type="submit"
+            <div className="space-y-3">
+              <div className="flex gap-1">
+                <TabButton
+                  active={activeTab === "link"}
+                  onClick={() => setActiveTab("link")}
                 >
-                  {createImport.isPending ? "Import läuft..." : "Importieren"}
-                </Button>
+                  <Link2 className="h-3.5 w-3.5" />
+                  Link
+                </TabButton>
+                <TabButton
+                  active={activeTab === "paste"}
+                  onClick={() => setActiveTab("paste")}
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" />
+                  Einfügen
+                </TabButton>
               </div>
 
-              {createImport.error ? (
-                <div className="rounded-2xl border border-red-300/40 bg-red-100/60 px-4 py-3 text-sm text-red-900">
-                  {createImport.error.message}
+              {activeTab === "link" ? (
+                <form className="space-y-3" onSubmit={handleSubmit}>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="relative flex-1">
+                      <Input
+                        aria-label="Freigabelink"
+                        className={cn(
+                          "h-12 pr-4 text-base",
+                          showInlineOriginalButton ? "pr-24 sm:pr-40" : null,
+                        )}
+                        inputMode="url"
+                        placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
+                        value={url}
+                        onChange={(event) => {
+                          setHasEditedUrl(true);
+                          setUrl(event.target.value);
+                        }}
+                      />
+
+                      {showInlineOriginalButton ? (
+                        <a
+                          className="absolute right-2 top-1/2 inline-flex h-8 -translate-y-1/2 items-center gap-1 rounded-lg border border-border bg-background/95 px-3 text-xs font-medium text-foreground transition hover:bg-foreground/5"
+                          href={activeSourceUrl ?? undefined}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          <span className="sm:hidden">Öffnen</span>
+                          <span className="hidden sm:inline">
+                            Original öffnen
+                          </span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <Button
+                      className="h-12 px-5 lg:min-w-[8rem]"
+                      disabled={createImport.isPending}
+                      type="submit"
+                    >
+                      {createImport.isPending
+                        ? "Import läuft..."
+                        : "Importieren"}
+                    </Button>
+                  </div>
+
+                  {createImport.error ? (
+                    <div className="rounded-2xl border border-red-300/40 bg-red-100/60 px-4 py-3 text-sm text-red-900">
+                      {createImport.error.message}
+                    </div>
+                  ) : null}
+                </form>
+              ) : (
+                <div className="space-y-3">
+                  <textarea
+                    aria-label="Chat einfügen"
+                    className="h-32 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Chat hier einfügen (Strg+V / ⌘+V)..."
+                    readOnly
+                    value={previewText}
+                    onPaste={handlePaste}
+                  />
+
+                  {pastedContent ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        {pastedContent.html
+                          ? "HTML + Text erkannt"
+                          : "Nur Text erkannt"}
+                      </p>
+                      <Button
+                        className="h-12 px-5 lg:min-w-[8rem]"
+                        disabled={clipboardImport.isPending}
+                        onClick={handleClipboardSubmit}
+                      >
+                        {clipboardImport.isPending
+                          ? "Importiert..."
+                          : "Importieren"}
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {clipboardImport.error ? (
+                    <div className="rounded-2xl border border-red-300/40 bg-red-100/60 px-4 py-3 text-sm text-red-900">
+                      {clipboardImport.error.message}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </form>
+              )}
+            </div>
 
             {showRecentJobs ? (
               <section className="space-y-3">

@@ -40,6 +40,7 @@ sqlite.exec(`
     source_url TEXT NOT NULL,
     source_platform TEXT NOT NULL,
     mode TEXT NOT NULL,
+    import_method TEXT NOT NULL DEFAULT 'share-link',
     status TEXT NOT NULL,
     current_stage TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -287,4 +288,17 @@ if (csConversationJsonCol) {
       `FK integrity check failed after conversation_snapshots migration: ${JSON.stringify(fkErrors)}`,
     );
   }
+}
+
+// Migration: add import_method column to imports table
+const importMethodColumn = sqlite
+  .prepare(
+    `SELECT name FROM pragma_table_info('imports') WHERE name = 'import_method'`,
+  )
+  .get() as { name: string } | undefined;
+
+if (!importMethodColumn) {
+  sqlite.exec(
+    `ALTER TABLE imports ADD COLUMN import_method TEXT NOT NULL DEFAULT 'share-link'`,
+  );
 }

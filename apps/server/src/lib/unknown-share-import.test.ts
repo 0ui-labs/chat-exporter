@@ -57,9 +57,9 @@ import {
   SCORE_FORM_PENALTY,
   SCORE_HINTED_WEIGHT,
   SCORE_TAG_RATIO_WEIGHT,
-} from "./generic-share-import.js";
+} from "./unknown-share-import.js";
 
-describe("generic-share-import constants", () => {
+describe("unknown-share-import constants", () => {
   describe("Navigation Timeouts", () => {
     test.each([
       [
@@ -157,7 +157,7 @@ describe("generic-share-import constants", () => {
   });
 });
 
-describe("importGenericSharePage", () => {
+describe("importUnknownSharePage", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -173,12 +173,12 @@ describe("importGenericSharePage", () => {
     };
     mockContext.newPage.mockResolvedValue(mockPage);
 
-    const { importGenericSharePage } = await import(
-      "./generic-share-import.js"
+    const { importUnknownSharePage } = await import(
+      "./unknown-share-import.js"
     );
 
     // Act
-    await importGenericSharePage("https://example.com/share/test", {
+    await importUnknownSharePage("https://example.com/share/test", {
       sourcePlatform: "unknown",
     }).catch(() => {});
 
@@ -197,12 +197,12 @@ describe("importGenericSharePage", () => {
     };
     mockContext.newPage.mockResolvedValue(mockPage);
 
-    const { importGenericSharePage } = await import(
-      "./generic-share-import.js"
+    const { importUnknownSharePage } = await import(
+      "./unknown-share-import.js"
     );
 
     // Act
-    await importGenericSharePage("https://example.com/share/test", {
+    await importUnknownSharePage("https://example.com/share/test", {
       sourcePlatform: "unknown",
     }).catch(() => {});
 
@@ -217,13 +217,13 @@ describe("importGenericSharePage", () => {
       new Error("page creation failed"),
     );
 
-    const { importGenericSharePage } = await import(
-      "./generic-share-import.js"
+    const { importUnknownSharePage } = await import(
+      "./unknown-share-import.js"
     );
 
     // Act
     await expect(
-      importGenericSharePage("https://example.com/share/test", {
+      importUnknownSharePage("https://example.com/share/test", {
         sourcePlatform: "unknown",
       }),
     ).rejects.toThrow("page creation failed");

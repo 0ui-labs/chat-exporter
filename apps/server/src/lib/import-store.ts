@@ -1,23 +1,26 @@
 import type {
+  Conversation,
   ImportArtifacts,
   ImportJob,
   ImportListRequest,
   ImportRequest,
   ImportSummary,
+  SourcePlatform,
 } from "@chat-exporter/shared";
 import { withTransaction } from "../db/client.js";
-import { IMPORT_TIMEOUT_MS } from "./constants.js";
 import {
-  conversationToHandover,
-  conversationToMarkdown,
-  conversationWordCount,
-} from "./conversation-artifacts.js";
+  ArtifactGeneratorRegistry,
+  handoverGenerator,
+  jsonGenerator,
+  markdownGenerator,
+} from "./artifact-generators.js";
+import { IMPORT_TIMEOUT_MS } from "./constants.js";
+import { conversationWordCount } from "./conversation-artifacts.js";
 import {
   deleteImport,
   getPersistedImport,
   insertImport,
   listImportSummaries,
-  listPersistedImports,
   replaceImport,
   saveImportSnapshot,
 } from "./import-repository.js";
@@ -28,22 +31,27 @@ function now() {
   return new Date().toISOString();
 }
 
+const generatorRegistry = new ArtifactGeneratorRegistry();
+generatorRegistry.register(markdownGenerator);
+generatorRegistry.register(handoverGenerator);
+generatorRegistry.register(jsonGenerator);
+
 function buildArtifacts(job: ImportJob): ImportArtifacts {
   const conversation = job.conversation;
 
   if (!conversation) {
-    return {
-      markdown: "",
-      handover: "",
-      json: "",
-    };
+    const artifacts: Record<string, string> = {};
+    for (const gen of generatorRegistry.getAll()) {
+      artifacts[gen.formatId] = "";
+    }
+    return artifacts;
   }
 
-  return {
-    markdown: conversationToMarkdown(conversation),
-    handover: conversationToHandover(conversation),
-    json: JSON.stringify(conversation, null, 2),
-  };
+  const artifacts: Record<string, string> = {};
+  for (const gen of generatorRegistry.getAll()) {
+    artifacts[gen.formatId] = gen.generate(conversation);
+  }
+  return artifacts;
 }
 
 function patchJob(id: string, patch: Partial<ImportJob>) {
@@ -80,6 +88,7 @@ export function createImportJob(input: ImportRequest) {
     sourceUrl: input.url,
     sourcePlatform: classifySourcePlatform(input.url),
     mode: input.mode,
+    importMethod: "share-link",
     status: "queued",
     currentStage: "validate",
     createdAt: timestamp,
@@ -89,6 +98,43 @@ export function createImportJob(input: ImportRequest) {
 
   insertImport(job);
   return job;
+}
+
+export function createClipboardImportJob(input: {
+  conversation: Conversation;
+  warnings: string[];
+  detectedPlatform: SourcePlatform;
+  mode: ImportJob["mode"];
+}) {
+  const timestamp = now();
+  const job: ImportJob = {
+    id: crypto.randomUUID(),
+    sourceUrl: `clipboard://${input.detectedPlatform}`,
+    sourcePlatform: input.detectedPlatform,
+    mode: input.mode,
+    importMethod: "clipboard",
+    status: "completed",
+    currentStage: "done",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    warnings: input.warnings,
+    conversation: input.conversation,
+    summary: {
+      messageCount: input.conversation.messages.length,
+      transcriptWords: conversationWordCount(input.conversation),
+    },
+  };
+
+  withTransaction(() => {
+    insertImport(job);
+
+    const rendered: ImportJob = { ...job };
+    const artifacts = buildArtifacts(rendered);
+
+    patchJob(job.id, { artifacts });
+  });
+
+  return getPersistedImport(job.id) ?? job;
 }
 
 export async function runImportJob(id: string) {

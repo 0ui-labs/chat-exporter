@@ -4,6 +4,9 @@ import { conversationSchema, sourcePlatformSchema } from "./conversation.js";
 
 export const importModeSchema = z.enum(["archive", "handover"]);
 
+export const importMethodSchema = z.enum(["share-link", "clipboard"]);
+export type ImportMethod = z.infer<typeof importMethodSchema>;
+
 export const importStatusSchema = z.enum([
   "queued",
   "running",
@@ -26,17 +29,29 @@ export const importRequestSchema = z.object({
   mode: importModeSchema.default("archive"),
 });
 
-export const importArtifactsSchema = z.object({
-  markdown: z.string(),
-  handover: z.string(),
-  json: z.string(),
-});
+export const clipboardImportRequestSchema = z
+  .object({
+    html: z.string().optional(),
+    plainText: z.string().optional(),
+    mode: importModeSchema.default("archive"),
+  })
+  .refine((data) => data.html || data.plainText, {
+    message: "Either html or plainText must be provided",
+  });
+
+export type ClipboardImportRequest = z.infer<
+  typeof clipboardImportRequestSchema
+>;
+
+export const importArtifactsSchema = z.record(z.string(), z.string());
 
 export const importJobSchema = z.object({
   id: z.string(),
-  sourceUrl: z.string().url(),
+  // Relaxed from .url() to support clipboard:// URIs for clipboard imports
+  sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
+  importMethod: importMethodSchema.default("share-link"),
   status: importStatusSchema,
   currentStage: importStageSchema,
   createdAt: z.string(),
@@ -63,9 +78,11 @@ export type ImportJob = z.infer<typeof importJobSchema>;
 
 export const importSummarySchema = z.object({
   id: z.string(),
-  sourceUrl: z.string().url(),
+  // Relaxed from .url() to support clipboard:// URIs for clipboard imports
+  sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
+  importMethod: importMethodSchema.default("share-link"),
   status: importStatusSchema,
   currentStage: importStageSchema,
   createdAt: z.string(),

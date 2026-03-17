@@ -57,8 +57,8 @@ function createMessage(overrides?: Partial<Message>): Message {
     id: "msg-1",
     role: "assistant",
     blocks: [
-      { type: "paragraph", text: "Hello world" },
-      { type: "heading", level: 2, text: "Section" },
+      { id: "b1", type: "paragraph", text: "Hello world" },
+      { id: "b2", type: "heading", level: 2, text: "Section" },
     ],
     ...overrides,
   };
@@ -73,8 +73,8 @@ describe("copyMessageToClipboard", () => {
     test("copies blocks as markdown text", async () => {
       const message = createMessage({
         blocks: [
-          { type: "paragraph", text: "Hello world" },
-          { type: "heading", level: 2, text: "Section" },
+          { id: "b1", type: "paragraph", text: "Hello world" },
+          { id: "b2", type: "heading", level: 2, text: "Section" },
         ],
       });
 
@@ -88,7 +88,12 @@ describe("copyMessageToClipboard", () => {
 
     test("renders code blocks with language fence", async () => {
       const blocks: Block[] = [
-        { type: "code", language: "typescript", text: "const x = 1;" },
+        {
+          id: "b3",
+          type: "code",
+          language: "typescript",
+          text: "const x = 1;",
+        },
       ];
       const message = createMessage({ blocks });
 
@@ -102,7 +107,7 @@ describe("copyMessageToClipboard", () => {
 
     test("renders list blocks", async () => {
       const blocks: Block[] = [
-        { type: "list", ordered: false, items: ["Item A", "Item B"] },
+        { id: "b4", type: "list", ordered: false, items: ["Item A", "Item B"] },
       ];
       const message = createMessage({ blocks });
 
@@ -115,7 +120,7 @@ describe("copyMessageToClipboard", () => {
 
     test("renders ordered list blocks", async () => {
       const blocks: Block[] = [
-        { type: "list", ordered: true, items: ["First", "Second"] },
+        { id: "b5", type: "list", ordered: true, items: ["First", "Second"] },
       ];
       const message = createMessage({ blocks });
 
@@ -127,7 +132,9 @@ describe("copyMessageToClipboard", () => {
     });
 
     test("renders quote blocks", async () => {
-      const blocks: Block[] = [{ type: "quote", text: "A wise saying" }];
+      const blocks: Block[] = [
+        { id: "b6", type: "quote", text: "A wise saying" },
+      ];
       const message = createMessage({ blocks });
 
       await copyMessageToClipboard(message, "markdown", blocks);
@@ -139,6 +146,7 @@ describe("copyMessageToClipboard", () => {
     test("renders table blocks", async () => {
       const blocks: Block[] = [
         {
+          id: "b7",
           type: "table",
           headers: ["Name", "Age"],
           rows: [["Alice", "30"]],
@@ -173,8 +181,8 @@ describe("copyMessageToClipboard", () => {
     test("copies blocks as plain text for handover", async () => {
       const message = createMessage({
         blocks: [
-          { type: "paragraph", text: "Summary here" },
-          { type: "heading", level: 2, text: "Context" },
+          { id: "b8", type: "paragraph", text: "Summary here" },
+          { id: "b9", type: "heading", level: 2, text: "Context" },
         ],
       });
 
@@ -190,8 +198,8 @@ describe("copyMessageToClipboard", () => {
   describe("reader format", () => {
     test("copies blocks as HTML using clipboard.write", async () => {
       const blocks: Block[] = [
-        { type: "paragraph", text: "Hello world" },
-        { type: "heading", level: 2, text: "Section" },
+        { id: "b10", type: "paragraph", text: "Hello world" },
+        { id: "b11", type: "heading", level: 2, text: "Section" },
       ];
       const message = createMessage({ blocks });
 
@@ -212,7 +220,7 @@ describe("copyMessageToClipboard", () => {
 
     test("renders code blocks with pre/code tags", async () => {
       const blocks: Block[] = [
-        { type: "code", language: "js", text: "const x = 1;" },
+        { id: "b12", type: "code", language: "js", text: "const x = 1;" },
       ];
       const message = createMessage({ blocks });
 

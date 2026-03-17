@@ -338,7 +338,7 @@ describe("type inference", () => {
       importId: "i",
       snapshotId: "s",
       messageId: "m",
-      editedBlocks: [{ type: "paragraph", text: "t" }],
+      editedBlocks: [{ type: "paragraph", text: "t", id: "block001" }],
       createdAt: "c",
       updatedAt: "u",
     };
@@ -347,7 +347,7 @@ describe("type inference", () => {
       importId: "i",
       snapshotId: "s",
       messageId: "m",
-      editedBlocks: [{ type: "paragraph", text: "t" }],
+      editedBlocks: [{ type: "paragraph", text: "t", id: "block002" }],
     };
 
     const deleteReq: DeleteMessageEditRequest = {

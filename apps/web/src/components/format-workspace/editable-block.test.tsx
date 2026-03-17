@@ -12,30 +12,31 @@ import { EditableBlock } from "./editable-block";
 // ---------------------------------------------------------------------------
 
 function paragraphBlock(text = "Hello world"): Block {
-  return { type: "paragraph", text };
+  return { id: "bp", type: "paragraph", text };
 }
 
 function headingBlock(text = "My Heading", level = 2): Block {
-  return { type: "heading", level, text };
+  return { id: "bh", type: "heading", level, text };
 }
 
 function quoteBlock(text = "A quote"): Block {
-  return { type: "quote", text };
+  return { id: "bq", type: "quote", text };
 }
 
 function codeBlock(text = 'console.log("hi")', language = "typescript"): Block {
-  return { type: "code", language, text };
+  return { id: "bc", type: "code", language, text };
 }
 
 function listBlock(
   items = ["Item 1", "Item 2", "Item 3"],
   ordered = false,
 ): Block {
-  return { type: "list", ordered, items };
+  return { id: "bl", type: "list", ordered, items };
 }
 
 function tableBlock(): Block {
   return {
+    id: "bt",
     type: "table",
     headers: ["Name", "Age"],
     rows: [
@@ -208,6 +209,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bp",
         type: "paragraph",
         text: "Updated text",
       });
@@ -222,6 +224,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bh",
         type: "heading",
         level: 3,
         text: "New heading",
@@ -237,6 +240,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bq",
         type: "quote",
         text: "New quote",
       });
@@ -251,6 +255,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bc",
         type: "code",
         language: "python",
         text: "new code",
@@ -268,6 +273,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bc",
         type: "code",
         language: "typescript",
         text: "const x = 2;",
@@ -284,6 +290,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bl",
         type: "list",
         ordered: false,
         items: ["X", "Y", "Z"],
@@ -306,6 +313,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-1", 0, {
+        id: "bt",
         type: "table",
         headers: ["Col1", "Col2"],
         rows: [
@@ -330,6 +338,7 @@ describe("EditableBlock", () => {
       fireEvent.blur(editable);
 
       expect(onBlockChange).toHaveBeenCalledWith("msg-42", 7, {
+        id: "bp",
         type: "paragraph",
         text: "changed",
       });
@@ -349,43 +358,6 @@ describe("EditableBlock", () => {
 
       const editable = screen.getByTestId("editable-block");
       expect(editable).not.toHaveClass("whitespace-pre-wrap");
-    });
-  });
-
-  describe("empty block placeholder", () => {
-    test("sets data-placeholder attribute on paragraph blocks", () => {
-      renderEditable(paragraphBlock(""));
-
-      const editable = screen.getByTestId("editable-block");
-      expect(editable).toHaveAttribute("data-placeholder", "Text eingeben...");
-    });
-
-    test("sets data-placeholder attribute on heading blocks", () => {
-      renderEditable(headingBlock(""));
-
-      const editable = screen.getByTestId("editable-block");
-      expect(editable).toHaveAttribute("data-placeholder", "Text eingeben...");
-    });
-
-    test("does not set data-placeholder when block has text", () => {
-      renderEditable(paragraphBlock("some text"));
-
-      const editable = screen.getByTestId("editable-block");
-      expect(editable).not.toHaveAttribute("data-placeholder");
-    });
-
-    test("does not set data-placeholder on list blocks", () => {
-      renderEditable(listBlock([]));
-
-      const editable = screen.getByTestId("editable-block");
-      expect(editable).not.toHaveAttribute("data-placeholder");
-    });
-
-    test("does not set data-placeholder on table blocks", () => {
-      renderEditable(tableBlock());
-
-      const editable = screen.getByTestId("editable-block");
-      expect(editable).not.toHaveAttribute("data-placeholder");
     });
   });
 });

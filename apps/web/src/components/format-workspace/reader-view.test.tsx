@@ -71,17 +71,17 @@ function createConversation(overrides?: Partial<Conversation>): Conversation {
       {
         id: "msg-1",
         role: "user",
-        blocks: [{ type: "paragraph", text: "Hello" }],
+        blocks: [{ id: "b1", type: "paragraph", text: "Hello" }],
       },
       {
         id: "msg-2",
         role: "assistant",
-        blocks: [{ type: "paragraph", text: "Hi there" }],
+        blocks: [{ id: "b2", type: "paragraph", text: "Hi there" }],
       },
       {
         id: "msg-3",
         role: "user",
-        blocks: [{ type: "paragraph", text: "How are you?" }],
+        blocks: [{ id: "b3", type: "paragraph", text: "How are you?" }],
       },
     ],
     ...overrides,
@@ -149,8 +149,8 @@ describe("ReaderView", () => {
             id: "msg-1",
             role: "user",
             blocks: [
-              { type: "paragraph", text: "Block A" },
-              { type: "paragraph", text: "Block B" },
+              { id: "b4", type: "paragraph", text: "Block A" },
+              { id: "b5", type: "paragraph", text: "Block B" },
             ],
           },
         ],
@@ -168,6 +168,7 @@ describe("ReaderView", () => {
       // Act: edit block 0 and block 1 in sequence without props updating in between
       act(() => {
         capturedOnBlockChange?.("msg-1", 0, {
+          id: "b4",
           type: "paragraph",
           text: "Block A — edited",
         });
@@ -175,6 +176,7 @@ describe("ReaderView", () => {
 
       act(() => {
         capturedOnBlockChange?.("msg-1", 1, {
+          id: "b5",
           type: "paragraph",
           text: "Block B — edited",
         });
@@ -215,8 +217,8 @@ describe("ReaderView", () => {
             id: "msg-1",
             role: "user",
             blocks: [
-              { type: "broken", content: "will crash" } as never,
-              { type: "paragraph", text: "normal text" },
+              { id: "b6", type: "broken", content: "will crash" } as never,
+              { id: "b7", type: "paragraph", text: "normal text" },
             ],
           },
         ],

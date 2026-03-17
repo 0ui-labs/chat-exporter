@@ -1,6 +1,6 @@
 import type { ImportJob } from "@chat-exporter/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
@@ -15,6 +15,7 @@ vi.mock("@/lib/rpc", () => ({
       list: vi.fn(),
       get: vi.fn(),
       create: vi.fn(),
+      createFromClipboard: vi.fn(),
     },
   },
 }));
@@ -37,6 +38,7 @@ vi.mock("@/components/format-workspace/format-workspace", () => ({
 const mockList = vi.mocked(rpc.imports.list);
 const mockGet = vi.mocked(rpc.imports.get);
 const mockCreate = vi.mocked(rpc.imports.create);
+const mockCreateFromClipboard = vi.mocked(rpc.imports.createFromClipboard);
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -68,6 +70,7 @@ function createJob(overrides: Partial<ImportJob> = {}): ImportJob {
     sourceUrl: "https://chatgpt.com/share/abc",
     sourcePlatform: "chatgpt",
     mode: "archive",
+    importMethod: "share-link",
     status: "running",
     currentStage: "fetch",
     createdAt: "2026-01-01T00:00:00Z",
@@ -238,6 +241,145 @@ describe("HomePage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Job not found")).toBeInTheDocument();
+    });
+  });
+
+  describe("Paste tab", () => {
+    test("renders textarea when paste tab is selected", async () => {
+      mockList.mockResolvedValue([]);
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<HomePage />);
+
+      await user.click(screen.getByRole("button", { name: /Einfügen/i }));
+
+      expect(screen.getByLabelText("Chat einfügen")).toBeInTheDocument();
+    });
+
+    test("captures html and plainText from clipboard on paste", async () => {
+      mockList.mockResolvedValue([]);
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<HomePage />);
+
+      await user.click(screen.getByRole("button", { name: /Einfügen/i }));
+
+      const textarea = screen.getByLabelText("Chat einfügen");
+
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: (type: string) => {
+            if (type === "text/html") return "<p>Hello AI</p>";
+            if (type === "text/plain") return "Hello AI";
+            return "";
+          },
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("HTML + Text erkannt")).toBeInTheDocument();
+      });
+
+      expect(textarea).toHaveValue("Hello AI");
+    });
+
+    test("shows 'Nur Text erkannt' when only plainText is pasted", async () => {
+      mockList.mockResolvedValue([]);
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<HomePage />);
+
+      await user.click(screen.getByRole("button", { name: /Einfügen/i }));
+
+      const textarea = screen.getByLabelText("Chat einfügen");
+
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: (type: string) => {
+            if (type === "text/plain") return "Plain text only";
+            return "";
+          },
+        },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("Nur Text erkannt")).toBeInTheDocument();
+      });
+    });
+
+    test("calls createFromClipboard mutation on submit", async () => {
+      const newJob = createJob({ id: "job-clipboard" });
+
+      mockList.mockResolvedValue([]);
+      mockCreateFromClipboard.mockResolvedValue(newJob);
+      mockGet.mockResolvedValue(newJob);
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<HomePage />);
+
+      await user.click(screen.getByRole("button", { name: /Einfügen/i }));
+
+      const textarea = screen.getByLabelText("Chat einfügen");
+
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: (type: string) => {
+            if (type === "text/html") return "<p>Hello</p>";
+            if (type === "text/plain") return "Hello";
+            return "";
+          },
+        },
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Importieren" }),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Importieren" }));
+
+      await waitFor(() => {
+        expect(mockCreateFromClipboard).toHaveBeenCalledWith(
+          { html: "<p>Hello</p>", plainText: "Hello" },
+          expect.anything(),
+        );
+      });
+    });
+
+    test("shows error when clipboard import fails", async () => {
+      mockList.mockResolvedValue([]);
+      mockCreateFromClipboard.mockRejectedValue(
+        new Error("Clipboard import failed"),
+      );
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<HomePage />);
+
+      await user.click(screen.getByRole("button", { name: /Einfügen/i }));
+
+      const textarea = screen.getByLabelText("Chat einfügen");
+
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: (type: string) => {
+            if (type === "text/plain") return "Some text";
+            return "";
+          },
+        },
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Importieren" }),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Importieren" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Clipboard import failed")).toBeInTheDocument();
+      });
     });
   });
 });
