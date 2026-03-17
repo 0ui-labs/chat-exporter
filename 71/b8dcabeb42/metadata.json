@@ -3,7 +3,7 @@
   "checkpoint_id": "71b8dcabeb42",
   "strategy": "manual-commit",
   "branch": "UX",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "apps/web/src/components/format-workspace/use-adjustment-session.test.ts",
     "apps/web/src/components/format-workspace/use-adjustment-session.ts",
@@ -17,13 +17,19 @@
       "transcript": "/71/b8dcabeb42/0/full.jsonl",
       "content_hash": "/71/b8dcabeb42/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/71/b8dcabeb42/1/metadata.json",
+      "transcript": "/71/b8dcabeb42/1/full.jsonl",
+      "content_hash": "/71/b8dcabeb42/1/content_hash.txt",
+      "prompt": "/71/b8dcabeb42/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 588,
-    "cache_creation_tokens": 68344,
-    "cache_read_tokens": 515626,
-    "output_tokens": 9994,
-    "api_call_count": 11
+    "input_tokens": 1781,
+    "cache_creation_tokens": 241109,
+    "cache_read_tokens": 9397307,
+    "output_tokens": 41976,
+    "api_call_count": 107
   }
 }
