@@ -265,6 +265,31 @@ export async function importPerplexitySharePage(
         }
       }
 
+      // Check if any turn wrapper contains child elements that look like
+      // separate user/assistant turns — if so, replace the parent with children
+      const expandedTurnElements: Element[] = [];
+      for (const el of turnElements) {
+        const childTurnCandidates = Array.from(el.children).filter((child) => {
+          if (!isVisible(child) || isExcluded(child)) return false;
+          const childRole = roleFromHints(child);
+          return childRole !== null;
+        });
+
+        // If the wrapper has 2+ children with distinct roles, use the children
+        if (childTurnCandidates.length >= 2) {
+          const roles = new Set(
+            childTurnCandidates.map((c) => roleFromHints(c)),
+          );
+          if (roles.size >= 2) {
+            expandedTurnElements.push(...childTurnCandidates);
+            continue;
+          }
+        }
+
+        expandedTurnElements.push(el);
+      }
+      turnElements = expandedTurnElements;
+
       if (turnElements.length === 0) {
         return {
           title: normalizeTitle(document.title),
