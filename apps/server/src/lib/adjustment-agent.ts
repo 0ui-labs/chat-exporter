@@ -547,8 +547,7 @@ function buildActionHistory(
   const ruleMap = new Map(activeRules.map((r) => [r.id, r]));
   const lines: string[] = ["## Deine bisherigen Aktionen in dieser Session"];
 
-  for (let i = 0; i < sessionEvents.length; i++) {
-    const event = sessionEvents[i]!;
+  for (const [i, event] of sessionEvents.entries()) {
     const num = i + 1;
     const ruleId = event.ruleId ?? "unknown";
 
