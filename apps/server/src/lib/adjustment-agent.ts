@@ -838,7 +838,13 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
   let assistantMessage: string;
 
   if (rawMessage) {
-    assistantMessage = rawMessage;
+    if (actions.length === 0 && !rawMessage.includes("?")) {
+      // AI claims success without tool call → use honest fallback
+      assistantMessage =
+        "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?";
+    } else {
+      assistantMessage = rawMessage;
+    }
   } else if (actions.length > 0) {
     assistantMessage = "Die Änderung ist jetzt sichtbar.";
   } else {

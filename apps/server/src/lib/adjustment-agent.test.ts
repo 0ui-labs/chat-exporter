@@ -540,6 +540,102 @@ describe("AdjustmentAgent", () => {
     );
   });
 
+  test("hallucination guard: AI message without tool actions and no question mark → fallback", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    // AI returns a confident statement without calling any tools
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).not.toHaveBeenCalled();
+    expect(result.actions).toEqual([]);
+    expect(result.assistantMessage).toBe(
+      "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?",
+    );
+  });
+
+  test("hallucination guard: AI message without tool actions but with question mark → kept as clarification", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Möchtest du den Text größer oder fetter machen?"),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toEqual([]);
+    expect(result.assistantMessage).toBe(
+      "Möchtest du den Text größer oder fetter machen?",
+    );
+  });
+
+  test("hallucination guard: AI message with tool actions → message kept as-is", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toHaveLength(1);
+    // Message is kept because there ARE tool actions
+    expect(result.assistantMessage).toBe("Die Schriftgröße wurde angepasst.");
+  });
+
   test("sends reasoning effort 'medium' in the request body", async () => {
     setTestEnv();
     const callbacks = createCallbacks();
