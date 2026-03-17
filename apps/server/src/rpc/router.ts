@@ -161,15 +161,15 @@ export const router = os.router({
     // format_profile-Rules). Änderungen hier dürfen diese Trennung nicht aufheben.
     exportArtifact: os.imports.exportArtifact.handler(({ input }) => {
       const job = getImportJob(input.id);
+      const artifacts = job?.artifacts ?? {};
 
-      const artifact = job?.artifacts?.[input.format];
-
-      if (!artifact) {
+      if (!Object.prototype.hasOwnProperty.call(artifacts, input.format)) {
         throw new ORPCError("NOT_FOUND", {
           message: "Export-Artefakt nicht gefunden.",
         });
       }
 
+      const artifact = artifacts[input.format] as string;
       return artifact;
     }),
   },
