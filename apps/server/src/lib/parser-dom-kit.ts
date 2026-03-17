@@ -167,7 +167,7 @@ export const DOM_KIT_SCRIPT: string = `(function() {
       lines.shift();
     }
 
-    return lines.join("\\n").trim();
+    return lines.join("\\n").replace(/^\\n/, "").replace(/\\n$/, "");
   }
 
   function extractTable(tableElement) {
@@ -248,21 +248,44 @@ export const DOM_KIT_SCRIPT: string = `(function() {
     }
 
     if (wrapperTags.has(tagName)) {
-      var childBlocks = Array.from(element.childNodes).reduce(function(acc, childNode) {
-        if (childNode.nodeType === Node.TEXT_NODE) {
-          var text = normalizeWhitespace(childNode.textContent != null ? childNode.textContent : "");
-          if (text) acc.push({ type: "paragraph", text: text });
-          return acc;
+      var inlineTags = new Set(["A", "STRONG", "B", "EM", "I", "CODE", "DEL", "S", "SPAN", "MARK", "SUB", "SUP", "SMALL", "ABBR", "CITE", "Q", "KBD", "VAR", "SAMP", "TIME", "BR"]);
+
+      function isInlineNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return true;
+        if (node.nodeType !== Node.ELEMENT_NODE) return false;
+        return inlineTags.has(node.tagName.toUpperCase());
+      }
+
+      var childBlocks = [];
+      var pendingInline = [];
+
+      function flushInline() {
+        if (pendingInline.length === 0) return;
+        var text = normalizeWhitespace(pendingInline.map(inlineText).join(""));
+        if (text) childBlocks.push({ type: "paragraph", text: text });
+        pendingInline = [];
+      }
+
+      var childNodes = Array.from(element.childNodes);
+      for (var ci = 0; ci < childNodes.length; ci++) {
+        var childNode = childNodes[ci];
+
+        if (isInlineNode(childNode)) {
+          pendingInline.push(childNode);
+          continue;
         }
 
+        flushInline();
+
         if (childNode.nodeType !== Node.ELEMENT_NODE) {
-          return acc;
+          continue;
         }
 
         var blocks = elementToBlocks(childNode);
-        for (var b = 0; b < blocks.length; b++) acc.push(blocks[b]);
-        return acc;
-      }, []);
+        for (var b = 0; b < blocks.length; b++) childBlocks.push(blocks[b]);
+      }
+
+      flushInline();
 
       if (childBlocks.length > 0) {
         return childBlocks;

@@ -222,16 +222,21 @@ describe("parser-page-utils", () => {
       expect(result.warnings[0]).toContain("10");
     });
 
-    test("returns the same payload reference (mutated)", async () => {
+    test("returns a new payload without mutating the original", async () => {
       const { truncateMessagesIfNeeded } = await import(
         "./parser-page-utils.js"
       );
 
       const payload = makePayload(15);
+      const originalMessages = [...payload.messages];
+      const originalWarnings = [...payload.warnings];
 
       const result = truncateMessagesIfNeeded(payload, 10);
 
-      expect(result).toBe(payload);
+      expect(result).not.toBe(payload);
+      expect(payload.messages).toEqual(originalMessages);
+      expect(payload.warnings).toEqual(originalWarnings);
+      expect(result.messages).toHaveLength(10);
     });
   });
 

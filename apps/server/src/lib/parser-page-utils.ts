@@ -27,19 +27,23 @@ export async function preparePageScripts(page: Page): Promise<void> {
   await page.addInitScript({ content: DOM_KIT_SCRIPT });
 }
 
-/** Truncate messages if they exceed the limit, adding a warning. Returns mutated payload. */
+/** Truncate messages if they exceed the limit, adding a warning. Returns a new payload without mutating the original. */
 export function truncateMessagesIfNeeded(
   payload: NormalizedSnapshotPayload,
   maxCount: number,
 ): NormalizedSnapshotPayload {
-  if (payload.messages.length > maxCount) {
-    const originalCount = payload.messages.length;
-    payload.messages = payload.messages.slice(-maxCount);
-    payload.warnings.push(
-      `Nachrichtenlimit überschritten: ${originalCount} Nachrichten gefunden, auf die letzten ${maxCount} gekürzt.`,
-    );
+  if (payload.messages.length <= maxCount) {
+    return payload;
   }
-  return payload;
+  const originalCount = payload.messages.length;
+  return {
+    ...payload,
+    messages: payload.messages.slice(-maxCount),
+    warnings: [
+      ...payload.warnings,
+      `Nachrichtenlimit überschritten: ${originalCount} Nachrichten gefunden, auf die letzten ${maxCount} gekürzt.`,
+    ],
+  };
 }
 
 /** Validate raw HTML size against limit. Returns byte size. Throws if exceeded. */
