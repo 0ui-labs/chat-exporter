@@ -53,10 +53,7 @@ import {
   listSnapshots,
   renameSnapshot,
 } from "../lib/snapshot-repository.js";
-import {
-  classifySourcePlatform,
-  hasSupportedImportProtocol,
-} from "../lib/source-platform.js";
+import { hasSupportedImportProtocol } from "../lib/source-platform.js";
 
 export const RAW_HTML_PREVIEW_LENGTH = 16_000;
 
@@ -101,13 +98,6 @@ export const router = os.router({
       if (!hasSupportedImportProtocol(input.url)) {
         throw new ORPCError("BAD_REQUEST", {
           message: "Nur HTTP/HTTPS URLs werden unterstützt.",
-        });
-      }
-
-      if (classifySourcePlatform(input.url) === "unknown") {
-        throw new ORPCError("BAD_REQUEST", {
-          message:
-            "Die Domain wird nicht unterstützt. Nur bekannte AI-Chat-Plattformen sind erlaubt.",
         });
       }
 
