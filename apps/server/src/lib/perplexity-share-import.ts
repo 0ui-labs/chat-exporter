@@ -288,7 +288,9 @@ export async function importPerplexitySharePage(
 
         expandedTurnElements.push(el);
       }
-      turnElements = expandedTurnElements;
+      // Deduplicate after expanding — a wrapper's children may already
+      // have been matched by a previous selector.
+      turnElements = [...new Set(expandedTurnElements)];
 
       if (turnElements.length === 0) {
         return {
