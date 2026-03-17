@@ -247,7 +247,7 @@ export async function importGeminiSharePage(
       }
 
       function normalizeGeminiUserQuery(text: string) {
-        return normalizeWhitespace(text.replace(/^you said\s*/i, ""));
+        return normalizeWhitespace(text.replace(/^You said\n/i, ""));
       }
 
       const turnElements = Array.from(

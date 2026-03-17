@@ -47,6 +47,7 @@ export const importArtifactsSchema = z.record(z.string(), z.string());
 
 export const importJobSchema = z.object({
   id: z.string(),
+  // Relaxed from .url() to support clipboard:// URIs for clipboard imports
   sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
@@ -77,6 +78,7 @@ export type ImportJob = z.infer<typeof importJobSchema>;
 
 export const importSummarySchema = z.object({
   id: z.string(),
+  // Relaxed from .url() to support clipboard:// URIs for clipboard imports
   sourceUrl: z.string().min(1),
   sourcePlatform: sourcePlatformSchema,
   mode: importModeSchema,
