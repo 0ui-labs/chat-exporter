@@ -6,6 +6,7 @@ import {
   useReducer,
   useRef,
 } from "react";
+import { toast } from "sonner";
 
 import {
   type AdjustmentSelection,
@@ -44,6 +45,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
         dispatch({ type: "APPEND_MESSAGE_SUCCESS", view, detail: nextDetail });
         if (nextDetail.session.status === "applied")
           queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+        toast.success("Anpassung übernommen");
       },
       onError: (error) => {
         dispatch({
@@ -53,13 +55,17 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
             "Anpassungsnachricht konnte nicht gespeichert werden.",
           ),
         });
+        toast.error("Anpassung fehlgeschlagen");
       },
     }),
   );
 
   const discardSession = useMutation(
     orpc.adjustments.discard.mutationOptions({
-      onSuccess: () => dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view }),
+      onSuccess: () => {
+        dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
+        toast.info("Letzte Änderung verworfen");
+      },
       onError: (error) => {
         if (state.activeSessionDetail?.session.status === "applied") {
           dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });

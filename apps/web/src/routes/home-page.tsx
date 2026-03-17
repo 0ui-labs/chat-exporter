@@ -19,6 +19,7 @@ import { WelcomeCard } from "@/components/onboarding/welcome-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { usePlaceholderRotation } from "@/hooks/use-placeholder-rotation";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +123,17 @@ export function HomePage() {
   } | null>(null);
   const [previewText, setPreviewText] = useState("");
   const urlInputRef = useRef<HTMLInputElement>(null);
+
+  const placeholderExamples = [
+    "https://chatgpt.com/share/abc123...",
+    "https://claude.ai/share/xyz789...",
+  ];
+  const {
+    placeholder: rotatingPlaceholder,
+    visible: placeholderVisible,
+    pause: pausePlaceholder,
+    resume: resumePlaceholder,
+  } = usePlaceholderRotation(placeholderExamples, 4000);
 
   const handleScrollToInput = useCallback(() => {
     urlInputRef.current?.scrollIntoView({
@@ -288,16 +300,21 @@ export function HomePage() {
                         ref={urlInputRef}
                         aria-label="Freigabelink"
                         className={cn(
-                          "h-12 pr-4 text-base",
+                          "h-12 pr-4 text-base transition-opacity duration-150",
                           showInlineOriginalButton ? "pr-24 sm:pr-40" : null,
+                          !url && !placeholderVisible
+                            ? "placeholder:opacity-0"
+                            : "placeholder:opacity-100",
                         )}
                         inputMode="url"
-                        placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
+                        placeholder={rotatingPlaceholder}
                         value={url}
+                        onBlur={resumePlaceholder}
                         onChange={(event) => {
                           setHasEditedUrl(true);
                           setUrl(event.target.value);
                         }}
+                        onFocus={pausePlaceholder}
                       />
 
                       {showInlineOriginalButton ? (
