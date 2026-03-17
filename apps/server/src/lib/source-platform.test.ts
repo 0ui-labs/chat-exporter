@@ -54,10 +54,10 @@ describe("classifySourcePlatform", () => {
       expect(result).toBe("lechat");
     });
 
-    test("classifies subdomain of mistral.ai as lechat", () => {
+    test("does not classify non-chat subdomains of mistral.ai as lechat", () => {
       const result = classifySourcePlatform("https://api.mistral.ai/v1/chat");
 
-      expect(result).toBe("lechat");
+      expect(result).toBe("unknown");
     });
 
     test("classifies kimi.moonshot.cn as kimi", () => {

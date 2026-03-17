@@ -54,6 +54,7 @@ export function classifySourcePlatform(urlString: string): SourcePlatform {
     hostname === "aistudio.google.com" ||
     hostname.endsWith(".aistudio.google.com")
   ) {
+    // TODO: aistudio falls through to generic importer — missing consent-handling and longer timeout
     return "aistudio";
   }
 
@@ -61,7 +62,7 @@ export function classifySourcePlatform(urlString: string): SourcePlatform {
     return "perplexity";
   }
 
-  if (hostname === "chat.mistral.ai" || hostname.endsWith(".mistral.ai")) {
+  if (hostname === "chat.mistral.ai") {
     return "lechat";
   }
 
