@@ -8,6 +8,7 @@ export interface HtmlExportViewProps {
   rules: FormatRule[];
 }
 
+// TODO: Wire into format plugin registry when HTML export view is ready
 export function HtmlExportView({ conversation, rules }: HtmlExportViewProps) {
   const html = useMemo(() => {
     if (!conversation) return "";

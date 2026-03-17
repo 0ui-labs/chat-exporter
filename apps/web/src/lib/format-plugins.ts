@@ -29,8 +29,6 @@ export interface FormatPlugin {
   ViewComponent: ComponentType<any>;
   /** Optional client-side transformation for download export. */
   prepareDownload?: (content: string, rules: FormatRule[]) => string;
-  /** Optional client-side transformation for copy-to-clipboard. */
-  prepareCopy?: (content: string, rules: FormatRule[]) => string;
   /** For formats that export based on full conversation + effects (reader). */
   prepareConversationExport?: (
     conversation: Conversation,
@@ -66,6 +64,9 @@ export class FormatPluginRegistry {
 
 // ---------------------------------------------------------------------------
 // Default client registry with built-in formats
+// TODO: The client plugin registry is not the UI source of truth yet.
+// The completed-toolbar and format-workspace still read views from
+// defaultRegistry (shared). Consolidate once all views are plugin-driven.
 // ---------------------------------------------------------------------------
 
 export const clientFormatRegistry = new FormatPluginRegistry();
@@ -84,7 +85,6 @@ for (const desc of BUILTIN_FORMATS) {
         descriptor: desc,
         ViewComponent: MarkdownView,
         prepareDownload: (content, rules) => applyMarkdownRules(content, rules),
-        prepareCopy: (content, rules) => applyMarkdownRules(content, rules),
       });
       break;
     case "handover":

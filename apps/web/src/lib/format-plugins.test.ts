@@ -117,12 +117,6 @@ describe("clientFormatRegistry", () => {
     expect(plugin?.prepareDownload).toBeTypeOf("function");
   });
 
-  test("markdown plugin has prepareCopy defined", () => {
-    const plugin = clientFormatRegistry.get("markdown");
-
-    expect(plugin?.prepareCopy).toBeTypeOf("function");
-  });
-
   test("reader plugin has prepareConversationExport instead of prepareDownload", () => {
     const plugin = clientFormatRegistry.get("reader");
 
@@ -130,11 +124,11 @@ describe("clientFormatRegistry", () => {
     expect(plugin?.prepareConversationExport).toBeTypeOf("function");
   });
 
-  test("handover and json plugins have no prepareDownload, prepareCopy, or prepareConversationExport", () => {
+  test("handover and json plugins have no prepareDownload or prepareConversationExport", () => {
     for (const id of ["handover", "json"]) {
       const plugin = clientFormatRegistry.get(id);
       expect(plugin?.prepareDownload).toBeUndefined();
-      expect(plugin?.prepareCopy).toBeUndefined();
+
       expect(plugin?.prepareConversationExport).toBeUndefined();
     }
   });
