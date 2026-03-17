@@ -3,21 +3,30 @@
   "checkpoint_id": "5416ba384ffc",
   "strategy": "manual-commit",
   "branch": "UX",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/web/src/components/import-history/delete-import-dialog.tsx",
+    "apps/web/src/routes/home-page.tsx"
+  ],
   "sessions": [
     {
       "metadata": "/54/16ba384ffc/0/metadata.json",
       "transcript": "/54/16ba384ffc/0/full.jsonl",
       "content_hash": "/54/16ba384ffc/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/54/16ba384ffc/1/metadata.json",
+      "transcript": "/54/16ba384ffc/1/full.jsonl",
+      "content_hash": "/54/16ba384ffc/1/content_hash.txt",
+      "prompt": "/54/16ba384ffc/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1840,
-    "cache_creation_tokens": 71281,
-    "cache_read_tokens": 583970,
-    "output_tokens": 11505,
-    "api_call_count": 12
+    "input_tokens": 3045,
+    "cache_creation_tokens": 253899,
+    "cache_read_tokens": 10299862,
+    "output_tokens": 47982,
+    "api_call_count": 114
   }
 }
