@@ -5,7 +5,9 @@ import {
   type FormEvent,
   type ReactNode,
   startTransition,
+  useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -13,6 +15,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
 import { getImportStageEntry } from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
+import { WelcomeCard } from "@/components/onboarding/welcome-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -118,6 +121,15 @@ export function HomePage() {
     plainText?: string;
   } | null>(null);
   const [previewText, setPreviewText] = useState("");
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScrollToInput = useCallback(() => {
+    urlInputRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    urlInputRef.current?.focus();
+  }, []);
 
   const { data: allJobs = [] } = useQuery(
     orpc.imports.list.queryOptions({ input: {} }),
@@ -242,7 +254,11 @@ export function HomePage() {
   const showInlineOriginalButton = Boolean(job && activeSourceUrl);
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <WelcomeCard
+        visible={allJobs.length === 0 && !activeImportId}
+        onScrollToInput={handleScrollToInput}
+      />
       <Card className="border-border/90 bg-card/92 shadow-panel">
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-6">
@@ -269,6 +285,7 @@ export function HomePage() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div className="relative flex-1">
                       <Input
+                        ref={urlInputRef}
                         aria-label="Freigabelink"
                         className={cn(
                           "h-12 pr-4 text-base",
