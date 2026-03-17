@@ -15,6 +15,7 @@ import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
 import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const outputViews = defaultRegistry.getAll().map((f) => ({
   value: f.id as ViewMode,
@@ -60,20 +61,32 @@ export function CompletedToolbar({
 }: CompletedToolbarProps) {
   return (
     <div className="space-y-2">
-      {/* Row 1: Format buttons */}
+      {/* Row 1: View selector pill group */}
       <div data-testid="toolbar-format-row" className="flex flex-wrap gap-2">
-        {outputViews.map((outputView) => (
-          <Button
-            key={outputView.value}
-            data-testid={`format-view-${outputView.value}`}
-            type="button"
-            size="sm"
-            variant={view === outputView.value ? "default" : "outline"}
-            onClick={() => onViewChange(outputView.value)}
-          >
-            {outputView.label}
-          </Button>
-        ))}
+        <div
+          data-testid="view-selector-pill-group"
+          className="inline-flex rounded-xl border border-border/80 bg-background/60 p-1"
+        >
+          {outputViews.map((outputView) => {
+            const isActive = view === outputView.value;
+            return (
+              <button
+                key={outputView.value}
+                data-testid={`format-view-${outputView.value}`}
+                type="button"
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150",
+                  isActive
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => onViewChange(outputView.value)}
+              >
+                {outputView.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Row 2: Action buttons */}

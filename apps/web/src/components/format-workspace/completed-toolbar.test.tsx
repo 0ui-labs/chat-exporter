@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { defaultRegistry } from "@chat-exporter/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -103,14 +104,29 @@ beforeAll(() => {
 // ---------------------------------------------------------------------------
 
 describe("CompletedToolbar", () => {
-  describe("two-row layout", () => {
-    test("renders format buttons row with all four view buttons", () => {
+  describe("pill group view selector", () => {
+    test("renders all view buttons inside a pill group container", () => {
       renderToolbar();
+
+      const pillGroup = screen.getByTestId("view-selector-pill-group");
+      expect(pillGroup).toBeInTheDocument();
 
       expect(screen.getByTestId("format-view-reader")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-markdown")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-handover")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-json")).toBeInTheDocument();
+    });
+
+    test("view buttons are children of the pill group", () => {
+      renderToolbar();
+
+      const pillGroup = screen.getByTestId("view-selector-pill-group");
+      const registryFormats = defaultRegistry.getAll();
+
+      for (const format of registryFormats) {
+        const button = screen.getByTestId(`format-view-${format.id}`);
+        expect(pillGroup.contains(button)).toBe(true);
+      }
     });
 
     test("renders tab labels matching the defaultRegistry", () => {
@@ -123,6 +139,32 @@ describe("CompletedToolbar", () => {
       }
     });
 
+    test("active view button has active styling class", () => {
+      renderToolbar({ view: "markdown" });
+
+      const activeButton = screen.getByTestId("format-view-markdown");
+      expect(activeButton.className).toMatch(/bg-foreground/);
+      expect(activeButton.className).toMatch(/text-background/);
+    });
+
+    test("inactive view buttons have muted styling class", () => {
+      renderToolbar({ view: "reader" });
+
+      const inactiveButton = screen.getByTestId("format-view-markdown");
+      expect(inactiveButton.className).toMatch(/text-muted-foreground/);
+    });
+
+    test("clicking a view button calls onViewChange", async () => {
+      const user = userEvent.setup();
+      const { props } = renderToolbar({ view: "reader" });
+
+      await user.click(screen.getByTestId("format-view-markdown"));
+
+      expect(props.onViewChange).toHaveBeenCalledWith("markdown");
+    });
+  });
+
+  describe("two-row layout", () => {
     test("renders action buttons row with download button", () => {
       renderToolbar();
 
