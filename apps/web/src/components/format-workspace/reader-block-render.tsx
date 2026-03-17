@@ -210,8 +210,8 @@ export function renderReaderBlock(block: Block, effects: RuleEffect[]) {
           className="list-disc space-y-2 pl-5 text-sm leading-7 text-foreground/90"
           style={textStyle}
         >
-          {(block.items ?? []).map((item) => (
-            <li key={item} style={itemStyle}>
+          {(block.items ?? []).map((item, itemIndex) => (
+            <li key={`li-${itemIndex}`} style={itemStyle}>
               {renderReaderInlineText(item, effects)}
             </li>
           ))}

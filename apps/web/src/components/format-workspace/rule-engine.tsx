@@ -100,7 +100,10 @@ export function buildReaderEffectsMap(
         .map(normalizeLegacyEffect);
 
       if (effects.length > 0) {
-        effectsMap.set(`${message.id}:${block.id}`, effects);
+        const blockKey = block.id
+          ? `${message.id}:${block.id}`
+          : `${message.id}:idx-${blockIndex}`;
+        effectsMap.set(blockKey, effects);
       }
     }
   }

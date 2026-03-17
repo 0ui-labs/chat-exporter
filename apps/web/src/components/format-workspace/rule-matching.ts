@@ -222,7 +222,11 @@ export function getBlocksMatchingRule(
           block.id,
         )
       ) {
-        matches.push({ messageId: message.id, blockIndex, blockId: block.id });
+        matches.push({
+          messageId: message.id,
+          blockIndex,
+          blockId: block.id ?? "",
+        });
       }
     }
   }
