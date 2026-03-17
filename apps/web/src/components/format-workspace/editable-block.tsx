@@ -1,5 +1,6 @@
 import type { Block } from "@chat-exporter/shared";
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
+import { blockToPlainText } from "@/components/format-workspace/reader-block-render";
 import { cn } from "@/lib/utils";
 
 /**
@@ -99,11 +100,39 @@ export function EditableBlock({
   children,
 }: EditableBlockProps) {
   const ref = useRef<HTMLDivElement>(null);
+  // Skip the initial mount — FrozenChildren handles the first render.
+  const hasMounted = useRef(false);
+  // Tracks whether the last change came from the editor itself (blur commit).
+  // When true, the useEffect below skips re-setting DOM content to avoid
+  // fighting with the user's cursor.
+  const isLocalChange = useRef(false);
+
+  // Update editor DOM when block props change externally (e.g. undo, reorder).
+  // Skips the initial mount (FrozenChildren renders the initial content) and
+  // skips changes that originated from this editor's own blur commit.
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
+    if (isLocalChange.current) {
+      isLocalChange.current = false;
+      return;
+    }
+    const element = ref.current;
+    if (!element) return;
+    const currentText = element.textContent ?? "";
+    const propText = blockToPlainText(block);
+    if (currentText !== propText) {
+      element.textContent = propText;
+    }
+  }, [block]);
 
   const handleBlur = useCallback(() => {
     const element = ref.current;
     if (!element) return;
 
+    isLocalChange.current = true;
     const newBlock = readBlockFromDom(element, block);
     onBlockChange(messageId, blockIndex, newBlock);
   }, [block, blockIndex, messageId, onBlockChange]);

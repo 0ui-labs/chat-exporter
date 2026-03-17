@@ -135,12 +135,15 @@ export function TableEditor({
       );
       if (currentIndex === -1) return;
 
-      e.preventDefault();
-
       const nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
-      if (nextIndex >= 0 && nextIndex < cells.length) {
-        (cells[nextIndex] as HTMLElement).focus();
-      }
+
+      // Only trap Tab when there IS another cell to move to.
+      // At the first cell (Shift+Tab) or last cell (Tab), allow default
+      // behavior so focus can escape the table.
+      if (nextIndex < 0 || nextIndex >= cells.length) return;
+
+      e.preventDefault();
+      (cells[nextIndex] as HTMLElement).focus();
     },
     [],
   );

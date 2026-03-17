@@ -82,10 +82,14 @@ export function useMessageEdits(importId: string, snapshotId?: string) {
         setPendingTimerCount((c) => c + 1);
       }
 
+      // Capture the resolved snapshot ID before scheduling the debounce timer.
+      // snapshotIdOverride may be lost by the time the timer fires (stale closure).
+      const resolvedSnapshotId = snapshotIdOverride ?? snapshotIdRef.current;
+
       const timer = setTimeout(() => {
-        // Re-read ref at fire time — snapshotId may have arrived between
-        // scheduling and firing.
-        const sid = snapshotIdRef.current;
+        // Prefer the snapshot ID captured at schedule time; fall back to the
+        // ref in case it was still undefined then and has since arrived.
+        const sid = resolvedSnapshotId ?? snapshotIdRef.current;
         if (!sid) {
           debounceTimers.current.delete(messageId);
           setPendingTimerCount((c) => c - 1);
