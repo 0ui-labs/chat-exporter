@@ -187,11 +187,15 @@ function matchesSiblingFilter(
 export function getBlocksMatchingRule(
   rule: FormatRule,
   conversation: Conversation,
-): Array<{ messageId: string; blockIndex: number; blockId: string }> {
+): Array<{
+  messageId: string;
+  blockIndex: number;
+  blockId: string | undefined;
+}> {
   const matches: Array<{
     messageId: string;
     blockIndex: number;
-    blockId: string;
+    blockId: string | undefined;
   }> = [];
 
   for (const message of conversation.messages) {
@@ -225,7 +229,7 @@ export function getBlocksMatchingRule(
         matches.push({
           messageId: message.id,
           blockIndex,
-          blockId: block.id ?? "",
+          blockId: block.id || undefined,
         });
       }
     }

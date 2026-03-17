@@ -267,10 +267,10 @@ export async function importGrokSharePage(
         }
       }
 
-      // Filter out nested elements that are children of other matches
+      // Filter out elements that contain other matched elements (keep the inner nodes)
       turnElements = turnElements.filter(
         (el, _i, arr) =>
-          !arr.some((other) => other !== el && other.contains(el)),
+          !arr.some((other) => other !== el && el.contains(other)),
       );
 
       if (turnElements.length === 0) {

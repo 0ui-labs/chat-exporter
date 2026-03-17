@@ -306,7 +306,9 @@ const ReaderMessage = memo(function ReaderMessage({
                 ? selectedBlock.blockId === block.id
                 : selectedBlock.blockIndex === blockIndex);
             const isHighlighted = highlightedBlocks.has(
-              `${message.id}:${block.id}`,
+              block.id
+                ? `${message.id}:${block.id}`
+                : `${message.id}:idx-${blockIndex}`,
             );
             const emitSelection = (
               anchor: ViewportAnchor,
@@ -531,7 +533,13 @@ export function ReaderView({
     }
 
     const matches = getBlocksMatchingRule(rule, conversation);
-    return new Set(matches.map((m) => `${m.messageId}:${m.blockId}`));
+    return new Set(
+      matches.map((m) =>
+        m.blockId
+          ? `${m.messageId}:${m.blockId}`
+          : `${m.messageId}:idx-${m.blockIndex}`,
+      ),
+    );
   }, [highlightedRuleId, activeRules, conversation]);
 
   const handleBlockChange = useCallback(
