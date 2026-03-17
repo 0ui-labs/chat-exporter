@@ -91,11 +91,18 @@ export class FormatRegistry {
 
   get(id: string): OutputFormatDescriptor | undefined {
     const stored = this.formats.get(id);
-    return stored ? { ...stored } : undefined;
+    if (!stored) return undefined;
+    const clone = { ...stored };
+    if (clone.supportedRuleKinds)
+      clone.supportedRuleKinds = [...clone.supportedRuleKinds];
+    return clone;
   }
 
   getAll(): OutputFormatDescriptor[] {
-    return [...this.formats.values()].map((f) => ({ ...f }));
+    return [...this.formats.values()].map((f) => ({
+      ...f,
+      supportedRuleKinds: [...f.supportedRuleKinds],
+    }));
   }
 
   getAdjustable(): OutputFormatDescriptor[] {

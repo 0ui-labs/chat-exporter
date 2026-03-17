@@ -20,20 +20,10 @@ import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
 
-const VIEW_MODE_VALUES = new Set<string>([
-  "reader",
-  "markdown",
-  "handover",
-  "json",
-]);
-
-const outputViews = defaultRegistry
-  .getAll()
-  .filter((f) => VIEW_MODE_VALUES.has(f.id))
-  .map((f) => ({
-    value: f.id as ViewMode,
-    label: f.label,
-  }));
+const outputViews = defaultRegistry.getAll().map((f) => ({
+  value: f.id as ViewMode,
+  label: f.label,
+}));
 
 type CompletedToolbarProps = {
   adjustModeEnabled: boolean;
