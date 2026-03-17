@@ -268,7 +268,7 @@ function buildSelectorSchema(targetFormat: AdjustmentTargetFormat = "reader") {
         type: "string",
         description: "ID der Nachricht (aus dem Kontext übernehmen).",
       },
-      ...(targetFormat === "reader"
+      ...(targetFormat !== "markdown"
         ? {
             blockId: {
               type: "string",
