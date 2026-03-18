@@ -370,6 +370,74 @@ Claude Code entscheidet selbstständig, ob ein Agent Team gespawnt wird. Folgend
 
 ---
 
+## Tooling — Serena + RTK (MANDATORY)
+
+Zwei Optimierungen reduzieren Token-Verbrauch drastisch. **Native Claude Code Tools (Read, Grep, Glob) umgehen beide** — daher vermeiden.
+
+### Tool-Hierarchie (bindend)
+
+| Aufgabe | 1. Wahl (Serena MCP) | 2. Wahl (Bash → RTK) | NICHT verwenden |
+|---------|---------------------|----------------------|-----------------|
+| **Code lesen** | `find_symbol(name, include_body=true)`, `get_symbols_overview` | — | `Read`, `cat` |
+| **Code suchen** | `find_referencing_symbols`, `search_for_pattern` | — | `Grep`, `rg` |
+| **Code-Dateien finden** | `find_file`, `list_dir` | — | `Glob`, `find` |
+| **Code editieren** | `replace_symbol_body`, `insert_after_symbol` | `Edit`-Tool | `sed` |
+| **Nicht-Code lesen** (md, json, config, logs) | — | `cat`, `head` → RTK komprimiert | `Read` |
+| **Nicht-Code suchen** | — | `rg`, `grep` → RTK komprimiert | `Grep` |
+| **Git, Tests, Build** | — | Bash → RTK komprimiert | — |
+
+### Warum Serena für Code?
+
+Serena liest auf **Symbol-Ebene** — eine Funktion statt 500 Zeilen. Beispiele:
+
+```
+# Statt `cat button.tsx` (ganze Datei):
+get_symbols_overview("button.tsx")              → zeigt nur Exports/Struktur
+
+# Statt `cat use-adjustment-session.ts`:
+find_symbol("useAdjustmentSession", include_body=true)  → nur der Hook
+
+# Statt `grep -r "getAdjustViewLabel" src/`:
+find_referencing_symbols("getAdjustViewLabel")  → alle Referenzen mit Kontext
+```
+
+### Warum RTK für Nicht-Code?
+
+Der RTK-Hook greift **nur bei Bash-Tool-Calls** und komprimiert Output um 60-90%. Native Tools (Read, Grep, Glob) umgehen den Hook — RTK sieht sie nie.
+
+```
+# Automatisch vom Hook umgeschrieben:
+git status   → rtk git status
+cat README.md → rtk read README.md
+rg "TODO"    → rtk grep "TODO"
+```
+
+### Ausnahmen (native Tools erlaubt)
+
+- **`Edit`-Tool** — Serena und RTK haben kein vollständiges Äquivalent für alle Fälle
+- **`Write`-Tool** — Neue Dateien erstellen
+- **`Read` nur als Prerequisite vor `Edit`/`Write`** — Edit erfordert ein vorheriges Read
+- **`Read` für Bilder/PDFs** — nur native Read kann Binärdateien verarbeiten
+
+### Subagent-Prompts (WICHTIG)
+
+Beim Spawnen von Subagents die Tool-Hierarchie explizit mitgeben:
+
+> "Nutze Serena MCP Tools für Code-Operationen (find_symbol, get_symbols_overview, search_for_pattern, find_referencing_symbols). Nutze Bash (cat/grep/find) nur für Nicht-Code-Dateien (JSON, Markdown, Config). Vermeide native Read/Grep/Glob Tools."
+
+**Anti-Pattern:** "Nutze Bash statt native Tools" — das überspringt Serena komplett und ist bei Code-Operationen token-ineffizient.
+
+### RTK Meta Commands
+
+```bash
+rtk gain              # Show token savings analytics
+rtk gain --history    # Show command usage history with savings
+rtk discover          # Analyze Claude Code history for missed opportunities
+rtk proxy <cmd>       # Execute raw command without filtering (for debugging)
+```
+
+---
+
 ## Tooling — Entire.io Integration
 
 Dieses Repository nutzt `entire.io` um AI-Agent-Sessions zu tracken. Entire zeichnet automatisch alle Prompts, Reasoning und Tool-Ausführungen im Hintergrund auf.
