@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "f90a7ad268b7",
+  "session_id": "22633ddf-0eb4-4ba2-9bf7-3b531fcbb3a8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T10:03:09.383074Z",
+  "branch": "UX",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/package.json",
+    "apps/web/src/hooks/use-element-screenshot.test.ts",
+    "apps/web/src/hooks/use-element-screenshot.ts",
+    "pnpm-lock.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bdf7dcaf8422",
+  "checkpoint_transcript_start": 366,
+  "transcript_lines_at_start": 366,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T10:03:09.198679Z",
+    "agent_lines": 142,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 142,
+    "agent_percentage": 100
+  }
+}
