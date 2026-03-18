@@ -3,7 +3,7 @@
   "checkpoint_id": "199b98ee0eba",
   "strategy": "manual-commit",
   "branch": "UX",
-  "checkpoints_count": 4,
+  "checkpoints_count": 6,
   "files_touched": [
     "CLAUDE.md"
   ],
@@ -19,13 +19,19 @@
       "transcript": "/19/9b98ee0eba/1/full.jsonl",
       "content_hash": "/19/9b98ee0eba/1/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/19/9b98ee0eba/2/metadata.json",
+      "transcript": "/19/9b98ee0eba/2/full.jsonl",
+      "content_hash": "/19/9b98ee0eba/2/content_hash.txt",
+      "prompt": "/19/9b98ee0eba/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3846,
-    "cache_creation_tokens": 271249,
-    "cache_read_tokens": 4668492,
-    "output_tokens": 36805,
-    "api_call_count": 61
+    "input_tokens": 3857,
+    "cache_creation_tokens": 275636,
+    "cache_read_tokens": 5648277,
+    "output_tokens": 38486,
+    "api_call_count": 68
   }
 }
