@@ -5,6 +5,7 @@ import {
   useEffect,
   useReducer,
   useRef,
+  useState,
 } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +22,15 @@ import {
   sessionReducer,
 } from "./adjustment-session-reducer";
 
+export type AgentLoopStatus =
+  | { phase: "idle" }
+  | { phase: "thinking" }
+  | { phase: "applying"; iteration: number }
+  | { phase: "verifying"; iteration: number }
+  | { phase: "asking_scope" }
+  | { phase: "done" }
+  | { phase: "failed"; reason: string };
+
 function extractErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -33,6 +43,9 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     undefined,
     createInitialState,
   );
+  const [agentLoopStatus, setAgentLoopStatus] = useState<AgentLoopStatus>({
+    phase: "idle",
+  });
   const queryClient = useQueryClient();
 
   const statusQuery = useQuery(orpc.adjustments.status.queryOptions());
@@ -43,10 +56,14 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
 
   const appendMessage = useMutation(
     orpc.adjustments.appendMessage.mutationOptions({
+      onMutate: () => {
+        setAgentLoopStatus({ phase: "thinking" });
+      },
       onSuccess: (nextDetail) => {
         dispatch({ type: "APPEND_MESSAGE_SUCCESS", view, detail: nextDetail });
         if (nextDetail.session.status === "applied")
           queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+        setAgentLoopStatus({ phase: "done" });
         toast.success("Anpassung übernommen");
       },
       onError: (error) => {
@@ -56,6 +73,10 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
             error,
             "Anpassungsnachricht konnte nicht gespeichert werden.",
           ),
+        });
+        setAgentLoopStatus({
+          phase: "failed",
+          reason: extractErrorMessage(error, "Unbekannter Fehler"),
         });
         toast.error("Anpassung fehlgeschlagen");
       },
@@ -260,6 +281,13 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     [],
   );
 
+  const handleScopeSelect = useCallback((_scope: "global" | "local") => {
+    // For now, just reset the agent status — the actual scope mutation
+    // (changing rule selectors) will be handled in a follow-up when the
+    // server endpoint exists.
+    setAgentLoopStatus({ phase: "idle" });
+  }, []);
+
   return {
     sectionRef,
     adjustmentAvailable: statusQuery.data?.available ?? false,
@@ -286,5 +314,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     clearCurrentAdjustmentState,
     setReplyVisible,
     setGuideDismissed,
+    agentLoopStatus,
+    handleScopeSelect,
   };
 }

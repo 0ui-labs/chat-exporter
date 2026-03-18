@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import { render } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
 import { AdjustmentPopover } from "./adjustment-popover";
+import type { AgentLoopStatus } from "./use-adjustment-session";
 
 // ---------------------------------------------------------------------------
 // Radix UI polyfills
@@ -67,6 +69,8 @@ function renderPopover(
       ],
       rules: [],
     } as never,
+    agentLoopStatus: { phase: "idle" } as AgentLoopStatus,
+    onScopeSelect: vi.fn(),
     showReply: true,
     view: "reader",
     ...overrides,
@@ -96,6 +100,93 @@ describe("AdjustmentPopover", () => {
       const className = discardButton?.className ?? "";
       expect(className).toMatch(/border-red-300/);
       expect(className).toMatch(/text-red-600/);
+    });
+  });
+
+  describe("agent loop status", () => {
+    test("shows spinner with thinking text when phase is thinking", () => {
+      renderPopover({
+        agentLoopStatus: { phase: "thinking" },
+      });
+
+      const statusEl = document.querySelector(
+        "[data-testid='agent-status-thinking']",
+      );
+      expect(statusEl).not.toBeNull();
+      expect(statusEl?.textContent).toContain("Agent analysiert");
+    });
+
+    test("shows no status indicator when phase is idle", () => {
+      renderPopover({
+        agentLoopStatus: { phase: "idle" },
+      });
+
+      expect(
+        document.querySelector("[data-testid='agent-status-thinking']"),
+      ).toBeNull();
+      expect(
+        document.querySelector("[data-testid='agent-status-applying']"),
+      ).toBeNull();
+      expect(
+        document.querySelector("[data-testid='scope-selection']"),
+      ).toBeNull();
+    });
+  });
+
+  describe("scope dialog", () => {
+    test("shows scope selection buttons when phase is done and assistant message exists", () => {
+      renderPopover({
+        agentLoopStatus: { phase: "done" },
+        showReply: true,
+      });
+
+      const scopeEl = document.querySelector("[data-testid='scope-selection']");
+      expect(scopeEl).not.toBeNull();
+
+      const buttons = scopeEl?.querySelectorAll("button") ?? [];
+      const buttonTexts = Array.from(buttons).map((b) => b.textContent);
+      expect(buttonTexts).toContain("Global anwenden");
+      expect(buttonTexts).toContain("Nur dieser Block");
+    });
+
+    test("global button calls onScopeSelect with 'global'", async () => {
+      const user = userEvent.setup();
+      const onScopeSelect = vi.fn();
+      renderPopover({
+        agentLoopStatus: { phase: "done" },
+        showReply: true,
+        onScopeSelect,
+      });
+
+      const scopeEl = document.querySelector("[data-testid='scope-selection']");
+      const globalBtn = Array.from(
+        scopeEl?.querySelectorAll("button") ?? [],
+      ).find((b) => b.textContent === "Global anwenden");
+
+      expect(globalBtn).toBeDefined();
+      // biome-ignore lint/style/noNonNullAssertion: guarded by assertion above
+      await user.click(globalBtn!);
+      expect(onScopeSelect).toHaveBeenCalledWith("global");
+    });
+
+    test("local button calls onScopeSelect with 'local'", async () => {
+      const user = userEvent.setup();
+      const onScopeSelect = vi.fn();
+      renderPopover({
+        agentLoopStatus: { phase: "done" },
+        showReply: true,
+        onScopeSelect,
+      });
+
+      const scopeEl = document.querySelector("[data-testid='scope-selection']");
+      const localBtn = Array.from(
+        scopeEl?.querySelectorAll("button") ?? [],
+      ).find((b) => b.textContent === "Nur dieser Block");
+
+      expect(localBtn).toBeDefined();
+      // biome-ignore lint/style/noNonNullAssertion: guarded by assertion above
+      await user.click(localBtn!);
+      expect(onScopeSelect).toHaveBeenCalledWith("local");
     });
   });
 });

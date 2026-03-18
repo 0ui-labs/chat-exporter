@@ -526,6 +526,7 @@ export function FormatWorkspace({
             }
           >
             <AdjustmentPopover
+              agentLoopStatus={session.agentLoopStatus}
               anchor={session.activeAnchor ?? null}
               containerRef={session.sectionRef}
               draftMessage={session.activeDraftMessage}
@@ -543,6 +544,7 @@ export function FormatWorkspace({
               onClose={handlePopoverClose}
               onDraftMessageChange={session.handleDraftMessageChange}
               onRejectLastChange={handleRejectLastChange}
+              onScopeSelect={session.handleScopeSelect}
               onSubmitMessage={session.handleSubmitMessage}
             />
           </ErrorBoundary>

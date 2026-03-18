@@ -157,6 +157,16 @@ export const adjustmentLabels = {
   downloadAction: "Herunterladen",
   copyAllAction: "Kopieren",
   copyAllSuccess: "Kopiert!",
+
+  // Agent loop status
+  agentThinking: "Agent analysiert...",
+  agentApplying: (iteration: number) =>
+    `Agent wendet Änderung an (${iteration}/5)...`,
+
+  // Scope dialog
+  scopeQuestion: "Soll die Regel für alle Blöcke dieses Typs gelten?",
+  scopeGlobal: "Global anwenden",
+  scopeLocal: "Nur dieser Block",
 } as const;
 
 // ---------------------------------------------------------------------------
