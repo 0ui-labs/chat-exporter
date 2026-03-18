@@ -1,0 +1,401 @@
+Bitte validieren ob wirklich alles vollständig und korrekt umgesetzt worden ist '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-3.1-ux-ueberarbeitung-validierung.md'
+
+---
+
+<task-notification>
+<task-id>ad82acc84eec10160</task-id>
+<tool-use-id>toolu_01HaEPU6ExPzgM5ozUwwvuJF</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ad82acc84eec10160.output</output-file>
+<status>completed</status>
+<summary>Agent "Validiere Wave 1 (S1+S11, S15, S13)" completed</summary>
+<result>Hier die Validierungsergebnisse:
+
+---
+
+## S1+S11 -- Toast (Sonner) + Tooltip (Radix) Infrastruktur
+
+**sonner.tsx -- OK**
+- Exportiert `Toaster` korrekt
+- Kein `next-themes` Import vorhanden (nur `sonner` und `lucide-react`)
+
+**tooltip.tsx -- OK**
+- Exportiert alle vier: `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider`
+
+**root-layout.tsx -- OK**
+- Importiert `Toaster` aus `@/components/ui/sonner` und `TooltipProvider` aus `@/components/ui/tooltip`
+- `<TooltipProvider delayDuration={400}>` wraps `<Outlet />`
+- `<Toaster position="bottom-right" richColors />` wird gerendert
+
+---
+
+## S15 -- Destructive Button-Varianten
+
+**button.tsx -- OK**
+- `destructive` Variant: `bg-red-500 text-white hover:bg-red-600`
+- `destructive-outline` Variant: `border border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700`
+
+---
+
+## S13 -- Semantische Badge-Varianten + Status-Mapping
+
+**badge.tsx -- OK**
+- `success`: emerald-Farben (border-emerald-200, bg-emerald-50, text-emerald-700)
+- `error`: red-Farben (border-red-200, bg-red-50, text-red-700)
+- `warning`: amber-Farben (border-amber-200, bg-amber-50, text-amber-700)
+- `info`: blue-Farben (border-blue-200, bg-blue-50, text-blue-700)
+
+**status-variant.ts -- ABWEICHUNG (minor)**
+- Exportiert `getStatusVariant()` Funktion korrekt
+- Mapping: `completed` -> `success`, `failed` -> `error`, `queued` -> `info` -- alle OK
+- **`running` -> `warning`** statt dem im Plan genannten `processing` -> `warning`. Das ist korrekt, da der tatsaechliche `ImportStatus`-Typ offensichtlich `running` statt `processing` verwendet. Die Abweichung ist also kein Fehler, sondern der Plan hatte den falschen Statusnamen -- die Implementierung passt zum echten Schema.
+
+---
+
+## Gesamtergebnis
+
+| Schritt | Status |
+|---------|--------|
+| S1+S11 Sonner Toaster | OK |
+| S1+S11 Radix Tooltip | OK |
+| S1+S11 Root Layout Integration | OK |
+| S15 Destructive Button-Varianten | OK |
+| S13 Semantische Badge-Varianten | OK |
+| S13 Status-Mapping | OK (Statusname `running` statt `processing` -- korrekt laut Schema) |
+
+**Wave 1 ist vollstaendig und korrekt implementiert.** Die einzige Abweichung vom Plan (`running` vs `processing`) ist schema-konform und somit die richtige Entscheidung.</result>
+<usage><total_tokens>19983</total_tokens><tool_uses>6</tool_uses><duration_ms>31308</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ad82acc84eec10160.output
+
+---
+
+<task-notification>
+<task-id>a1bacd306e93b7fc7</task-id>
+<tool-use-id>toolu_01TxJmpc1Z4aU1PQkuKKVpFg</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a1bacd306e93b7fc7.output</output-file>
+<status>completed</status>
+<summary>Agent "Validiere Wave 3+4+5 (S2,S3,S6,S9,S4,S12,S16)" completed</summary>
+<result>Hier ist die Validierungszusammenfassung:
+
+---
+
+## Wave 3
+
+### S2 -- Adjustment-Feedback (Toast): OK
+
+- `toast` aus `"sonner"` importiert
+- `toast.success("Anpassung übernommen")` in `appendMessage.onSuccess`
+- `toast.info("Letzte Änderung verworfen")` in `discardSession.onSuccess`
+- `toast.error("Anpassung fehlgeschlagen")` in `appendMessage.onError`
+
+Datei: `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/use-adjustment-session.ts`
+
+### S3 -- Rule-Feedback (Toast): OK
+
+- `toast` aus `"sonner"` importiert
+- `toast.info("Regel deaktiviert")` bei disable-Erfolg
+- `toast.error("Regel konnte nicht geändert werden")` bei disable-Fehler
+- `toast.success("Regel gilt jetzt für alle Imports")` bei promote-Erfolg
+- `toast.error("Regel konnte nicht geändert werden")` bei promote-Fehler
+- `toast.info("Regel gilt jetzt nur für diesen Import")` bei demote-Erfolg
+- `toast.error("Regel konnte nicht geändert werden")` bei demote-Fehler
+
+Datei: `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/use-format-rules.ts`
+
+### S6 -- Placeholder-Rotation: OK
+
+- Hook `usePlaceholderRotation` existiert als eigene Datei
+- Importiert und verwendet in `home-page.tsx`
+- Beispiel-URLs: `"https://chatgpt.com/share/abc123..."` und `"https://claude.ai/share/xyz789..."`
+- Rotationsintervall: `4000` ms (= 4s)
+- Fade-Out/Fade-In-Animation mit 150ms Transition
+- Pause/Resume bei Focus/Blur des Input-Feldes
+
+Dateien:
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/hooks/use-placeholder-rotation.ts`
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/routes/home-page.tsx`
+
+### S9 -- Toolbar Pill-Group: OK
+
+- Pill-Group-Container vorhanden: `inline-flex rounded-xl border border-border/80 bg-background/60 p-1`
+- Aktiver View hat eigene Klasse: `bg-foreground text-background`
+- Inaktive Views: `text-muted-foreground hover:text-foreground`
+- View-Buttons (Row 1) und Action-Buttons (Row 2) sind in separaten `div`-Elementen visuell getrennt
+
+Datei: `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/completed-toolbar.tsx`
+
+---
+
+## Wave 4
+
+### S4 -- Import-Lifecycle-Feedback (Toast): OK
+
+In `home-page.tsx`:
+- `toast` aus `"sonner"` importiert
+- `toast.info("Import gestartet")` bei `createImport.onSuccess` und `clipboardImport.onSuccess`
+- `toast.success("Import abgeschlossen")` bei `jobStatus === "completed"`
+- `toast.error("Import fehlgeschlagen")` bei `jobStatus === "failed"`
+
+In `delete-import-dialog.tsx`:
+- `toast` aus `"sonner"` importiert
+- `toast.success("Import gelöscht")` bei `deleteMutation.onSuccess`
+
+Dateien:
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/routes/home-page.tsx`
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/import-history/delete-import-dialog.tsx`
+
+### S12 -- Tooltips an Toolbar und Rules: OK
+
+In `completed-toolbar.tsx`:
+- Tooltip-Komponenten importiert aus `@/components/ui/tooltip`
+- Tooltip auf Download-Button: "Markdown-Datei herunterladen"
+- Tooltip auf Anpassen-Button (Settings2): "Einzelne Stellen im Text markieren und anpassen lassen"
+- Tooltip auf Rules-Trigger (via RulesListModal): "Aktive Formatierungsregeln anzeigen"
+
+In `rules-list-modal.tsx`:
+- Tooltip-Komponenten importiert aus `@/components/ui/tooltip`
+- Tooltip auf Promote-Button: "Regel auf alle Imports übertragen"
+- Tooltip auf Demote-Button: "Regel auf diesen Import beschränken"
+- Tooltip auf Disable-Button: "Regel deaktivieren"
+
+Dateien:
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/completed-toolbar.tsx`
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/rules-list-modal.tsx`
+
+---
+
+## Wave 5
+
+### S16 -- Destructive-Variant auf bestehende Buttons: OK
+
+- `delete-import-dialog.tsx`: Loeschen-Button hat `variant="destructive"`
+- `rules-list-modal.tsx`: Disable-Button hat `variant="destructive-outline"`
+- `adjustment-popover.tsx`: Discard-Button hat `variant="destructive-outline"`
+
+Dateien:
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/import-history/delete-import-dialog.tsx`
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/rules-list-modal.tsx`
+- `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/adjustment-popover.tsx`
+
+---
+
+**Gesamtergebnis: Alle 8 Pruefpunkte aus Wave 3, 4 und 5 sind vollstaendig und korrekt implementiert.**</result>
+<usage><total_tokens>38392</total_tokens><tool_uses>8</tool_uses><duration_ms>41720</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a1bacd306e93b7fc7.output
+
+---
+
+<task-notification>
+<task-id>af7e18e5eecdf6d53</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/af7e18e5eecdf6d53.output</output-file>
+<status>completed</status>
+<summary>Agent "Validiere Wave 2 (S7+S8+S10, S5, S14)" completed</summary>
+<result>Hier ist die vollständige Validierungszusammenfassung:
+
+---
+
+## Validierung Wave 2 — Plan 3.1 (UX-Überarbeitung)
+
+### S7+S8 — Labels vereinfachen + Guide überarbeiten
+
+**labels.ts** (`/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/labels.ts`):
+
+| Prüfpunkt | Status |
+|---|---|
+| `adjustLabel` ist einfacher String `"Anpassen"` | OK — in `adjustmentLabels` als String-Property |
+| `adjustDoneLabel` ist einfacher String `"Fertig"` | OK — in `adjustmentLabels` als String-Property |
+| `getAdjustViewLabel` und `getEndAdjustLabel` entfernt | OK — keine Exports mehr vorhanden, nur noch in Tests als Negativtest referenziert |
+| `"Textformatierung"` statt `"Inline-Semantik"` | OK — `inline_semantics: "Textformatierung"` |
+| `"Exportformat"` statt `"Export-Profil"` | OK — `export_profile: "Exportformat"` |
+| `"Aussehen"` statt `"Darstellung"` | OK — `render: "Aussehen"` |
+| `"Aufbau"` statt `"Struktur"` | OK — `structure: "Aufbau"` |
+| `"Kopieren"` statt `"Zwischenablage"` | OK — `clipboard: "Kopieren"` |
+| Keine Stelle enthält `"Inline-Semantik"` oder `"Export-Profil"` | OK — `rg` liefert null Treffer |
+
+**adjustment-mode-guide.tsx** (`/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/adjustment-mode-guide.tsx`):
+
+| Prüfpunkt | Status |
+|---|---|
+| Kürzerer Guide-Text `"Klicke auf eine Stelle..."` | OK — verwendet `adjustmentLabels.guideInstruction` = `"Klicke auf eine Stelle, beschreibe deine Änderung — sie wird direkt übernommen."` |
+| 3-Mal-Counter-Logik via localStorage | **FEHLT** — Kein localStorage im Guide oder im Reducer. Guide-Dismiss ist nur In-Memory-State pro View (`guideDismissedByView`). Kein Counter der nach 3 Dismissals den Guide permanent versteckt. |
+| ?-Button zeigt Guide wieder | **FEHLT** — Kein HelpCircle/CircleHelp Icon oder ?-Button in der gesamten format-workspace Komponenten-Gruppe gefunden. |
+
+**Consumer-Updates:**
+
+| Prüfpunkt | Status |
+|---|---|
+| `completed-toolbar.tsx` nutzt `adjustLabel`/`adjustDoneLabel` aus `adjustmentLabels` | OK — importiert `adjustmentLabels`, kein Verweis auf alte Funktionen |
+| `adjustment-popover.tsx` — kein `getAdjustViewLabel` | OK — kein Verweis vorhanden |
+| `adjustment-mode-guide.tsx` — kein `getAdjustViewLabel` | OK — kein Verweis vorhanden |
+
+---
+
+### S5 — Welcome-Card für Erstbesucher
+
+**welcome-card.tsx** (`/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/onboarding/welcome-card.tsx`):
+
+| Prüfpunkt | Status |
+|---|---|
+| Komponente existiert, exportiert `WelcomeCard` | OK |
+| Props: `onDismiss` und `onAction` | **ABWEICHUNG** — Props heissen `onScrollToInput` und `visible`, nicht `onDismiss`/`onAction`. Dismiss-Logik ist intern (kein `onDismiss`-Prop), Aktion ist `onScrollToInput` statt `onAction`. |
+| Zeigt Willkommens-Text und 3 Schritte | OK — Titel, Beschreibung, und 3 nummerierte Schritte vorhanden |
+| localStorage `onboarding-dismissed` | OK — `STORAGE_KEY = "onboarding-dismissed"` wird gelesen und gesetzt |
+
+**home-page.tsx** (`/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/routes/home-page.tsx`):
+
+| Prüfpunkt | Status |
+|---|---|
+| Importiert und rendert `WelcomeCard` | OK |
+| Bedingt angezeigt (wenn keine Jobs vorhanden) | OK — `visible={allJobs.length === 0 && !activeImportId}` |
+
+---
+
+### S14 — Import-Fortschrittsbalken
+
+**status-header.tsx** (`/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/format-workspace/status-header.tsx`):
+
+| Prüfpunkt | Status |
+|---|---|
+| Fortschrittsbalken-Markup existiert (`bg-primary`, `transition-all`) | OK — `className="h-full rounded-full bg-primary transition-all duration-500"` |
+| Stage-zu-Prozent-Mapping (queued=0%, fetching=25%, done=100%) | OK — ausgelagert in `stage-progress.ts`: `queued: 0`, `fetch: 25`, `done: 100` mit vollständigem Mapping |
+
+---
+
+### Zusammenfassung
+
+| Schritt | Status |
+|---|---|
+| **S7 — Labels vereinfachen** | OK |
+| **S8 — Guide überarbeiten** | **TEILWEISE** — Kürzerer Text OK, aber 3-Mal-Counter via localStorage und ?-Button zum Wieder-Anzeigen fehlen |
+| **S10 — Label-Umbenennung** | OK |
+| **S5 — Welcome-Card** | **TEILWEISE** — Funktional korrekt, aber Prop-Interface weicht ab (`visible`/`onScrollToInput` statt `onDismiss`/`onAction`) |
+| **S14 — Fortschrittsbalken** | OK |
+
+**2 fehlende Elemente in S8:**
+1. localStorage-basierter 3-Mal-Counter (Guide soll nach 3x Dismiss permanent verschwinden)
+2. ?-Button in der Toolbar zum erneuten Anzeigen des Guides</result>
+<usage><total_tokens>34455</total_tokens><tool_uses>19</tool_uses><duration_ms>84421</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/af7e18e5eecdf6d53.output
+
+---
+
+<task-notification>
+<task-id>a47529be28ce3a460</task-id>
+<tool-use-id>toolu_01GTp51uK1AGbfWQHm8QTc7F</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a47529be28ce3a460.output</output-file>
+<status>completed</status>
+<summary>Agent "Validiere Tests + Architektur" completed</summary>
+<result>Noted: `happy-dom` was also added as a devDependency, not just `sonner` and `@radix-ui/react-tooltip`.
+
+Here is the complete validation summary:
+
+---
+
+## Test-Dateien: Existenz-Check (12/17 existieren, 5 fehlen)
+
+| # | Test-Datei | Status | Tests |
+|---|-----------|--------|-------|
+| 1 | `root-layout.test.tsx` | EXISTIERT | 3 |
+| 2 | `Button.test.tsx` | EXISTIERT | 5 |
+| 3 | `Badge.test.tsx` | EXISTIERT | 4 |
+| 4 | `status-variant.test.ts` | EXISTIERT | 4 (via `test.each`) |
+| 5 | `labels.test.ts` | EXISTIERT | 37 |
+| 6 | `adjustment-mode-guide.test.tsx` | **FEHLT** | - |
+| 7 | `welcome-card.test.tsx` | EXISTIERT | 5 |
+| 8 | `status-header.test.tsx` | **FEHLT** | - |
+| 9 | `use-adjustment-session.test.ts` | EXISTIERT | 5 |
+| 10 | `use-format-rules.test.ts` | EXISTIERT | 6 |
+| 11 | `use-placeholder-rotation.test.ts` | EXISTIERT | 9 |
+| 12 | `completed-toolbar.test.tsx` | EXISTIERT | 25 |
+| 13 | `home-page.test.tsx` | EXISTIERT | 12 |
+| 14 | `delete-import-dialog.test.tsx` | EXISTIERT | 2 |
+| 15 | `completed-toolbar-tooltips.test.tsx` | **FEHLT** | - |
+| 16 | `rules-list-modal-tooltips.test.tsx` | **FEHLT** | - |
+| 17 | `destructive-buttons.test.tsx` | **FEHLT** | - |
+
+**Gesamt: 12 existieren (110 Tests), 5 fehlen.**
+
+Die fehlenden Tests betreffen:
+- `adjustment-mode-guide.test.tsx` -- Guide-Komponente
+- `status-header.test.tsx` -- Status-Header-Komponente
+- `completed-toolbar-tooltips.test.tsx` -- Tooltip-Verhalten in Toolbar
+- `rules-list-modal-tooltips.test.tsx` -- Tooltip-Verhalten in Rules-Modal
+- `destructive-buttons.test.tsx` -- Destructive-Button-Styling-Tests
+
+---
+
+## Architektur-Checks
+
+### 1. Dependencies
+- `sonner@^2.0.7` -- vorhanden (OK)
+- `@radix-ui/react-tooltip@^1.2.8` -- vorhanden (OK)
+- **Unerwartete Ergaenzung:** `happy-dom@^20.8.4` als devDependency hinzugefuegt (nicht in der Erwartung aufgelistet). Dies ist ein alternativer DOM-Emulator neben dem bereits vorhandenen `jsdom`. Kein Produktions-Impact, aber bemerkenswert.
+
+### 2. Import-Konventionen
+`toast` wird ausschliesslich direkt aus `"sonner"` importiert -- kein Wrapper, kein Re-Export. **Konform.** Alle 4 Quell-Dateien plus `sonner.tsx` (Toaster-Komponente) importieren direkt aus `"sonner"`.
+
+### 3. Cross-Package-Imports
+Alle Imports von `@chat-exporter/shared` sind korrekt ueber den Monorepo-Alias. Keine relativen Pfade ueber Package-Grenzen. Keine Imports von `@chat-exporter/server` in `apps/web`. **Konform.**
+
+### 4. localStorage-Keys
+Einziger neuer localStorage-Key: **`onboarding-dismissed`** (definiert als `STORAGE_KEY` in `/Users/philippbriese/Documents/dev/chat exporter/apps/web/src/components/onboarding/welcome-card.tsx`). Wird gesetzt beim Dismiss der Onboarding-Card und gelesen beim Mount. **Sauber isoliert.**</result>
+<usage><total_tokens>26455</total_tokens><tool_uses>15</tool_uses><duration_ms>116342</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a47529be28ce3a460.output
+
+---
+
+wird Serena eigentlich richtig genutzt?
+
+---
+
+wird Serena eigentlich richtig genutzt?
+
+---
+
+Warum hast du Serena nicht genutzt?
+
+---
+
+ja
+
+---
+
+wofür würdest du Serena nutzen?
+
+---
+
+Ok passe das in der Claude.md an und mache deutlich wofür Serena und wofür laut RTK regel Bash tools genutzt werden sollen
+
+---
+
+Kannst du schauen wieviele Tokens wir bislang durch RTK gespart haben?
+
+---
+
+Kannst du das Backend und das Frontend neu starten und darauf achten das der neueste Code verwendet wird
+
+---
+
+<task-notification>
+<task-id>bboxz4dh9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/bboxz4dh9.output</output-file>
+<status>completed</status>
+<summary>Background command "Alle Apps im Dev-Modus starten (Turborepo)" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/bboxz4dh9.output
+
+---
+
+<task-notification>
+<task-id>b4zaaygbv</task-id>
+<tool-use-id>toolu_01DgZ2wrinnmNWVRgGiZoMD5</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/b4zaaygbv.output</output-file>
+<status>completed</status>
+<summary>Background command "Alle Apps neu starten" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/b4zaaygbv.output
