@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "74f45c14fd56",
+  "strategy": "manual-commit",
+  "branch": "UX",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/adjustment-popover.tsx",
+    "apps/web/src/components/format-workspace/labels.ts",
+    "apps/web/src/components/format-workspace/use-adjustment-session.test.ts",
+    "apps/web/src/components/format-workspace/use-adjustment-session.ts",
+    "apps/web/src/components/ui/Badge.test.tsx",
+    "apps/web/src/components/ui/Button.test.tsx",
+    "apps/web/src/components/ui/badge.test.tsx",
+    "apps/web/src/components/ui/button.test.tsx",
+    "apps/web/src/hooks/use-element-screenshot.test.ts",
+    "apps/web/src/hooks/use-element-screenshot.ts",
+    "apps/web/src/hooks/use-placeholder-rotation.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/74/f45c14fd56/0/metadata.json",
+      "transcript": "/74/f45c14fd56/0/full.jsonl",
+      "content_hash": "/74/f45c14fd56/0/content_hash.txt",
+      "prompt": "/74/f45c14fd56/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3807,
+    "cache_creation_tokens": 82785,
+    "cache_read_tokens": 4187475,
+    "output_tokens": 20085,
+    "api_call_count": 48
+  }
+}

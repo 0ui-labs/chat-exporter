@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "74f45c14fd56",
+  "session_id": "9fa7b46b-6938-4109-9fb1-9e7b68496a9a",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T21:09:30.48013Z",
+  "branch": "UX",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/web/src/components/ui/Button.test.tsx",
+    "apps/web/src/components/ui/badge.test.tsx",
+    "apps/web/src/components/ui/button.test.tsx",
+    "apps/web/src/hooks/use-placeholder-rotation.ts",
+    "apps/web/src/components/format-workspace/labels.ts",
+    "apps/web/src/components/format-workspace/use-adjustment-session.test.ts",
+    "apps/web/src/hooks/use-element-screenshot.test.ts",
+    "apps/web/src/hooks/use-element-screenshot.ts",
+    "apps/web/src/components/format-workspace/adjustment-popover.tsx",
+    "apps/web/src/components/format-workspace/use-adjustment-session.ts",
+    "apps/web/src/components/ui/Badge.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-4-6[1m]",
+  "turn_id": "53c764337bc4",
+  "checkpoint_transcript_start": 98,
+  "transcript_lines_at_start": 98,
+  "token_usage": {
+    "input_tokens": 3807,
+    "cache_creation_tokens": 82785,
+    "cache_read_tokens": 4187475,
+    "output_tokens": 20085,
+    "api_call_count": 48
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T21:09:29.928646Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 133,
+    "human_removed": 26,
+    "total_committed": 0,
+    "agent_percentage": 0
+  }
+}
