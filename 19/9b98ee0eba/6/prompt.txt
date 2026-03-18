@@ -1,0 +1,1 @@
+Schreibe einen Validierungsworkflow für '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-3.1-ux-ueberarbeitung.md' nutze diese vorlage '/Users/philippbriese/Documents/dev/chat exporter/docs/templates/validierung-template.md'
