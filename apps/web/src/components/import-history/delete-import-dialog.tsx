@@ -65,7 +65,7 @@ export function DeleteImportDialog({
             Abbrechen
           </Button>
           <Button
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             disabled={deleteMutation.isPending}
             onClick={() => deleteMutation.mutate()}
           >

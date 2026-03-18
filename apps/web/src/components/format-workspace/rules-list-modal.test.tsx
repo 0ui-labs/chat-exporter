@@ -79,6 +79,24 @@ function renderModal(options: RenderModalOptions = {}) {
 // ---------------------------------------------------------------------------
 
 describe("RulesListModal", () => {
+  describe("destructive variant", () => {
+    test("disable button uses destructive-outline variant styling", async () => {
+      const user = userEvent.setup();
+      renderModal();
+
+      await user.click(screen.getByTestId("rules-list-trigger"));
+      await waitFor(() => {
+        expect(screen.getByTestId("rules-list-disable")).toBeInTheDocument();
+      });
+
+      const disableButton = screen.getByTestId("rules-list-disable");
+
+      // The destructive-outline variant applies red border and text classes
+      expect(disableButton.className).toMatch(/border-red-300/);
+      expect(disableButton.className).toMatch(/text-red-600/);
+    });
+  });
+
   describe("tooltips", () => {
     test("rules trigger button is wrapped in a Radix tooltip trigger", () => {
       renderModal();

@@ -455,7 +455,7 @@ function RuleTableRow({
               <Button
                 data-testid="rules-list-disable"
                 size="sm"
-                variant="outline"
+                variant="destructive-outline"
                 disabled={disabling}
                 onClick={onDisable}
               >

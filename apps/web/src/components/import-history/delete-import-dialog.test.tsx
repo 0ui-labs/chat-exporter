@@ -88,6 +88,17 @@ beforeAll(() => {
 
 // --- Tests ---
 
+describe("DeleteImportDialog destructive variant", () => {
+  test("delete button uses destructive variant styling", () => {
+    renderDialog();
+
+    const deleteButton = screen.getByRole("button", { name: "Löschen" });
+
+    // The destructive variant from cva applies red background classes
+    expect(deleteButton.className).toMatch(/bg-red-500/);
+  });
+});
+
 describe("DeleteImportDialog toast feedback", () => {
   beforeEach(() => {
     mockToastSuccess.mockClear();

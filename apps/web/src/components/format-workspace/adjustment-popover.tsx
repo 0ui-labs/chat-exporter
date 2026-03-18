@@ -20,6 +20,7 @@ import type {
   FloatingAdjustmentAnchor,
   ViewMode,
 } from "@/components/format-workspace/types";
+import { Button } from "@/components/ui/button";
 
 type AdjustmentPopoverProps = {
   anchor: FloatingAdjustmentAnchor | null;
@@ -179,13 +180,13 @@ const PopoverContent = memo(function PopoverContent({
               {adjustmentLabels.cancel}
             </button>
             {showReply && !isLoading && onRejectLastChange != null ? (
-              <button
-                className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+              <Button
+                variant="destructive-outline"
                 type="button"
                 onClick={onRejectLastChange}
               >
                 {adjustmentLabels.discard}
-              </button>
+              </Button>
             ) : null}
             <button
               data-testid="adjustment-send"
