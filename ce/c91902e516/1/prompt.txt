@@ -43,3 +43,7 @@ Ja, aber dann müssen wir daraus eine Pipeline machen.
 ---
 
 Was würdest du machen und warum? Alles vollautomatisch ist natürlich ein Traum aber macht das Sinn, auf der anderen Seite haben die meisten User die so einen Workflow verwenden nicht das nötige fachwissen um zu  verstehen was sie reviewn sollen. Was denkst du?
+
+---
+
+Hört sich plausibel an, bitte mach das so
