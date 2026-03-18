@@ -1,0 +1,408 @@
+Bitte validiere ob der Plan vollständig, optimal und korrekt umgesetzt worden ist '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-3.5-adjustment-agent-v2.md' nutze dazu diesen Validierungsworkflow '/Users/philippbriese/Documents/dev/chat exporter/docs/pläne/plan-3.5-adjustment-agent-v2-validierung.md'
+
+---
+
+<task-notification>
+<task-id>a36817c8244e38e53</task-id>
+<tool-use-id>toolu_01Nyk8dPm9Cik5LhvB9n9mtC</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a36817c8244e38e53.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 1: S2+S3 Hooks" completed</summary>
+<result>Both test suites pass. Here is the validation summary:
+
+---
+
+## S2 -- Screenshot-Hook: BESTANDEN
+
+**Statisch:**
+- `apps/web/src/hooks/use-element-screenshot.ts` existiert
+- `html-to-image` wird verwendet (Import von `toPng`)
+
+**Strukturell:**
+- `useElementScreenshot` ist exportiert als benannte Funktion
+- Input: `element: HTMLElement | null` -- korrekt
+- Output: `{ capture: () => Promise<string> }` via `UseElementScreenshotReturn` -- korrekt (gibt `string` zurueck, nicht `string | null`; wirft Error bei null element statt null zurueckzugeben)
+- Capture-Logik: Ruft `toPng` auf, strippt den `data:image/png;base64,`-Prefix und gibt reinen base64-String zurueck
+- Qualitaet: `width: Math.min(element.scrollWidth, 800)` (800px max Breite), `pixelRatio: 1` (1x DPR), `cacheBust: true`
+
+**Tests:** 5/5 bestanden
+- Capture-Funktion wird zurueckgegeben
+- Null-Element wirft Error
+- toPng wird mit korrekten Optionen aufgerufen (800px Cap, pixelRatio 1)
+- scrollWidth unter 800px wird korrekt verwendet
+- base64-String ohne data-URL-Prefix
+
+---
+
+## S3 -- Markup-Hook: BESTANDEN
+
+**Statisch:**
+- `apps/web/src/hooks/use-block-markup.ts` existiert
+
+**Strukturell:**
+- `useBlockMarkup` ist exportiert als benannte Funktion
+- Input: `BlockMarkupInput` mit `{ element: HTMLElement | null, targetFormat: "reader" | "markdown", markdownSource?: string }`
+- Output: `{ getMarkup: () => string }` via `UseBlockMarkupReturn`
+- Logik:
+  - Format `"markdown"` + `markdownSource` vorhanden: gibt `markdownSource` zurueck
+  - Format `"reader"` oder kein markdownSource: gibt `element.innerHTML` zurueck (HTML-String)
+  - Null-Element: gibt leeren String zurueck
+- `useCallback` mit korrekten Dependencies `[element, targetFormat, markdownSource]`
+
+**Tests:** 5/5 bestanden
+- getMarkup-Funktion wird zurueckgegeben
+- innerHTML fuer Reader-Format
+- Markdown-Source fuer Markdown-Format
+- Leerer String bei null-Element
+- Fallback auf innerHTML wenn Markdown-Format aber keine Source vorhanden
+
+---
+
+**Beide Schritte: BESTANDEN** -- keine Luecken identifiziert.</result>
+<usage><total_tokens>22796</total_tokens><tool_uses>11</tool_uses><duration_ms>62966</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a36817c8244e38e53.output
+
+---
+
+<task-notification>
+<task-id>a6e43d1c929b691d7</task-id>
+<tool-use-id>toolu_01AYzJFHbLNtNpQAtKZocv2D</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a6e43d1c929b691d7.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 1: S1 SDK+Config" completed</summary>
+<result>All tests pass. Here is the validation result:
+
+---
+
+## S1 Validierung: Anthropic SDK + Provider-Abstraktion
+
+### Statisch
+- [x] `apps/server/src/lib/claude-client.ts` existiert
+- [x] `@anthropic-ai/sdk` in dependencies
+- [x] `adjustment-ai-config.ts` exportiert Provider "anthropic"
+
+### Strukturell
+- [x] **`requestClaudeResponse` existiert** mit Signatur `(request: ClaudeRequest, config: { apiKey: string; timeoutMs: number }) => Promise<ClaudeResponse>`
+- [x] **system, messages, tools Parameter** -- `ClaudeRequest` hat `system: string`, `messages: ClaudeMessage[]`, `tools?: ClaudeTool[]`, `max_tokens`, `tool_choice`
+- [x] **Vision (base64 image)** -- `ClaudeContentBlock` hat Union-Member `{ type: "image"; source: { type: "base64"; media_type: "image/png"; data: string } }`
+- [x] **Timeout-Handling** -- `{ timeout: config.timeoutMs }` wird als zweiter Parameter an `client.messages.create()` uebergeben
+- [x] **`readAdjustmentAiConfig` gibt Anthropic-Config korrekt zurueck** -- Provider "anthropic" liefert `{ anthropic: { apiKey }, model, provider: "anthropic", timeoutMs, enabled }`
+- [x] **Auto-Erkennung: ANTHROPIC_API_KEY bevorzugt** -- Auto-Logik: `anthropicApiKey ? "anthropic" : apiKey ? "openai" : cerebrasApiKey ? "cerebras" : "deterministic"` -- Anthropic steht an erster Stelle
+
+### Verhaltens-Tests
+- [x] **`claude-client.test.ts` existiert** -- 5 Tests, alle gruen
+  - [x] API Key wird korrekt an Anthropic-Client uebergeben
+  - [x] Request-Format (model, system, messages, tools, max_tokens, tool_choice)
+  - [x] Timeout wird durchgereicht
+  - [x] Response-Shape (id, content, stop_reason, model, usage)
+  - [x] Tools + tool_choice optional
+- [x] **`adjustment-ai-config.test.ts` existiert** -- 8 Tests, alle gruen
+  - [x] Provider-Selection: "anthropic" akzeptiert
+  - [x] Auto-Mode bevorzugt Anthropic wenn Key gesetzt
+  - [x] Fallback auf OpenAI wenn nur OPENAI_API_KEY gesetzt
+  - [x] Enabled/Disabled je nach Key-Vorhandensein
+  - [x] Default-Model und Custom-Model via ADJUSTMENT_AGENT_MODEL
+
+### Luecken
+- Kein dedizierter Test fuer Vision-Format (base64 image content block) in `claude-client.test.ts`. Die Typen unterstuetzen es, aber es gibt keinen Test der eine Image-Message sendet und prueft dass sie korrekt durchgereicht wird. Dies ist eine **minimale Luecke** -- der Typ ist korrekt definiert und die Messages werden as-is an die Anthropic SDK weitergegeben (Cast zu `Anthropic.MessageParam[]`).
+
+---
+
+**Bewertung: BESTANDEN**
+
+Alle geforderten Punkte sind implementiert und getestet. Die einzige minimale Luecke (kein expliziter Vision-Test) ist unkritisch, da die Image-Content-Blocks typsicher definiert sind und Messages ohne Transformation an die Anthropic SDK durchgereicht werden.</result>
+<usage><total_tokens>26864</total_tokens><tool_uses>13</tool_uses><duration_ms>76023</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a6e43d1c929b691d7.output
+
+---
+
+<task-notification>
+<task-id>a312b0082af492c48</task-id>
+<tool-use-id>toolu_01AdagVgUDooDvtWWyFxf3H1</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a312b0082af492c48.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 5: S12+S13 Cleanup" completed</summary>
+<result>All data collected. Here is the validation summary:
+
+---
+
+## S12 -- Regeln loeschen: BESTANDEN
+
+All three criteria are met in `apps/server/src/lib/adjustment-agent.ts`:
+
+1. **System Prompt enthaelt `delete_rule` Tool** -- Line 186: The system prompt explicitly names all three tools: `create_rule (neue Regel), update_rule (bestehende Regel aendern), delete_rule (Regel entfernen)`. The `delete_rule` tool definition is at line 437 with full schema (lines 435-451).
+
+2. **System Prompt weist an, bestehende Regeln zuerst zu pruefen** -- Line 197: `"Pruefe immer zuerst die bestehenden Regeln bevor du neue erstellst. Wenn eine bestehende Regel das gemeldete Problem verursacht, loesche sie mit delete_rule statt eine neue zu erstellen."`
+
+3. **Bestehende Regeln werden im Kontext mitgegeben** -- Lines 558-576 in `buildSelectionContext` list all active rules with their IDs, selectors, and effects under the heading "Bereits aktive Regeln", so the AI can inspect and decide to delete them.
+
+---
+
+## S13 -- Legacy-Cleanup: BESTANDEN
+
+All criteria verified:
+
+1. **`tool_choice` is NEVER `"required"`** -- Searched for the literal string `"required"` in `adjustment-agent.ts` and got zero matches. All `tool_choice` values are either `{ type: "auto" }` (Claude path, lines 876, 920) or `"auto"` (OpenAI path, lines 1111, 1144). The retry path uses `"none"` (line 1182) to force text output. Tests confirm this (lines 800-909).
+
+2. **`adjustment-assistant.ts` no longer exists** -- `find_file` for `adjustment-assistant*` in `apps/server` returned zero files. The file has been completely removed.
+
+3. **Heuristic functions fully removed** -- Search for `mentionsMarkdown` and `mentionsInline` across the entire server package returned zero matches. All heuristic functions (`mentionsMarkdownStrongFormattingIssue`, `mentionsInlineEmphasisRequest`, etc.) are gone.
+
+4. **`buildAdjustmentAssistantReply` fully removed** -- Search returned zero matches across the entire server package.
+
+5. **No dead code paths** -- With `adjustment-assistant.ts` deleted entirely, there are no remaining imports or references to the legacy heuristic module.
+
+---
+
+**Overall: Both S12 and S13 are BESTANDEN (passed) with no gaps identified.**</result>
+<usage><total_tokens>39109</total_tokens><tool_uses>9</tool_uses><duration_ms>42118</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a312b0082af492c48.output
+
+---
+
+<task-notification>
+<task-id>abd97b4035a6e99ad</task-id>
+<tool-use-id>toolu_014v3a4chy5qEU2ChWtPcAuy</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/abd97b4035a6e99ad.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 2: S4+S6 API+Prompt" completed</summary>
+<result>All tests pass. Let me compile the final assessment.
+
+---
+
+## Validierungsergebnis
+
+### S4 — appendMessage API erweitert: **BESTANDEN**
+
+**Strukturell:**
+- `appendAdjustmentMessageRequestSchema` in `packages/shared/src/adjustments.ts` (Zeile 72-76) akzeptiert `screenshot: z.string().optional()` und `markup: z.string().optional()` -- korrekt implementiert.
+- Server-Router in `apps/server/src/rpc/router.ts` (Zeile 279-280) leitet `screenshot: input.screenshot` und `markup: input.markup` an den Agent weiter -- korrekt.
+- Frontend `use-adjustment-session.ts` in `apps/web/src/components/format-workspace/` -- `handleSubmitMessage` (Zeile 233-248) sendet aktuell nur `sessionId` und `content`, **ohne** `screenshot`. Das Screenshot-Capture existiert als separater Hook (`use-element-screenshot.ts`), wird aber im Submit-Flow nicht aufgerufen.
+
+**Lücke:** Das Frontend sendet den Screenshot bei Message-Submit nicht mit. Der Hook existiert, ist aber nicht in den Submit-Flow integriert. Dies ist eine bewusste Designentscheidung oder eine noch offene Integration -- der Plan-Schritt fordert "Frontend sendet Screenshot bei Message-Submit", was streng genommen nicht erfullt ist. Allerdings: die API akzeptiert es, der Server leitet es weiter, der Agent verarbeitet es (Test "screenshot is included as image content block for Anthropic provider" ist gruen).
+
+**Tests:** Alle 35 Shared-Tests und 62 Router-Tests bestehen, inklusive spezifischer Tests fuer Schema-Akzeptanz mit/ohne screenshot/markup.
+
+**Bewertung: TEILWEISE** -- Schema und Server sind vollstaendig, aber der Frontend-Submit-Flow sendet den Screenshot noch nicht mit.
+
+---
+
+### S6 — System Prompt ueberarbeitet: **BESTANDEN**
+
+**Strukturell:**
+- `buildSystemPrompt` (Zeile 75-224) enthaelt:
+  - **Renderer-Defaults Sektion** (Zeile ~211): "Renderer-Defaults (gelten immer, keine Regel noetig)" mit `render_markdown_strong` Erklaerung -- vorhanden.
+  - **Vision-Anweisungen** (Zeile ~200): "Visuelles Feedback" Sektion mit Screenshot-Vergleich-Anweisungen -- vorhanden.
+  - **Scope-Anweisungen** (Zeile ~207): "Scope (Geltungsbereich)" Sektion mit global/lokal Frage-Anweisungen -- vorhanden.
+  - Ehrlichkeits-Anweisungen und Anweisungen zum Pruefen bestehender Regeln -- vorhanden.
+
+- `buildSelectionContext` (Zeile 521-595) enthaelt:
+  - **Volle Effect-Objekte**: Active Rules werden mit `JSON.stringify(rule.compiledRule)` ausgegeben (nicht nur IDs) -- vorhanden.
+  - **Renderer-Defaults-Sektion** (Zeile 581-584): Eigene "Renderer-Defaults" Sektion im Selection Context -- vorhanden.
+
+**Tests:** Alle 55 adjustment-agent Tests bestehen, inklusive spezifischer Tests:
+- "reader prompt contains Renderer-Defaults section"
+- "reader prompt contains Vision-Anweisungen section"
+- "reader prompt contains Scope-Anweisungen section"
+- "includes full Effect objects of active rules"
+- "includes Renderer-Defaults section in context"
+- "Effect JSON is properly formatted for each rule"
+- "reader prompt contains honesty instructions"
+- "reader prompt contains instruction to check existing rules"
+
+**Bewertung: BESTANDEN** -- Alle geforderten Prompt-Sektionen sind implementiert und durch Tests abgesichert.
+
+---
+
+### Zusammenfassung
+
+| Schritt | Bewertung | Details |
+|---------|-----------|---------|
+| **S4** | **TEILWEISE** | Schema + Server vollstaendig. Frontend-Submit sendet Screenshot nicht mit (Hook existiert, aber nicht integriert). |
+| **S6** | **BESTANDEN** | Alle Prompt-Sektionen (Renderer-Defaults, Vision, Scope) und Selection-Context-Erweiterungen (volle Effects, Defaults) sind implementiert und getestet. |</result>
+<usage><total_tokens>42262</total_tokens><tool_uses>16</tool_uses><duration_ms>110622</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/abd97b4035a6e99ad.output
+
+---
+
+<task-notification>
+<task-id>ad32e0be6ff43164c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ad32e0be6ff43164c.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 3: S5+S10+S11 Kern" completed</summary>
+<result>All `tool_choice` values are either `"auto"` or `"none"` (the retry nudge case). No `"required"` anywhere.
+
+Here is the validation summary:
+
+---
+
+## S5 -- Agent-Loop Architektur: BESTANDEN
+
+- **`screenshot` und `markup` Parameter**: `RunAgentTurnInput` hat beide (`screenshot?: string` und `markup?: string`) -- line 57-58.
+- **Agent iteriert nach Tool-Call**: Beide Pfade (OpenAI und Claude) haben eine `for`-Loop mit `MAX_TOOL_ROUNDS` die nach jedem Tool-Call weiterläuft bis keine Tool-Calls mehr kommen.
+- **Max-Iterations-Limit**: `MAX_TOOL_ROUNDS = 3` (nicht 5 wie im Plan-Ziel). Funktional korrekt, aber der Wert weicht ab.
+- **Scope-Frage**: Im System-Prompt Zeile 219-223 explizit dokumentiert: "Frage den Nutzer IMMER ob die Regel global oder lokal gelten soll", "Stelle die Scope-Frage NACH dem erfolgreichen Anwenden der Regel".
+- **Agent kann Rueckfragen stellen**: `tool_choice` ist immer `"auto"` (nie `"required"`), Tests bestaetigen dies ("first turn sends tool_choice 'auto'", "later turns sends tool_choice 'auto'").
+- **SSE/screenshot_requested Events**: NICHT GEFUNDEN. Kein SSE-Mechanismus im Code. Die Kommunikation laeuft ueber Request/Response (`awaitingVisualFeedback: boolean` als Return-Wert).
+
+**Bewertung: TEILWEISE** -- Kern-Loop-Logik vollstaendig, aber `MAX_TOOL_ROUNDS` ist 3 statt 5, und es gibt keinen SSE-Mechanismus fuer `screenshot_requested` Events.
+
+---
+
+## S10 -- OpenAI zu Claude Migration: BESTANDEN
+
+- **`requestClaudeResponse` als primaerer Pfad**: `runAgentTurn` dispatcht zu `runClaudeAgentTurn` wenn `config.provider === "anthropic"`. Claude-Client in `apps/server/src/lib/claude-client.ts`.
+- **System Prompt als `system` Parameter**: `convertMessagesToClaude` extrahiert System-Messages und gibt sie separat als `system`-String zurueck. `requestClaudeResponse` uebergibt `system` als eigenen Parameter.
+- **Vision/Screenshot als base64 image Content-Block**: `convertMessagesToClaude` fuegt Screenshots als `{ type: "image", source: { type: "base64", media_type: "image/png", data: ... } }` ein. Test "screenshot is included as image content block" bestaetigt.
+- **Tool-Definitionen in Anthropic Format**: `convertToolsToClaude` mappt `parameters` -> `input_schema`. Test "tools are correctly converted from OpenAI to Claude format" bestaetigt.
+- **Tool-Results in Anthropic Format**: `tool_result` mit `tool_use_id` wird korrekt gebaut (Zeile 903-907).
+- **Fallback zu OpenAI**: `runAgentTurn` faellt auf den OpenAI-Pfad zurueck wenn Provider nicht "anthropic" ist. Test "fallback to OpenAI works via provider config" bestaetigt.
+
+**Bewertung: BESTANDEN** -- Alle Kriterien erfuellt, 5 dedizierte Tests fuer den Anthropic-Pfad.
+
+---
+
+## S11 -- Volle Effects: BESTANDEN
+
+- **`buildSelectionContext` enthaelt volle Effect-Objekte**: Aktive Regeln werden mit `JSON.stringify(rule.compiledRule)` serialisiert (Zeile 568-569). `compiledRule` enthaelt CSS-Properties wie `containerStyle`, `textStyle` etc. (bestaetigt durch Test-Fixtures und Test "includes full Effect objects of active rules").
+- **Renderer-Defaults als eigene Sektion**: Zeile 581-585 in `buildSelectionContext` und ausfuehrlich im System-Prompt (eigene "Renderer-Defaults" Sektion). Tests "includes Renderer-Defaults section in context" und "reader prompt contains Renderer-Defaults section" bestaetigen.
+- **Effect JSON korrekt formatiert**: Test "Effect JSON is properly formatted for each rule" bestaetigt.
+
+**Bewertung: BESTANDEN** -- Alle Kriterien erfuellt.
+
+---
+
+## Zusammenfassung
+
+| Schritt | Bewertung | Luecken |
+|---------|-----------|---------|
+| S5 Agent-Loop | **TEILWEISE** | `MAX_TOOL_ROUNDS` = 3 statt 5; kein SSE-Mechanismus fuer `screenshot_requested` Events |
+| S10 Claude Migration | **BESTANDEN** | -- |
+| S11 Volle Effects | **BESTANDEN** | -- |
+
+Alle 55 Tests in `apps/server/src/lib/adjustment-agent.test.ts` sind gruen.</result>
+<usage><total_tokens>38659</total_tokens><tool_uses>19</tool_uses><duration_ms>117311</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ad32e0be6ff43164c.output
+
+---
+
+<task-notification>
+<task-id>a6631669de43a9d2d</task-id>
+<tool-use-id>toolu_011AXcGFSNjD2XSivxFnt99k</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a6631669de43a9d2d.output</output-file>
+<status>completed</status>
+<summary>Agent "Val-Welle 4: S7+S8+S9 Frontend" completed</summary>
+<result>I now have all the data for a complete assessment. Here is the validation report:
+
+---
+
+## Validierungsergebnis: S7, S8, S9
+
+### S7 -- Fortschrittsanzeige: BESTANDEN
+
+**Alle Kriterien erfuellt:**
+
+1. **`AgentLoopStatus` Type** existiert in `apps/web/src/components/format-workspace/use-adjustment-session.ts` (Zeile 24-31) mit allen geforderten Phasen: `idle`, `thinking`, `applying` (mit `iteration`), `verifying` (mit `iteration`), `asking_scope`, `done`, `failed` (mit `reason`).
+
+2. **Popover zeigt Loop-Status** in `adjustment-popover.tsx`:
+   - `thinking`-Phase (Zeile 212-220): Spinner (`Loader2 animate-spin`) + Text (`agentThinking` = "Agent analysiert...")
+   - `applying`-Phase (Zeile 222-232): Spinner + Iterations-Counter (`agentApplying(iteration)`)
+   - `idle`-Phase: Kein Indikator (getestet: "shows no status indicator when phase is idle")
+
+3. **Kein SSE/EventSource**: Status-Updates werden stattdessen ueber Mutations-Callbacks gesteuert (`onMutate` setzt `thinking`, `onSuccess` setzt `done`, `onError` setzt `failed`). Das ist eine bewusste Architekturentscheidung -- kein Echtzeit-Streaming, sondern Request/Response-basiertes Status-Tracking. Fuer den aktuellen Anwendungsfall (einzelne Mutation, kein langlebiger Agent-Loop) ist das angemessen.
+
+4. **Input disabled waehrend Agent arbeitet**: Send-Button ist disabled bei `isSubmitting || isLoading` (Zeile 199-200). Die Textarea selbst hat kein explizites `disabled`-Attribut, aber der Submit ist blockiert.
+
+5. **Tests bestanden**: 6/6 Tests gruen, darunter explizit "shows spinner with thinking text" und "shows no status indicator when phase is idle".
+
+**Kleine Luecke**: Die `verifying`-Phase ist im Type definiert, wird aber in der Popover-UI nicht gerendert (kein `data-testid="agent-status-verifying"`). Da der Server aktuell keinen `verifying`-Status setzt, ist das funktional kein Problem, aber ein Unterschied zum Type-Contract.
+
+---
+
+### S8 -- Scope-Dialog: BESTANDEN
+
+**Alle Kriterien erfuellt:**
+
+1. **Scope-Optionen nach Agent-Bestaetigung** (Zeile 234-259): Wird angezeigt wenn `agentLoopStatus.phase === "done" && lastAssistantMessage` existiert. `data-testid="scope-selection"`.
+
+2. **"Global anwenden"** Button (Zeile 243-249): Ruft `onScopeSelect?.("global")` auf. Label: "Global anwenden" (`scopeGlobal`).
+
+3. **"Nur dieser Block"** Button (Zeile 250-256): Ruft `onScopeSelect?.("local")` auf. Label: "Nur dieser Block" (`scopeLocal`).
+
+4. **handleScopeSelect** in `use-adjustment-session.ts` (Zeile 283-288): Akzeptiert `"global" | "local"`, setzt `agentLoopStatus` auf `idle` zurueck.
+
+5. **Verwerfen-Button** existiert (Zeile 187-195): `handleDiscardSession` ruft `discardSession.mutate()` auf, was den Server-Endpoint aufruft und bei Erfolg `CLEAR_ADJUSTMENT_STATE` dispatcht.
+
+6. **Tests bestanden**: 3 scope-spezifische Tests gruen ("shows scope selection buttons when phase is done", "global button calls onScopeSelect with 'global'", "local button calls onScopeSelect with 'local'").
+
+**Kleine Luecke**: Die Scope-Auswahl mappt semantisch noch nicht auf `block_type` vs. `exact` Selektoren. `handleScopeSelect` enthaelt einen Kommentar: "the actual scope mutation (changing rule selectors) will be handled in a follow-up when the server endpoint exists." Die UI-Seite (Buttons, Callbacks, Status-Reset) ist vollstaendig implementiert, aber die tatsaechliche Backend-Mutation fehlt noch.
+
+---
+
+### S9 -- Offline-Fallback: BESTANDEN
+
+**Alle Kriterien erfuellt:**
+
+1. **Server-Endpoint** existiert in `apps/server/src/rpc/router.ts` (Zeile 386-393): `adjustments.status` Handler liest `readAdjustmentAiConfig()` und gibt `{ available, provider, reason }` zurueck. `available` ist `config.enabled`, was auf dem Vorhandensein eines API-Keys basiert (`adjustment-ai-config.ts`).
+
+2. **Frontend-Query**: `useAdjustmentSession` nutzt `useQuery(orpc.adjustments.status.queryOptions())` (Zeile 51) und exponiert `adjustmentAvailable: statusQuery.data?.available ?? false` (Zeile 293). Default ist `false` (fail-closed).
+
+3. **Button-Deaktivierung mit Hinweis**: In `toggleAdjustMode` (Zeile 174-183): Wenn `!statusQuery.data.available`, wird ein Toast angezeigt ("Der KI-Anpassungsmodus erfordert einen API-Schluessel...") und die Funktion kehrt frueh zurueck, ohne den Modus zu aktivieren. Das ist kein `disabled`-Attribut auf dem Button selbst, sondern eine programmatische Blockade mit User-Feedback via Toast.
+
+4. **Tests bestanden**: Alle Hook-Tests gruen (5/5).
+
+**Anmerkung**: Der Toolbar-Button in `completed-toolbar.tsx` hat kein explizites `disabled`-Attribut -- die Deaktivierung erfolgt rein ueber die `toggleAdjustMode`-Logik im Hook. Das ist funktional aequivalent (Klick wird ignoriert + Toast), aber visuell sieht der Button nicht deaktiviert aus. Ein `disabled`-Prop auf dem Button waere fuer bessere UX wuenschenswert.
+
+---
+
+### Zusammenfassung
+
+| Schritt | Bewertung | Details |
+|---------|-----------|---------|
+| **S7** | **BESTANDEN** | AgentLoopStatus mit allen Phasen, Spinner + Iteration-Counter im Popover, Submit disabled bei Loading. Verifying-Phase im Type aber nicht in UI gerendert (kein Server-Trigger). |
+| **S8** | **BESTANDEN** | Scope-Dialog mit Global/Local Buttons, korrekte Callbacks, Verwerfen-Button vorhanden. Backend-Mutation fuer tatsaechliche Selektor-Aenderung als TODO markiert. |
+| **S9** | **BESTANDEN** | Status-Endpoint auf Server, Frontend-Query mit fail-closed Default, Toast-Hinweis bei deaktiviertem Feature. Button visuell nicht als disabled markiert (nur programmatisch blockiert). |</result>
+<usage><total_tokens>48863</total_tokens><tool_uses>43</tool_uses><duration_ms>160271</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/a6631669de43a9d2d.output
+
+---
+
+Ja bitte
+
+---
+
+mach bitte weiter
+
+---
+
+mach bitte weiter
+
+---
+
+versuche es noch mal
+
+---
+
+<task-notification>
+<task-id>ac9d93f6503925f31</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ac9d93f6503925f31.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix S5: MAX_TOOL_ROUNDS 3→5" completed</summary>
+<result>Done. Here is a summary:
+
+- Changed `MAX_TOOL_ROUNDS` from `3` to `5` in `/Users/philippbriese/Documents/dev/chat exporter/apps/server/src/lib/adjustment-agent.ts` (line 18).
+- No test file references to `MAX_TOOL_ROUNDS` or the old value `3` were found in `adjustment-agent.test.ts`, so no test changes were needed.
+- All 55 tests in `adjustment-agent.test.ts` pass.
+- Pre-commit hooks (lint + typecheck) passed. The Biome warnings about `noNonNullAssertion` on lines 879/923/963 are pre-existing and unrelated.
+- Commit `5476893` created on branch `UX`.</result>
+<usage><total_tokens>33848</total_tokens><tool_uses>7</tool_uses><duration_ms>48485</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/a994a0e0-e589-4f08-8827-522f3f9639bf/tasks/ac9d93f6503925f31.output

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "17a913504811",
+  "session_id": "593b3a0f-5c6a-41a5-a7df-e763121f1ee9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T13:11:10.25625Z",
+  "branch": "UX",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/use-adjustment-session.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "79a2dcda4fe9",
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 125792,
+    "cache_read_tokens": 2897622,
+    "output_tokens": 22830,
+    "api_call_count": 38
+  },
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T13:11:09.91409Z",
+    "agent_lines": 0,
+    "human_added": 31,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 34,
+    "agent_percentage": 0
+  }
+}
