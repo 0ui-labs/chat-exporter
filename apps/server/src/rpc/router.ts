@@ -275,6 +275,8 @@ export const router = os.router({
           activeRules,
           sessionEvents,
           job,
+          screenshot: input.screenshot,
+          markup: input.markup,
           callbacks: {
             onCreateRule: async ({ selector, effect, description }) => {
               const rule = createFormatRuleDirect({

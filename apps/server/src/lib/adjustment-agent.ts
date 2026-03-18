@@ -45,6 +45,8 @@ type RunAgentTurnInput = {
   activeRules: FormatRule[];
   sessionEvents?: SessionEvent[];
   job?: ImportJob;
+  screenshot?: string; // base64 PNG
+  markup?: string; // HTML or Markdown of the block
   callbacks: {
     onCreateRule: (params: {
       selector: Record<string, unknown>;

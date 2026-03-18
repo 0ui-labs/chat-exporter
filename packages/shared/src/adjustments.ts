@@ -72,6 +72,8 @@ export const createAdjustmentSessionRequestSchema = z.object({
 
 export const appendAdjustmentMessageRequestSchema = z.object({
   content: z.string().trim().min(1),
+  screenshot: z.string().optional(), // base64 PNG
+  markup: z.string().optional(), // HTML or Markdown of the block
 });
 
 // --- Selector schemas ---
