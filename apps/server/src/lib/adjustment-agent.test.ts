@@ -1199,4 +1199,54 @@ describe("buildSystemPrompt", () => {
 
     expect(prompt).toContain("Wann compound statt block_type");
   });
+
+  test("reader prompt contains Renderer-Defaults section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Renderer-Defaults");
+    expect(prompt).toContain("render_markdown_strong");
+    expect(prompt).toContain(
+      "Erstelle niemals eine Regel die nur den Default wiederholt",
+    );
+  });
+
+  test("reader prompt contains Vision-Anweisungen section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Visuelles Feedback");
+    expect(prompt).toContain(
+      "Du bekommst einen Screenshot des ausgewählten Blocks",
+    );
+    expect(prompt).toContain("Melde erst Erfolg wenn du im Screenshot siehst");
+  });
+
+  test("reader prompt contains Scope-Anweisungen section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Scope (Geltungsbereich)");
+    expect(prompt).toContain("Frage den Nutzer IMMER ob die Regel global");
+    expect(prompt).toContain(
+      "Stelle die Scope-Frage NACH dem erfolgreichen Anwenden",
+    );
+  });
+
+  test("reader prompt contains honesty instructions", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain(
+      "Wenn du unsicher bist ob die Änderung das Problem löst",
+    );
+    expect(prompt).toContain(
+      "Behaupte niemals dass eine Änderung funktioniert hat ohne visuelles Feedback",
+    );
+  });
+
+  test("reader prompt contains instruction to check existing rules", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain(
+      "Prüfe immer zuerst die bestehenden Regeln bevor du neue erstellst",
+    );
+    expect(prompt).toContain("delete_rule statt eine neue zu erstellen");
+  });
 });
