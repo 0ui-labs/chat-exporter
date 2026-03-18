@@ -1,0 +1,5 @@
+Es scheint ein Problem mit dem Adjustment Agent zu geben. schau dir mal diese reihe von Screenshots an, es zeigt die Interaktion mit dem Agent
+
+---
+
+Also würdest du einfach den Rederer ändern damit das auch ohne custom rule nicht mehr vorkommt?
