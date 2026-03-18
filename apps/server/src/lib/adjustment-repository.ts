@@ -363,6 +363,31 @@ export function updateFormatRuleEffect(
   return nextRule;
 }
 
+export function updateFormatRuleSelector(
+  ruleId: string,
+  selector: Record<string, unknown>,
+): FormatRule {
+  const existingRule = getFormatRule(ruleId);
+  if (!existingRule) {
+    throw new Error("Formatregel nicht gefunden.");
+  }
+
+  const timestamp = now();
+  db.update(formatRules)
+    .set({
+      selectorJson: JSON.stringify(selector),
+      updatedAt: timestamp,
+    })
+    .where(eq(formatRules.id, ruleId))
+    .run();
+
+  const nextRule = getFormatRule(ruleId);
+  if (!nextRule) {
+    throw new Error("Formatregel konnte nicht neu geladen werden.");
+  }
+  return nextRule;
+}
+
 export function discardAdjustmentSession(sessionId: string) {
   const session = getAdjustmentSession(sessionId);
 

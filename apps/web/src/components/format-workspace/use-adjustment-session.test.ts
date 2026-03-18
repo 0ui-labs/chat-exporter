@@ -75,6 +75,11 @@ vi.mock("@/lib/orpc", () => ({
             }),
         }),
       },
+      setScope: {
+        mutationOptions: () => ({
+          mutationFn: vi.fn(),
+        }),
+      },
     },
     rules: {
       list: {

@@ -106,6 +106,10 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     }),
   );
 
+  const setScopeMutation = useMutation(
+    orpc.adjustments.setScope.mutationOptions(),
+  );
+
   // Derived values
   const isAdjustableView = getAdjustableViews().has(view);
   const isAdjustModeEnabled = state.adjustModeByView[view];
@@ -315,12 +319,41 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     [],
   );
 
-  const handleScopeSelect = useCallback((_scope: "global" | "local") => {
-    // For now, just reset the agent status — the actual scope mutation
-    // (changing rule selectors) will be handled in a follow-up when the
-    // server endpoint exists.
-    setAgentLoopStatus({ phase: "idle" });
-  }, []);
+  const handleScopeSelect = useCallback(
+    (scope: "global" | "local") => {
+      const { activeSessionDetail } = latestRef.current;
+      if (!activeSessionDetail) {
+        setAgentLoopStatus({ phase: "idle" });
+        return;
+      }
+
+      // For "local", no server call needed — rule already has exact selector
+      if (scope === "local") {
+        setAgentLoopStatus({ phase: "idle" });
+        toast.success("Regel gilt nur für diesen Block.");
+        return;
+      }
+
+      // For "global", update rule selectors to block_type strategy
+      setScopeMutation.mutate(
+        { sessionId: activeSessionDetail.session.id, scope },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({
+              queryKey: orpc.rules.list.key(),
+            });
+            setAgentLoopStatus({ phase: "idle" });
+            toast.success("Regel gilt jetzt global.");
+          },
+          onError: () => {
+            setAgentLoopStatus({ phase: "idle" });
+            toast.error("Scope konnte nicht geändert werden.");
+          },
+        },
+      );
+    },
+    [queryClient.invalidateQueries, setScopeMutation.mutate],
+  );
 
   return {
     sectionRef,

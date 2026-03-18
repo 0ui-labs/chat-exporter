@@ -76,6 +76,11 @@ export const appendAdjustmentMessageRequestSchema = z.object({
   markup: z.string().optional(), // HTML or Markdown of the block
 });
 
+export const setScopeRequestSchema = z.object({
+  sessionId: z.string(),
+  scope: z.enum(["global", "local"]),
+});
+
 // --- Selector schemas ---
 
 export const exactReaderSelectorSchema = z

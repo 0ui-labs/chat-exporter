@@ -24,6 +24,7 @@ import {
   recordAdjustmentEvent,
   reopenAdjustmentSession,
   updateFormatRuleEffect,
+  updateFormatRuleSelector,
 } from "../lib/adjustment-repository.js";
 import { importFromClipboard } from "../lib/clipboard-import.js";
 import {
@@ -391,6 +392,42 @@ export const router = os.router({
         provider: config.provider,
         reason: config.disabledReason,
       };
+    }),
+
+    setScope: os.adjustments.setScope.handler(({ input }) => {
+      const session = getAdjustmentSessionDetail(input.sessionId);
+      if (!session) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Adjustment-Session nicht gefunden.",
+        });
+      }
+
+      // Find rules created in this session
+      const rules = listFormatRules(
+        session.session.importId,
+        session.session.targetFormat,
+      ).filter(
+        (r) => r.sourceSessionId === input.sessionId && r.status === "active",
+      );
+
+      if (rules.length === 0) return { updated: 0 };
+
+      const selection = session.session.selection;
+      let updated = 0;
+
+      for (const rule of rules) {
+        if (input.scope === "global") {
+          // Change exact → block_type
+          updateFormatRuleSelector(rule.id, {
+            strategy: "block_type",
+            blockType: selection.blockType,
+          });
+          updated++;
+        }
+        // "local" = keep as-is (exact), no change needed
+      }
+
+      return { updated };
     }),
   },
 
