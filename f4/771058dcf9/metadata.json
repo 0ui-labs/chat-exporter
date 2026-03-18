@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "f4771058dcf9",
+  "strategy": "manual-commit",
+  "branch": "UX",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/server/src/lib/adjustment-repository.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/771058dcf9/0/metadata.json",
+      "transcript": "/f4/771058dcf9/0/full.jsonl",
+      "content_hash": "/f4/771058dcf9/0/content_hash.txt",
+      "prompt": "/f4/771058dcf9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 225623,
+    "cache_read_tokens": 4522016,
+    "output_tokens": 12652,
+    "api_call_count": 48
+  }
+}

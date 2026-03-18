@@ -1,0 +1,29 @@
+läuft RTK eigentlich
+
+---
+
+Aber wieso wird Read, Edit, Grep nicht umgeschrieben? Läuft hier was falsch
+
+---
+
+Wieso verstößt es gegen die best Practice?
+
+---
+
+Wo steht das eigentlich? hab ich das in die Claude.md geschrieben?
+
+---
+
+Kannst du bitte mal in der RTK doku nachschauen wie das korrekt gehandhabt werden sollte https://github.com/rtk-ai/rtk
+
+---
+
+nochmal
+
+---
+
+noch mal
+
+---
+
+ok, mach das so
