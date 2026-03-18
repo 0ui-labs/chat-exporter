@@ -3,7 +3,7 @@
   "checkpoint_id": "74f45c14fd56",
   "strategy": "manual-commit",
   "branch": "UX",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/web/src/components/format-workspace/adjustment-popover.tsx",
     "apps/web/src/components/format-workspace/labels.ts",
@@ -23,13 +23,19 @@
       "transcript": "/74/f45c14fd56/0/full.jsonl",
       "content_hash": "/74/f45c14fd56/0/content_hash.txt",
       "prompt": "/74/f45c14fd56/0/prompt.txt"
+    },
+    {
+      "metadata": "/74/f45c14fd56/1/metadata.json",
+      "transcript": "/74/f45c14fd56/1/full.jsonl",
+      "content_hash": "/74/f45c14fd56/1/content_hash.txt",
+      "prompt": "/74/f45c14fd56/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3807,
-    "cache_creation_tokens": 82785,
-    "cache_read_tokens": 4187475,
-    "output_tokens": 20085,
-    "api_call_count": 48
+    "input_tokens": 5039,
+    "cache_creation_tokens": 276684,
+    "cache_read_tokens": 16491491,
+    "output_tokens": 62720,
+    "api_call_count": 167
   }
 }
