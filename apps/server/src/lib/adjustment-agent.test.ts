@@ -10,6 +10,11 @@ import {
   AgentUnavailableError,
   runAgentTurn,
 } from "./adjustment-agent.js";
+import { requestClaudeResponse } from "./claude-client.js";
+
+vi.mock("./claude-client.js", () => ({
+  requestClaudeResponse: vi.fn(),
+}));
 
 // --- Env setup ---
 
@@ -22,6 +27,13 @@ function setTestEnv() {
   process.env.ADJUSTMENT_RULE_COMPILATION_MODEL = "gpt-5-mini";
   process.env.OPENAI_API_BASE_URL = "https://example.test/v1";
   process.env.OPENAI_API_KEY = "test-key";
+}
+
+function setAnthropicTestEnv() {
+  process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED = "1";
+  process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER = "anthropic";
+  process.env.ADJUSTMENT_AGENT_MODEL = "claude-sonnet-4-20250514";
+  process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
 }
 
 // --- Factories ---
@@ -996,6 +1008,240 @@ describe("AdjustmentAgent", () => {
       .join("");
     expect(allText).toContain("Gerendetes Markup des Blocks");
     expect(allText).toContain("<p>Example content</p>");
+  });
+});
+
+describe("AdjustmentAgent — Anthropic provider", () => {
+  const mockClaudeResponse = requestClaudeResponse as ReturnType<typeof vi.fn>;
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    globalThis.fetch = originalFetch;
+    mockClaudeResponse.mockReset();
+  });
+
+  test("Claude request has correct format (system, messages, tools)", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Wie soll ich das ändern?" }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(mockClaudeResponse).toHaveBeenCalledOnce();
+    const [request, config] = mockClaudeResponse.mock.calls[0] as [
+      {
+        system: string;
+        messages: unknown[];
+        tools: unknown[];
+        model: string;
+        max_tokens: number;
+        tool_choice?: unknown;
+      },
+      { apiKey: string; timeoutMs: number },
+    ];
+
+    // System prompt should be a string
+    expect(typeof request.system).toBe("string");
+    expect(request.system).toContain("Anpassungsmodus");
+
+    // Messages should be Claude format (user/assistant, no system)
+    expect(request.messages.length).toBeGreaterThan(0);
+    const firstMsg = request.messages[0] as { role: string };
+    expect(firstMsg.role).toBe("user");
+
+    // Tools should be in Claude format (name, description, input_schema)
+    expect(request.tools.length).toBeGreaterThan(0);
+    const firstTool = request.tools[0] as {
+      name: string;
+      description: string;
+      input_schema: unknown;
+    };
+    expect(firstTool).toHaveProperty("name");
+    expect(firstTool).toHaveProperty("description");
+    expect(firstTool).toHaveProperty("input_schema");
+
+    // Config should contain Anthropic API key
+    expect(config.apiKey).toBe("test-anthropic-key");
+  });
+
+  test("tool results are correctly formatted for Claude", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    // First call: tool_use response
+    mockClaudeResponse
+      .mockResolvedValueOnce({
+        id: "msg-1",
+        content: [
+          {
+            type: "tool_use",
+            id: "toolu_1",
+            name: "create_rule",
+            input: createArgs,
+          },
+        ],
+        stop_reason: "tool_use",
+        model: "claude-sonnet-4-20250514",
+        usage: { input_tokens: 100, output_tokens: 50 },
+      })
+      .mockResolvedValueOnce({
+        id: "msg-2",
+        content: [{ type: "text", text: "Die Schriftgröße wurde angepasst." }],
+        stop_reason: "end_turn",
+        model: "claude-sonnet-4-20250514",
+        usage: { input_tokens: 200, output_tokens: 30 },
+      });
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).toHaveBeenCalledOnce();
+    expect(result.actions).toHaveLength(1);
+
+    // Second call should contain tool_result in messages
+    const secondCall = mockClaudeResponse.mock.calls[1] as [
+      {
+        messages: Array<{
+          role: string;
+          content: Array<{ type: string; tool_use_id?: string }>;
+        }>;
+      },
+    ];
+    const lastMsg = secondCall[0].messages[secondCall[0].messages.length - 1];
+    expect(lastMsg).toBeDefined();
+    expect(lastMsg!.role).toBe("user");
+    const toolResult = lastMsg!.content.find((c) => c.type === "tool_result");
+    expect(toolResult).toBeDefined();
+    expect(toolResult?.tool_use_id).toBe("toolu_1");
+  });
+
+  test("fallback to OpenAI works via provider config", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    // Should NOT have called Claude
+    expect(mockClaudeResponse).not.toHaveBeenCalled();
+    // Should have called fetch (OpenAI)
+    expect(globalThis.fetch).toHaveBeenCalled();
+  });
+
+  test("screenshot is included as image content block for Anthropic provider", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Alles klar." }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+      screenshot: "iVBORw0KGgoAAAANS",
+    });
+
+    const [request] = mockClaudeResponse.mock.calls[0] as [
+      { messages: Array<{ role: string; content: unknown[] }> },
+    ];
+
+    // First user message should contain image content block
+    const firstUserMsg = request.messages[0]!;
+    expect(firstUserMsg.role).toBe("user");
+    const imageBlock = (
+      firstUserMsg.content as Array<{
+        type: string;
+        source?: { type: string; media_type: string; data: string };
+      }>
+    ).find((c) => c.type === "image");
+    expect(imageBlock).toBeDefined();
+    expect(imageBlock?.source?.type).toBe("base64");
+    expect(imageBlock?.source?.media_type).toBe("image/png");
+    expect(imageBlock?.source?.data).toBe("iVBORw0KGgoAAAANS");
+  });
+
+  test("tools are correctly converted from OpenAI to Claude format", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Alles klar." }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const [request] = mockClaudeResponse.mock.calls[0] as [
+      {
+        tools: Array<{
+          name: string;
+          description: string;
+          input_schema: Record<string, unknown>;
+        }>;
+      },
+    ];
+
+    // Should have create_rule, update_rule, delete_rule
+    const toolNames = request.tools.map((t) => t.name);
+    expect(toolNames).toContain("create_rule");
+    expect(toolNames).toContain("update_rule");
+    expect(toolNames).toContain("delete_rule");
+
+    // Each tool should have input_schema (not parameters)
+    for (const tool of request.tools) {
+      expect(tool).toHaveProperty("input_schema");
+      expect(tool).not.toHaveProperty("parameters");
+      expect(tool).not.toHaveProperty("type");
+      expect(tool).not.toHaveProperty("strict");
+    }
   });
 });
 

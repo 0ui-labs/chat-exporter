@@ -8,6 +8,13 @@ import type {
 import { customStyleEffectSchema } from "@chat-exporter/shared";
 
 import { readAdjustmentAiConfig } from "./adjustment-ai-config.js";
+import type {
+  ClaudeContentBlock,
+  ClaudeMessage,
+  ClaudeResponse,
+  ClaudeTool,
+} from "./claude-client.js";
+import { requestClaudeResponse } from "./claude-client.js";
 
 export const MAX_TOOL_ROUNDS = 3;
 
@@ -748,6 +755,214 @@ async function requestOpenAiResponse(
 }
 
 // ---------------------------------------------------------------------------
+// Claude/Anthropic Adapter
+// ---------------------------------------------------------------------------
+
+/** Convert OpenAI-format tools to Claude format */
+function convertToolsToClaude(
+  openAiTools: ReturnType<typeof buildTools>,
+): ClaudeTool[] {
+  return openAiTools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters,
+  }));
+}
+
+/** Convert InputMessages to Claude message format (system extracted separately) */
+function convertMessagesToClaude(
+  inputMessages: InputMessage[],
+  input: RunAgentTurnInput,
+): { system: string; messages: ClaudeMessage[] } {
+  const systemMsg = inputMessages.find((m) => m.role === "system");
+  const system = systemMsg?.content.map((c) => c.text).join("\n") ?? "";
+
+  const messages: ClaudeMessage[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "system") continue;
+    const role = msg.role === "user" ? "user" : "assistant";
+    const content: ClaudeContentBlock[] = msg.content.map((c) => ({
+      type: "text" as const,
+      text: c.text,
+    }));
+    messages.push({ role, content });
+  }
+
+  // Add screenshot as image content block for Claude vision
+  if (input.screenshot && messages.length > 0) {
+    const firstUserMsg = messages.find((m) => m.role === "user");
+    if (firstUserMsg) {
+      firstUserMsg.content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: "image/png",
+          data: input.screenshot,
+        },
+      });
+    }
+  }
+
+  return { system, messages };
+}
+
+/** Extract text content from a Claude response */
+function extractClaudeTextContent(response: ClaudeResponse): string {
+  return response.content
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+}
+
+/** Extract tool_use blocks from a Claude response */
+function extractClaudeToolCalls(response: ClaudeResponse): FunctionCallItem[] {
+  return response.content
+    .filter(
+      (
+        block,
+      ): block is {
+        type: "tool_use";
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      } => block.type === "tool_use",
+    )
+    .map((block) => ({
+      arguments: JSON.stringify(block.input),
+      callId: block.id,
+      name: block.name,
+    }));
+}
+
+/** Run a full agent turn against the Claude/Anthropic API */
+async function runClaudeAgentTurn(
+  input: RunAgentTurnInput,
+  config: ReturnType<typeof readAdjustmentAiConfig>,
+): Promise<{
+  assistantMessage: string;
+  actions: ActionRecord[];
+  awaitingVisualFeedback: boolean;
+}> {
+  const actions: ActionRecord[] = [];
+  const targetFormat = input.sessionDetail.session.targetFormat;
+  const inputMessages = buildInputMessages(input);
+  const { system, messages } = convertMessagesToClaude(inputMessages, input);
+  const claudeTools = convertToolsToClaude(buildTools(targetFormat));
+
+  let claudeMessages = [...messages];
+
+  let response = await requestClaudeResponse(
+    {
+      model: config.model,
+      system,
+      messages: claudeMessages,
+      tools: claudeTools,
+      max_tokens: 4096,
+      tool_choice: { type: "auto" },
+    },
+    {
+      apiKey: config.anthropic!.apiKey,
+      timeoutMs: config.timeoutMs,
+    },
+  );
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    const toolCalls = extractClaudeToolCalls(response);
+    if (toolCalls.length === 0) {
+      break;
+    }
+
+    // Add assistant response to conversation
+    claudeMessages = [
+      ...claudeMessages,
+      { role: "assistant" as const, content: response.content },
+    ];
+
+    // Execute tool calls and build tool results
+    const toolResults: ClaudeContentBlock[] = [];
+    for (const call of toolCalls) {
+      const result = await executeToolCall(call, input.callbacks, actions);
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: call.callId,
+        content: result,
+      });
+    }
+
+    // Add tool results as user message
+    claudeMessages = [
+      ...claudeMessages,
+      { role: "user" as const, content: toolResults },
+    ];
+
+    response = await requestClaudeResponse(
+      {
+        model: config.model,
+        system,
+        messages: claudeMessages,
+        tools: claudeTools,
+        max_tokens: 4096,
+        tool_choice: { type: "auto" },
+      },
+      {
+        apiKey: config.anthropic!.apiKey,
+        timeoutMs: config.timeoutMs,
+      },
+    );
+  }
+
+  const rawMessage = extractClaudeTextContent(response);
+  let assistantMessage: string;
+
+  if (rawMessage) {
+    if (actions.length === 0 && !rawMessage.includes("?")) {
+      assistantMessage =
+        "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?";
+    } else {
+      assistantMessage = rawMessage;
+    }
+  } else if (actions.length > 0) {
+    assistantMessage = "Die Änderung ist jetzt sichtbar.";
+  } else {
+    // Retry with nudge
+    const retryResponse = await requestClaudeResponse(
+      {
+        model: config.model,
+        system,
+        messages: [
+          ...claudeMessages,
+          {
+            role: "user" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: "Du hast gerade keine Antwort gegeben. Bitte stelle dem Nutzer jetzt eine konkrete Rückfrage, damit du eine passende Regel erstellen kannst.",
+              },
+            ],
+          },
+        ],
+        tools: claudeTools,
+        max_tokens: 4096,
+      },
+      {
+        apiKey: config.anthropic!.apiKey,
+        timeoutMs: config.timeoutMs,
+      },
+    );
+
+    assistantMessage =
+      extractClaudeTextContent(retryResponse) ||
+      "Ich konnte die Anfrage nicht verstehen. Kannst du bitte genauer beschreiben, was du ändern möchtest?";
+  }
+
+  const awaitingVisualFeedback = actions.length > 0;
+  return { assistantMessage, actions, awaitingVisualFeedback };
+}
+
+// ---------------------------------------------------------------------------
 // Tool execution with validation
 // ---------------------------------------------------------------------------
 
@@ -861,6 +1076,12 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 }> {
   const config = readAdjustmentAiConfig();
 
+  // Dispatch to Anthropic/Claude path
+  if (config.enabled && config.provider === "anthropic" && config.anthropic) {
+    return runClaudeAgentTurn(input, config);
+  }
+
+  // OpenAI path (legacy)
   if (!config.enabled || config.provider !== "openai" || !config.openai) {
     throw new AgentUnavailableError(
       "Live-KI-Anpassungen sind aktuell nicht konfiguriert. Hinterlege einen OpenAI-Zugang, bevor du diesen Chat nutzt.",
