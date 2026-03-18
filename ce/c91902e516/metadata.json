@@ -3,21 +3,30 @@
   "checkpoint_id": "cec91902e516",
   "strategy": "manual-commit",
   "branch": "UX",
-  "checkpoints_count": 1,
-  "files_touched": null,
+  "checkpoints_count": 14,
+  "files_touched": [
+    "apps/server/src/lib/adjustment-agent.test.ts",
+    "apps/server/src/lib/adjustment-agent.ts"
+  ],
   "sessions": [
     {
       "metadata": "/ce/c91902e516/0/metadata.json",
       "transcript": "/ce/c91902e516/0/full.jsonl",
       "content_hash": "/ce/c91902e516/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/ce/c91902e516/1/metadata.json",
+      "transcript": "/ce/c91902e516/1/full.jsonl",
+      "content_hash": "/ce/c91902e516/1/content_hash.txt",
+      "prompt": "/ce/c91902e516/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1402,
-    "cache_creation_tokens": 74994,
-    "cache_read_tokens": 1079573,
-    "output_tokens": 13412,
-    "api_call_count": 17
+    "input_tokens": 1443,
+    "cache_creation_tokens": 142787,
+    "cache_read_tokens": 1781721,
+    "output_tokens": 27086,
+    "api_call_count": 32
   }
 }
