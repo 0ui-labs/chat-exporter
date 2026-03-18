@@ -1,0 +1,57 @@
+Du solltest nicht nach konkretn Sicherheitslücken suchen sondern welche Arten von Sicherheitslücken in diser codebase möglich wären.
+
+---
+
+was sind Supply-Chain-Angriffsfläche und wie kann man sie patchen?
+
+---
+
+Ok kommen wir zum Thema performance. bitte liste mir konzeptionell auf an welchen Stellen eine app wie unsere performance probleme haben könnte.
+
+---
+
+Nun liste auf welchen Best practices eine app wie die unsere folgen sollte
+
+---
+
+Ich würde gerne einen Agentic workflow entwickeln welcher eine Codebase systematisch nach all den Punkten untersucht um die code qualität massiv optimiert. Alles in parallel wobei jeder Subagent den Fokus nur auf einen einzigen aspekt hat wie z.b. Strikte Package-Grenzen — Shared-Typen und Schemas nur über das Shared-Package importieren, nie über relative Pfade. Verhindert zirkuläre Abhängigkeiten. Jeder subagent macht sich erst einen Plan wie er das möglichst effizient angehen kann und führt diesen dann aus und schreibt einen Bericht in dem Steht ob er etwas zu dieser metric gefunden hat oder nicht und wenn ja dann soll er eine klare  Empfehlung abgeben und diese begründen. Idealterweise sollte das nicht bloß über Suabegnts laufen sondern über Agentic teams von dem jeder Agent seine eigenen subagents mit Teilaufgaben spwanen kann. Hierzu gibt es ein relativ neues Claude code feature "agentic teams" schau dir das bitte mal genau in der Doku an und wie wir das dafür konkret nutzen können.
+
+---
+
+Aus meiner Sicht wäre es aber wichtig das jeder Agent nur einen einzigen Fokus hat und nicht einen ganzen bereicht weil sonst die Aufmerksamkeit verwässert. Ein Agent kann nicht wirklich effektiv nach 5 Punkten schauen.
+
+---
+
+In waves ist auch ok, dauert dann halt länger weil die einzelnen Waves sequenziell laufen
+
+---
+
+In welchen fällen ist es sinnvoll das agenten unterienander kommunizieren? welchen vorteil hätte das?
+
+---
+
+Sollte man am Ende noch mal den Gesamtbericht analysieren lassen, wie alles zusammnhängt, wo sich Dinge überschneiden usw.
+
+---
+
+Meinst du so ein Workflow ist eine Grundelage für eine massive verbesserung einer Codebase?
+
+---
+
+Ja, aber dann müssen wir daraus eine Pipeline machen.
+
+---
+
+Was würdest du machen und warum? Alles vollautomatisch ist natürlich ein Traum aber macht das Sinn, auf der anderen Seite haben die meisten User die so einen Workflow verwenden nicht das nötige fachwissen um zu  verstehen was sie reviewn sollen. Was denkst du?
+
+---
+
+Hört sich plausibel an, bitte mach das so
+
+---
+
+Aber sollten nicht analyse, planug, fix eigene Workflows sein?
+
+---
+
+Ja
