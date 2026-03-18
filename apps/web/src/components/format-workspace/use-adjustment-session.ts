@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type FormEvent,
   useCallback,
@@ -34,6 +34,8 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     createInitialState,
   );
   const queryClient = useQueryClient();
+
+  const statusQuery = useQuery(orpc.adjustments.status.queryOptions());
 
   const createSession = useMutation(
     orpc.adjustments.createSession.mutationOptions(),
@@ -150,11 +152,24 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
 
   const toggleAdjustMode = useCallback(() => {
     if (!isAdjustableView) return;
+
+    // Block enabling when AI is unavailable
+    if (
+      !state.adjustModeByView[view] &&
+      statusQuery.data &&
+      !statusQuery.data.available
+    ) {
+      toast.info(
+        "Der KI-Anpassungsmodus erfordert einen API-Schlüssel. Bitte richte einen Anthropic API-Key ein.",
+      );
+      return;
+    }
+
     const nextEnabled = !state.adjustModeByView[view];
     dispatch({ type: "SET_ADJUST_MODE", view, enabled: nextEnabled });
     dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed: false });
     if (!nextEnabled) dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
-  }, [isAdjustableView, state.adjustModeByView, view]);
+  }, [isAdjustableView, state.adjustModeByView, view, statusQuery.data]);
 
   const handleSelectionChange = useCallback(
     (selection: AdjustmentSelection, anchor: ViewportAnchor) => {
@@ -247,6 +262,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
 
   return {
     sectionRef,
+    adjustmentAvailable: statusQuery.data?.available ?? false,
     adjustModeEnabled: isAdjustModeEnabled,
     activeSessionDetail: state.activeSessionDetail,
     activeSelection,

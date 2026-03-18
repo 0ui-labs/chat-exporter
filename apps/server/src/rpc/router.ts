@@ -6,6 +6,7 @@ import {
   AgentUnavailableError,
   runAgentTurn,
 } from "../lib/adjustment-agent.js";
+import { readAdjustmentAiConfig } from "../lib/adjustment-ai-config.js";
 import {
   appendAdjustmentMessage,
   createAdjustmentSession,
@@ -381,6 +382,15 @@ export const router = os.router({
 
     metrics: os.adjustments.metrics.handler(({ input }) => {
       return getAdjustmentMetrics(input.importId, input.format);
+    }),
+
+    status: os.adjustments.status.handler(() => {
+      const config = readAdjustmentAiConfig();
+      return {
+        available: config.enabled,
+        provider: config.provider,
+        reason: config.disabledReason,
+      };
     }),
   },
 

@@ -65,6 +65,16 @@ vi.mock("@/lib/orpc", () => ({
           };
         },
       },
+      status: {
+        queryOptions: () => ({
+          queryKey: ["adjustments", "status"],
+          queryFn: () =>
+            Promise.resolve({
+              available: true,
+              provider: "anthropic",
+            }),
+        }),
+      },
     },
     rules: {
       list: {

@@ -109,6 +109,14 @@ export const contract = {
         }),
       )
       .output(adjustmentMetricsSchema),
+
+    status: oc.output(
+      z.object({
+        available: z.boolean(),
+        provider: z.string(),
+        reason: z.string().optional(),
+      }),
+    ),
   },
 
   rules: {
