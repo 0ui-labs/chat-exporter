@@ -30,6 +30,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type SortKey = "title" | "scope" | "date";
 type SortDir = "asc" | "desc";
@@ -216,11 +221,22 @@ export function RulesListModal({
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button data-testid="rules-list-trigger" size="sm" variant="outline">
-          {rulesLabels.activeRulesCount(activeCount)}
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button
+              data-testid="rules-list-trigger"
+              size="sm"
+              variant="outline"
+            >
+              {rulesLabels.activeRulesCount(activeCount)}
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>Aktive Formatierungsregeln anzeigen</p>
+        </TooltipContent>
+      </Tooltip>
 
       <DialogContent className="flex min-h-[min(80vh,700px)] w-full max-w-[min(90vw,1152px)] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
@@ -394,48 +410,69 @@ function RuleTableRow({
         {/* Geltungsbereich */}
         <td className="whitespace-nowrap px-4 py-3">
           {rule.scope === "import_local" ? (
-            <Button
-              data-testid="rules-list-promote"
-              size="sm"
-              variant="ghost"
-              disabled={promoting}
-              onClick={onPromote}
-            >
-              <Globe className="mr-1.5 h-3.5 w-3.5" />
-              {modalLabels.scopeLocal}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  data-testid="rules-list-promote"
+                  size="sm"
+                  variant="ghost"
+                  disabled={promoting}
+                  onClick={onPromote}
+                >
+                  <Globe className="mr-1.5 h-3.5 w-3.5" />
+                  {modalLabels.scopeLocal}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Regel auf alle Imports übertragen</p>
+              </TooltipContent>
+            </Tooltip>
           ) : rule.scope === "format_profile" ? (
-            <Button
-              data-testid="rules-list-demote"
-              size="sm"
-              variant="ghost"
-              disabled={promoting}
-              onClick={onDemote}
-            >
-              <Globe className="mr-1.5 h-3.5 w-3.5 text-primary" />
-              {modalLabels.scopeAll}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  data-testid="rules-list-demote"
+                  size="sm"
+                  variant="ghost"
+                  disabled={promoting}
+                  onClick={onDemote}
+                >
+                  <Globe className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                  {modalLabels.scopeAll}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Regel auf diesen Import beschränken</p>
+              </TooltipContent>
+            </Tooltip>
           ) : null}
         </td>
 
         {/* Aktionen */}
         <td className="whitespace-nowrap px-4 py-3">
-          <Button
-            data-testid="rules-list-disable"
-            size="sm"
-            variant="outline"
-            disabled={disabling}
-            onClick={onDisable}
-          >
-            {disabling ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                {modalLabels.disabling}
-              </>
-            ) : (
-              modalLabels.disable
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                data-testid="rules-list-disable"
+                size="sm"
+                variant="outline"
+                disabled={disabling}
+                onClick={onDisable}
+              >
+                {disabling ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {modalLabels.disabling}
+                  </>
+                ) : (
+                  modalLabels.disable
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>Regel deaktivieren</p>
+            </TooltipContent>
+          </Tooltip>
         </td>
       </tr>
 

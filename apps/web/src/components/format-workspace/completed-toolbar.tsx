@@ -15,6 +15,11 @@ import { RulesListModal } from "@/components/format-workspace/rules-list-modal";
 import type { EditMode, ViewMode } from "@/components/format-workspace/types";
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const outputViews = defaultRegistry.getAll().map((f) => ({
@@ -94,17 +99,23 @@ export function CompletedToolbar({
         data-testid="toolbar-action-row"
         className="flex flex-wrap items-center gap-2"
       >
-        <Button
-          data-testid="toolbar-download"
-          type="button"
-          size="icon"
-          variant="outline"
-          title={adjustmentLabels.downloadAction}
-          disabled={!onDownloadMarkdown}
-          onClick={onDownloadMarkdown}
-        >
-          <Download className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              data-testid="toolbar-download"
+              type="button"
+              size="icon"
+              variant="outline"
+              disabled={!onDownloadMarkdown}
+              onClick={onDownloadMarkdown}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p>Markdown-Datei herunterladen</p>
+          </TooltipContent>
+        </Tooltip>
 
         <Button
           data-testid="toolbar-copy-all"
@@ -181,20 +192,22 @@ export function CompletedToolbar({
               }}
               onToggleRuleExplanation={rules.handleToggleRuleExplanation}
             />
-            <Button
-              data-testid={`toggle-adjust-mode-${view}`}
-              type="button"
-              size="icon"
-              variant={adjustModeEnabled ? "default" : "outline"}
-              title={
-                adjustModeEnabled
-                  ? adjustmentLabels.adjustDoneLabel
-                  : adjustmentLabels.adjustLabel
-              }
-              onClick={onToggleAdjustMode}
-            >
-              <Settings2 className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  data-testid={`toggle-adjust-mode-${view}`}
+                  type="button"
+                  size="icon"
+                  variant={adjustModeEnabled ? "default" : "outline"}
+                  onClick={onToggleAdjustMode}
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Einzelne Stellen im Text markieren und anpassen lassen</p>
+              </TooltipContent>
+            </Tooltip>
           </>
         ) : null}
 

@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { CompletedToolbar } from "./completed-toolbar";
 
@@ -81,7 +82,14 @@ function renderToolbar(options: RenderToolbarOptions = {}) {
     onViewChange: vi.fn(),
   };
 
-  return { ...render(<CompletedToolbar {...props} />), props };
+  return {
+    ...render(
+      <TooltipProvider delayDuration={0}>
+        <CompletedToolbar {...props} />
+      </TooltipProvider>,
+    ),
+    props,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -313,6 +321,28 @@ describe("CompletedToolbar", () => {
       await user.click(screen.getByTestId("toolbar-versions"));
 
       expect(onVersionsClick).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("tooltips", () => {
+    test("download button is wrapped in a Radix tooltip trigger", () => {
+      renderToolbar();
+
+      const downloadButton = screen.getByTestId("toolbar-download");
+
+      // Radix Tooltip adds data-state to the trigger element
+      expect(downloadButton).toHaveAttribute("data-state", "closed");
+      // title attribute should be removed (replaced by Tooltip)
+      expect(downloadButton).not.toHaveAttribute("title");
+    });
+
+    test("adjust button is wrapped in a Radix tooltip trigger", () => {
+      renderToolbar({ isAdjustableView: true });
+
+      const adjustButton = screen.getByTestId("toggle-adjust-mode-reader");
+
+      expect(adjustButton).toHaveAttribute("data-state", "closed");
+      expect(adjustButton).not.toHaveAttribute("title");
     });
   });
 });
