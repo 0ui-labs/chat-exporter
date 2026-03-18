@@ -3,3 +3,7 @@ Es scheint ein Problem mit dem Adjustment Agent zu geben. schau dir mal diese re
 ---
 
 Also würdest du einfach den Rederer ändern damit das auch ohne custom rule nicht mehr vorkommt?
+
+---
+
+Ja, mach das erstmal aber es löst nicht das Problem das de Adjustment Agent nicht richtig zu funktionieren scheint
