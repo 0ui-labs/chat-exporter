@@ -1,0 +1,1 @@
+Welche arten von Sicherheitslücken könnte diese Codebase haben? kannst du mir das auflisten und jeweils kurz beschreiben
