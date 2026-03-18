@@ -1530,6 +1530,91 @@ describe("buildSelectionContext", () => {
       "## Deine bisherigen Aktionen in dieser Session",
     );
   });
+
+  test("includes full Effect objects of active rules", () => {
+    const rules = [
+      {
+        id: "rule-1",
+        importId: null,
+        targetFormat: "reader" as const,
+        kind: "render" as const,
+        scope: "import_local" as const,
+        status: "active" as const,
+        selector: {
+          strategy: "block_type" as const,
+          blockType: "list",
+        },
+        instruction: "Liste eingerückt",
+        compiledRule: {
+          type: "custom_style" as const,
+          containerStyle: { paddingLeft: "2rem" },
+        },
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: rules,
+      callbacks: createCallbacks(),
+    });
+
+    // Should contain Effect section with the full object
+    expect(result).toContain("Effect:");
+    expect(result).toContain("containerStyle");
+    expect(result).toContain("paddingLeft");
+    expect(result).toContain("2rem");
+  });
+
+  test("includes Renderer-Defaults section in context", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).toContain("Renderer-Defaults");
+    expect(result).toContain("render_markdown_strong");
+  });
+
+  test("Effect JSON is properly formatted for each rule", () => {
+    const rules = [
+      {
+        id: "rule-abc",
+        importId: null,
+        targetFormat: "reader" as const,
+        kind: "render" as const,
+        scope: "import_local" as const,
+        status: "active" as const,
+        selector: {
+          strategy: "exact" as const,
+          messageId: "m1",
+          blockIndex: 0,
+          blockType: "paragraph",
+        },
+        instruction: "Fett machen",
+        compiledRule: {
+          type: "custom_style" as const,
+          textStyle: { fontWeight: "700" },
+        },
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: rules,
+      callbacks: createCallbacks(),
+    });
+
+    // Selektor and Effect should both be present for this rule
+    expect(result).toContain("[rule-abc]");
+    expect(result).toContain("Selektor:");
+    expect(result).toContain("Effect:");
+    expect(result).toContain("fontWeight");
+  });
 });
 
 describe("buildSystemPrompt", () => {

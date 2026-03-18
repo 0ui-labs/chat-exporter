@@ -565,11 +565,23 @@ function buildSelectionContext(input: RunAgentTurnInput) {
       const selectorStr = rule.selector
         ? JSON.stringify(rule.selector)
         : "(kein Selektor)";
+      const effectStr = rule.compiledRule
+        ? JSON.stringify(rule.compiledRule)
+        : "(kein Effect)";
       lines.push(
-        `- [${rule.id}] ${rule.instruction ?? "(keine Beschreibung)"} — Selektor: ${selectorStr}`,
+        `- [${rule.id}] ${rule.instruction ?? "(keine Beschreibung)"}`,
       );
+      lines.push(`  Selektor: ${selectorStr}`);
+      lines.push(`  Effect: ${effectStr}`);
     }
   }
+
+  // Renderer-Defaults section
+  lines.push("");
+  lines.push("## Renderer-Defaults (gelten immer, keine Regel nötig)");
+  lines.push(
+    '- Alle Reader-Blöcke: textTransform = "render_markdown_strong" (Markdown **bold** und *italic* werden gerendert)',
+  );
 
   const actionHistory = buildActionHistory(
     input.sessionEvents ?? [],
