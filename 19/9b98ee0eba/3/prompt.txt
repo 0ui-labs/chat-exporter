@@ -1,0 +1,9 @@
+Leider ist der Adjustment agent auch nach dem letzen refactoring nicht optimal.er bekommt einfach vieles nicht wirklich hin obwohl es einfach erscheint. Kannst du mir für Laien verständlich erklären wie Regeln funktionieren und wie sie gebaut werden? Ist es wie ein Baukasten mit begrenzten Möglichkeiten oder ist er wirklich flexibel? Erstellt er "wenn dann" regeln also wenn du im Marktup dies siehst mache jenes. z.b. wenn du eine Überschrift mit Doppelpunkt siehst setze eine trennlinie  darüber? erkläre mir das.
+
+---
+
+Wie kann man das Problem wirklich beheben? Der Agent muss das können. Er muss inhalte ändern können, markup anpassen können, Abstände einfügen können und auch css klassen setzen, anpassen und erweitern können.
+
+---
+
+Er muss alles können um jede strukturelle Änderung vornehmen zu können, theoretisch kann er auch text umformulieren das ist aber explizit nicht seine Aufgabe. Es sollte destruktiv sein, erstens haben wir versionen und 2. ist mir das Original nicht heilig, werde User möchte das jedes mal wenn das Wort "Sonnenschein" kommt es durch ein Sonnen Emoji ersetzt ist das für mich ok. Das originial gibt es ja als Version sowieso udn es bleibt erhalten. Natürlich ist das Einfügen von Scripten verboten! Im Reader ist alles möglich aber auch im Markdown soll alles möglich sein was im Markdown Sinn macht und geht Aber auch hier kann aus einer H1 eine H2 gemacht werden.
