@@ -219,18 +219,6 @@ const PopoverContent = memo(function PopoverContent({
         </div>
       )}
 
-      {agentLoopStatus.phase === "applying" && (
-        <div
-          data-testid="agent-status-applying"
-          className="flex items-center gap-2 border-t border-border/80 px-4 py-2 text-xs text-muted-foreground"
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>
-            {adjustmentLabels.agentApplying(agentLoopStatus.iteration)}
-          </span>
-        </div>
-      )}
-
       {agentLoopStatus.phase === "done" && lastAssistantMessage && (
         <div
           data-testid="scope-selection"

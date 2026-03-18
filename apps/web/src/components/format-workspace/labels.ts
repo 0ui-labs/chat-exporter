@@ -160,8 +160,6 @@ export const adjustmentLabels = {
 
   // Agent loop status
   agentThinking: "Agent analysiert...",
-  agentApplying: (iteration: number) =>
-    `Agent wendet Änderung an (${iteration}/5)...`,
 
   // Scope dialog
   scopeQuestion: "Soll die Regel für alle Blöcke dieses Typs gelten?",

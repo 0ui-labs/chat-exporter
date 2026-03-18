@@ -149,7 +149,7 @@ describe("useAdjustmentSession toast feedback", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("Anpassung übernommen");
   });
 
-  test("shows success toast when appendMessage succeeds with non-applied status", () => {
+  test("does not show success toast when appendMessage succeeds with non-applied status", () => {
     renderHook(() => useAdjustmentSession("markdown", "job-1"), {
       wrapper: createWrapper(),
     });
@@ -159,8 +159,8 @@ describe("useAdjustmentSession toast feedback", () => {
       appendMessageOnSuccess?.(createPendingDetail());
     });
 
-    // Even for non-applied status, the append succeeded — toast should fire
-    expect(mockToastSuccess).toHaveBeenCalledWith("Anpassung übernommen");
+    // Non-applied status means AI asked a clarifying question — no success toast
+    expect(mockToastSuccess).not.toHaveBeenCalled();
   });
 
   test("shows error toast when appendMessage fails", () => {

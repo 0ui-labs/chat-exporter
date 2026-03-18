@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toPng } from "html-to-image";
 import {
   type FormEvent,
   useCallback,
@@ -16,6 +15,7 @@ import {
   type ViewMode,
   type ViewportAnchor,
 } from "@/components/format-workspace/types";
+import { useElementScreenshot } from "@/hooks/use-element-screenshot";
 import { orpc } from "@/lib/orpc";
 
 import {
@@ -26,9 +26,6 @@ import {
 export type AgentLoopStatus =
   | { phase: "idle" }
   | { phase: "thinking" }
-  | { phase: "applying"; iteration: number }
-  | { phase: "verifying"; iteration: number }
-  | { phase: "asking_scope" }
   | { phase: "done" }
   | { phase: "failed"; reason: string };
 
@@ -48,6 +45,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     phase: "idle",
   });
   const queryClient = useQueryClient();
+  const { capture: captureScreenshot } = useElementScreenshot();
 
   const statusQuery = useQuery(orpc.adjustments.status.queryOptions());
 
@@ -62,10 +60,13 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
       },
       onSuccess: (nextDetail) => {
         dispatch({ type: "APPEND_MESSAGE_SUCCESS", view, detail: nextDetail });
-        if (nextDetail.session.status === "applied")
+        if (nextDetail.session.status === "applied") {
           queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
-        setAgentLoopStatus({ phase: "done" });
-        toast.success("Anpassung übernommen");
+          setAgentLoopStatus({ phase: "done" });
+          toast.success("Anpassung übernommen");
+        } else {
+          setAgentLoopStatus({ phase: "idle" });
+        }
       },
       onError: (error) => {
         dispatch({
@@ -263,12 +264,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
         );
         if (blockEl) {
           try {
-            const dataUrl = await toPng(blockEl, {
-              width: Math.min(blockEl.scrollWidth, 800),
-              pixelRatio: 1,
-              cacheBust: true,
-            });
-            screenshot = dataUrl.replace(/^data:image\/png;base64,/, "");
+            screenshot = await captureScreenshot(blockEl);
           } catch {
             // Screenshot capture is best-effort — don't block the message
           }
@@ -283,7 +279,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
         markup,
       });
     },
-    [view],
+    [view, captureScreenshot],
   );
 
   const handleDiscardSession = useCallback(() => {

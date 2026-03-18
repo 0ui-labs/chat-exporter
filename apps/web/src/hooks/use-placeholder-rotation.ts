@@ -5,8 +5,13 @@ export function usePlaceholderRotation(examples: string[], intervalMs: number) {
   const [visible, setVisible] = useState(true);
   const pausedRef = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimer = useCallback(() => {
+    if (timeoutRef.current !== null) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -22,7 +27,8 @@ export function usePlaceholderRotation(examples: string[], intervalMs: number) {
 
       // Fade out briefly, swap text, fade back in
       setVisible(false);
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
         setIndex((prev) => (prev + 1) % examples.length);
         setVisible(true);
       }, 150);

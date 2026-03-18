@@ -12,17 +12,9 @@ const mockToPng = vi.mocked(toPng);
 
 describe("useElementScreenshot", () => {
   test("returns a capture function", () => {
-    const { result } = renderHook(() => useElementScreenshot(null));
+    const { result } = renderHook(() => useElementScreenshot());
 
     expect(result.current.capture).toBeTypeOf("function");
-  });
-
-  test("capture() with null element throws a meaningful error", async () => {
-    const { result } = renderHook(() => useElementScreenshot(null));
-
-    await expect(result.current.capture()).rejects.toThrow(
-      "No element provided for screenshot capture",
-    );
   });
 
   test("capture() calls toPng with correct options (width capped at 800, pixelRatio: 1)", async () => {
@@ -32,8 +24,8 @@ describe("useElementScreenshot", () => {
 
     mockToPng.mockResolvedValue("data:image/png;base64,abc123");
 
-    const { result } = renderHook(() => useElementScreenshot(fakeElement));
-    await result.current.capture();
+    const { result } = renderHook(() => useElementScreenshot());
+    await result.current.capture(fakeElement);
 
     expect(mockToPng).toHaveBeenCalledWith(fakeElement, {
       width: 800,
@@ -49,8 +41,8 @@ describe("useElementScreenshot", () => {
 
     mockToPng.mockResolvedValue("data:image/png;base64,abc123");
 
-    const { result } = renderHook(() => useElementScreenshot(fakeElement));
-    await result.current.capture();
+    const { result } = renderHook(() => useElementScreenshot());
+    await result.current.capture(fakeElement);
 
     expect(mockToPng).toHaveBeenCalledWith(fakeElement, {
       width: 500,
@@ -66,8 +58,8 @@ describe("useElementScreenshot", () => {
 
     mockToPng.mockResolvedValue("data:image/png;base64,SGVsbG8gV29ybGQ=");
 
-    const { result } = renderHook(() => useElementScreenshot(fakeElement));
-    const base64 = await result.current.capture();
+    const { result } = renderHook(() => useElementScreenshot());
+    const base64 = await result.current.capture(fakeElement);
 
     expect(base64).toBe("SGVsbG8gV29ybGQ=");
   });

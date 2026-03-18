@@ -1,17 +1,12 @@
 import { toPng } from "html-to-image";
+import { useCallback } from "react";
 
-type UseElementScreenshotReturn = {
-  capture: () => Promise<string>;
-};
-
-export function useElementScreenshot(
-  element: HTMLElement | null,
-): UseElementScreenshotReturn {
-  const capture = async (): Promise<string> => {
-    if (!element) {
-      throw new Error("No element provided for screenshot capture");
-    }
-
+/**
+ * Captures a DOM element as a base64-encoded PNG screenshot.
+ * Returns a stable `capture` function (element resolved at call time).
+ */
+export function useElementScreenshot() {
+  const capture = useCallback(async (element: HTMLElement): Promise<string> => {
     const dataUrl = await toPng(element, {
       width: Math.min(element.scrollWidth, 800),
       pixelRatio: 1,
@@ -19,9 +14,8 @@ export function useElementScreenshot(
     });
 
     // Strip the data URL prefix to get raw base64
-    const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
-    return base64;
-  };
+    return dataUrl.replace(/^data:image\/png;base64,/, "");
+  }, []);
 
   return { capture };
 }
