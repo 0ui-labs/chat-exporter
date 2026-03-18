@@ -7,10 +7,11 @@ const DEFAULT_CEREBRAS_API_BASE_URL = "https://api.cerebras.ai/v1";
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_CEREBRAS_MAX_COMPLETION_TOKENS = 2048;
 const DEFAULT_CEREBRAS_REASONING_EFFORT = "low";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6-20250514";
 
 export type AdjustmentAiConfig = {
   enabled: boolean;
-  provider: "openai" | "cerebras" | "deterministic";
+  provider: "openai" | "cerebras" | "anthropic" | "deterministic";
   model: string;
   timeoutMs: number;
   disabledReason?: string;
@@ -23,6 +24,9 @@ export type AdjustmentAiConfig = {
     apiKey: string;
     maxCompletionTokens: number;
     reasoningEffort: "none" | "low" | "medium" | "high";
+  };
+  anthropic?: {
+    apiKey: string;
   };
 };
 
@@ -44,6 +48,7 @@ function readProviderSelection() {
   if (
     rawValue === "openai" ||
     rawValue === "cerebras" ||
+    rawValue === "anthropic" ||
     rawValue === "deterministic"
   ) {
     return rawValue;
@@ -67,6 +72,7 @@ function readReasoningEffort(value: string | undefined) {
 export function readAdjustmentAiConfig(): AdjustmentAiConfig {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const cerebrasApiKey = process.env.CEREBRAS_API_KEY?.trim();
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
   const rawEnabled =
     process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED?.trim().toLowerCase() ??
     process.env.STRUCTURING_ENABLED?.trim().toLowerCase();
@@ -81,6 +87,8 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
     process.env.ADJUSTMENT_RULE_COMPILATION_CEREBRAS_MODEL?.trim() ||
     process.env.CEREBRAS_STRUCTURING_MODEL?.trim() ||
     DEFAULT_CEREBRAS_MODEL;
+  const anthropicModel =
+    process.env.ADJUSTMENT_AGENT_MODEL?.trim() || DEFAULT_ANTHROPIC_MODEL;
   const openAiApiBaseUrl =
     process.env.OPENAI_API_BASE_URL?.trim().replace(/\/+$/, "") ||
     DEFAULT_API_BASE_URL;
@@ -105,11 +113,13 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
 
   const selectedProvider =
     providerSelection === "auto"
-      ? apiKey
-        ? "openai"
-        : cerebrasApiKey
-          ? "cerebras"
-          : "deterministic"
+      ? anthropicApiKey
+        ? "anthropic"
+        : apiKey
+          ? "openai"
+          : cerebrasApiKey
+            ? "cerebras"
+            : "deterministic"
       : providerSelection;
 
   if (selectedProvider === "openai") {
@@ -151,6 +161,23 @@ export function readAdjustmentAiConfig(): AdjustmentAiConfig {
       enabled: Boolean(cerebrasApiKey),
       model: cerebrasModel,
       provider: "cerebras",
+      timeoutMs,
+    };
+  }
+
+  if (selectedProvider === "anthropic") {
+    return {
+      anthropic: anthropicApiKey
+        ? {
+            apiKey: anthropicApiKey,
+          }
+        : undefined,
+      disabledReason: anthropicApiKey
+        ? undefined
+        : "ANTHROPIC_API_KEY is not configured.",
+      enabled: Boolean(anthropicApiKey),
+      model: anthropicModel,
+      provider: "anthropic",
       timeoutMs,
     };
   }
