@@ -608,13 +608,26 @@ type InputMessage = {
 
 function buildInputMessages(input: RunAgentTurnInput): InputMessage[] {
   const targetFormat = input.sessionDetail.session.targetFormat;
+  const selectionContent: Array<{
+    text: string;
+    type: "input_text" | "output_text";
+  }> = [{ text: buildSelectionContext(input), type: "input_text" }];
+
+  // Include rendered markup when available (plaintext for OpenAI compatibility)
+  if (input.markup) {
+    selectionContent.push({
+      text: `\n\nGerendetes Markup des Blocks:\n\`\`\`\n${input.markup}\n\`\`\``,
+      type: "input_text",
+    });
+  }
+
   const messages: InputMessage[] = [
     {
       content: [{ text: buildSystemPrompt(targetFormat), type: "input_text" }],
       role: "system",
     },
     {
-      content: [{ text: buildSelectionContext(input), type: "input_text" }],
+      content: selectionContent,
       role: "user",
     },
   ];
@@ -844,6 +857,7 @@ async function executeToolCall(
 export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
   assistantMessage: string;
   actions: ActionRecord[];
+  awaitingVisualFeedback: boolean;
 }> {
   const config = readAdjustmentAiConfig();
 
@@ -858,13 +872,10 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
 
   const inputMessages = buildInputMessages(input);
 
-  const isFirstTurn =
-    input.sessionDetail.messages.filter((m) => m.role === "user").length <= 1;
-
   let payload = await requestOpenAiResponse(
     {
       input: inputMessages,
-      tool_choice: isFirstTurn ? "required" : "auto",
+      tool_choice: "auto",
       tools: buildTools(targetFormat),
     },
     config,
@@ -946,7 +957,9 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
       "Ich konnte die Anfrage nicht verstehen. Kannst du bitte genauer beschreiben, was du ändern möchtest?";
   }
 
-  return { assistantMessage, actions };
+  const awaitingVisualFeedback = actions.length > 0;
+
+  return { assistantMessage, actions, awaitingVisualFeedback };
 }
 
 /** @internal — exported for testing only */

@@ -785,7 +785,7 @@ describe("AdjustmentAgent", () => {
     expect(result.assistantMessage).toBeTruthy();
   });
 
-  test("first turn (1 user message) sends tool_choice 'required'", async () => {
+  test("first turn sends tool_choice 'auto' (no forced tool call)", async () => {
     setTestEnv();
     const callbacks = createCallbacks();
 
@@ -805,7 +805,7 @@ describe("AdjustmentAgent", () => {
       tool_choice?: string;
     };
 
-    expect(body.tool_choice).toBe("required");
+    expect(body.tool_choice).toBe("auto");
   });
 
   test("later turns (>1 user messages) sends tool_choice 'auto'", async () => {
@@ -831,7 +831,7 @@ describe("AdjustmentAgent", () => {
     expect(body.tool_choice).toBe("auto");
   });
 
-  test("tool loop follow-up calls use tool_choice 'auto' even on first turn", async () => {
+  test("tool loop follow-up calls use tool_choice 'auto'", async () => {
     setTestEnv();
     const callbacks = createCallbacks();
 
@@ -882,19 +882,120 @@ describe("AdjustmentAgent", () => {
 
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
 
-    // First call should be "required" (first turn)
+    // First call should be "auto"
     const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
     const firstBody = JSON.parse(String(firstCall[1].body)) as {
       tool_choice?: string;
     };
-    expect(firstBody.tool_choice).toBe("required");
+    expect(firstBody.tool_choice).toBe("auto");
 
-    // Second call (tool loop follow-up) should be "auto"
+    // Second call (tool loop follow-up) should also be "auto"
     const secondCall = fetchMock.mock.calls[1] as [string, RequestInit];
     const secondBody = JSON.parse(String(secondCall[1].body)) as {
       tool_choice?: string;
     };
     expect(secondBody.tool_choice).toBe("auto");
+  });
+
+  test("returns awaitingVisualFeedback: true when actions were taken", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toHaveLength(1);
+    expect(result.awaitingVisualFeedback).toBe(true);
+  });
+
+  test("returns awaitingVisualFeedback: false when no actions (clarification only)", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Möchtest du den Text größer oder fetter machen?"),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toEqual([]);
+    expect(result.awaitingVisualFeedback).toBe(false);
+  });
+
+  test("markup is included in input messages when provided", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+      markup: "<p>Example content</p>",
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      input: Array<{ content?: Array<{ text?: string }> }>;
+    };
+
+    // The second message (selection context) should contain the markup
+    const selectionContextMessage = body.input[1];
+    const allText = selectionContextMessage?.content
+      ?.map((c) => c.text ?? "")
+      .join("");
+    expect(allText).toContain("Gerendetes Markup des Blocks");
+    expect(allText).toContain("<p>Example content</p>");
   });
 });
 
