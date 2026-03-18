@@ -16,7 +16,7 @@ import type {
 } from "./claude-client.js";
 import { requestClaudeResponse } from "./claude-client.js";
 
-export const MAX_TOOL_ROUNDS = 3;
+export const MAX_TOOL_ROUNDS = 5;
 
 export class AgentUnavailableError extends Error {}
 
