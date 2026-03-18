@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.5.0",
+  "checkpoint_id": "1218840978fc",
+  "strategy": "manual-commit",
+  "branch": "UX",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/web/src/components/format-workspace/completed-toolbar.test.tsx",
+    "apps/web/src/components/format-workspace/completed-toolbar.tsx",
+    "apps/web/src/components/format-workspace/rules-list-modal.test.tsx",
+    "apps/web/src/components/format-workspace/rules-list-modal.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/12/18840978fc/0/metadata.json",
+      "transcript": "/12/18840978fc/0/full.jsonl",
+      "content_hash": "/12/18840978fc/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1840,
+    "cache_creation_tokens": 71281,
+    "cache_read_tokens": 583970,
+    "output_tokens": 11505,
+    "api_call_count": 12
+  }
+}
