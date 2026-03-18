@@ -1,5 +1,8 @@
 import { Link, Outlet } from "react-router-dom";
 
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 export function RootLayout() {
   return (
     <div className="min-h-screen bg-mesh">
@@ -19,9 +22,12 @@ export function RootLayout() {
           </Link>
         </header>
         <main className="flex-1 py-4 sm:py-6">
-          <Outlet />
+          <TooltipProvider delayDuration={400}>
+            <Outlet />
+          </TooltipProvider>
         </main>
       </div>
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }

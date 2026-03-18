@@ -79,24 +79,63 @@ function renderTextWithBoldPrefix(text: string) {
   );
 }
 
-function renderTextWithMarkdownStrong(text: string) {
-  const parts = text.split(/(\*\*[^*\n][^*\n]*\*\*|__[^_\n][^_\n]*__)/g);
+function renderItalicSegments(
+  text: string,
+  keyPrefix: string,
+): React.ReactNode[] {
+  const ITALIC_RE = /(?<!\*)\*(?!\*)(.+?)\*(?!\*)|(?<!_)_(?!_)(.+?)_(?!_)/g;
+  const segments: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let i = 0;
 
-  if (parts.length === 1) {
-    return text;
+  for (const match of text.matchAll(ITALIC_RE)) {
+    const idx = match.index;
+    if (idx > lastIndex) {
+      segments.push(text.slice(lastIndex, idx));
+    }
+    const content = match[1] ?? match[2];
+    segments.push(<em key={`${keyPrefix}-em-${i++}`}>{content}</em>);
+    lastIndex = idx + match[0].length;
   }
 
-  return parts.map((part) => {
-    const strongMatch =
-      part.match(/^\*\*([^*\n][^*\n]*)\*\*$/) ??
-      part.match(/^__([^_\n][^_\n]*)__$/);
+  if (lastIndex === 0) return [text];
+  if (lastIndex < text.length) segments.push(text.slice(lastIndex));
+  return segments;
+}
 
-    if (!strongMatch) {
-      return part;
+function renderTextWithMarkdownStrong(
+  text: string,
+): React.ReactNode | React.ReactNode[] {
+  const BOLD_RE = /\*\*((?:(?!\*\*)[^\n])+)\*\*|__((?:(?!__)[^\n])+)__/g;
+  const segments: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let i = 0;
+
+  for (const match of text.matchAll(BOLD_RE)) {
+    const idx = match.index;
+    if (idx > lastIndex) {
+      segments.push(
+        ...renderItalicSegments(text.slice(lastIndex, idx), `pre-${i}`),
+      );
     }
+    const content = (match[1] ?? match[2]) as string;
+    const inner = renderItalicSegments(content, `b-${i}`);
+    segments.push(<strong key={`strong-${i++}`}>{inner}</strong>);
+    lastIndex = idx + match[0].length;
+  }
 
-    return <strong key={`strong-${strongMatch[1]}`}>{strongMatch[1]}</strong>;
-  });
+  if (lastIndex === 0) {
+    const italicResult = renderItalicSegments(text, "root");
+    return italicResult.length === 1 && typeof italicResult[0] === "string"
+      ? text
+      : italicResult;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push(...renderItalicSegments(text.slice(lastIndex), `post-${i}`));
+  }
+
+  return segments;
 }
 
 function resolveTextTransform(effects: RuleEffect[]) {

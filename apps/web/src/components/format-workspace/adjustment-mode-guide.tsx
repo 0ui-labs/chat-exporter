@@ -1,7 +1,4 @@
-import {
-  adjustmentLabels,
-  getAdjustViewLabel,
-} from "@/components/format-workspace/labels";
+import { adjustmentLabels } from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
 
 type AdjustmentModeGuideProps = {
@@ -20,7 +17,7 @@ export function AdjustmentModeGuide({
         className="pointer-events-auto w-full max-w-md rounded-[1.4rem] border border-border/80 bg-background/96 p-4 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)] backdrop-blur"
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
-          {getAdjustViewLabel(view)}
+          {adjustmentLabels.adjustLabel}
         </p>
         <p className="mt-2 text-sm text-foreground">
           {adjustmentLabels.guideInstruction}

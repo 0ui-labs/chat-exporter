@@ -3,6 +3,8 @@ import { Clock3, LoaderCircle } from "lucide-react";
 
 import { getJobStatusLabel } from "@/components/format-workspace/labels";
 import { SaveIndicator } from "@/components/format-workspace/save-indicator";
+import { getStageProgress } from "@/components/format-workspace/stage-progress";
+import { getStatusVariant } from "@/components/format-workspace/status-variant";
 import { Badge } from "@/components/ui/badge";
 
 type ActiveStage = {
@@ -27,7 +29,7 @@ export function StatusHeader({
 }: StatusHeaderProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Badge variant={job.status === "completed" ? "default" : "outline"}>
+      <Badge variant={getStatusVariant(job.status)}>
         {getJobStatusLabel(job.status)}
       </Badge>
       {job.summary ? (
@@ -38,15 +40,23 @@ export function StatusHeader({
       ) : null}
       <SaveIndicator isSaving={isSaving} hasEdits={hasEdits} />
       {job.status !== "completed" && activeStage ? (
-        <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-          {job.status === "queued" ? (
-            <Clock3 className="h-4 w-4" />
-          ) : (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          )}
-          <span>{activeStage.label}</span>
-          <span>·</span>
-          <span>{elapsedTime}</span>
+        <div className="flex flex-col gap-1.5">
+          <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            {job.status === "queued" ? (
+              <Clock3 className="h-4 w-4" />
+            ) : (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            )}
+            <span>{activeStage.label}</span>
+            <span>·</span>
+            <span>{elapsedTime}</span>
+          </div>
+          <div className="h-0.5 w-full rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${getStageProgress(job)}%` }}
+            />
+          </div>
         </div>
       ) : null}
     </div>

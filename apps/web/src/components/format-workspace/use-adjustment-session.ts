@@ -1,11 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type FormEvent,
   useCallback,
   useEffect,
   useReducer,
   useRef,
+  useState,
 } from "react";
+import { toast } from "sonner";
 
 import {
   type AdjustmentSelection,
@@ -13,12 +15,19 @@ import {
   type ViewMode,
   type ViewportAnchor,
 } from "@/components/format-workspace/types";
+import { useElementScreenshot } from "@/hooks/use-element-screenshot";
 import { orpc } from "@/lib/orpc";
 
 import {
   createInitialState,
   sessionReducer,
 } from "./adjustment-session-reducer";
+
+export type AgentLoopStatus =
+  | { phase: "idle" }
+  | { phase: "thinking" }
+  | { phase: "done" }
+  | { phase: "failed"; reason: string };
 
 function extractErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -32,7 +41,13 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     undefined,
     createInitialState,
   );
+  const [agentLoopStatus, setAgentLoopStatus] = useState<AgentLoopStatus>({
+    phase: "idle",
+  });
   const queryClient = useQueryClient();
+  const { capture: captureScreenshot } = useElementScreenshot();
+
+  const statusQuery = useQuery(orpc.adjustments.status.queryOptions());
 
   const createSession = useMutation(
     orpc.adjustments.createSession.mutationOptions(),
@@ -40,10 +55,18 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
 
   const appendMessage = useMutation(
     orpc.adjustments.appendMessage.mutationOptions({
+      onMutate: () => {
+        setAgentLoopStatus({ phase: "thinking" });
+      },
       onSuccess: (nextDetail) => {
         dispatch({ type: "APPEND_MESSAGE_SUCCESS", view, detail: nextDetail });
-        if (nextDetail.session.status === "applied")
+        if (nextDetail.session.status === "applied") {
           queryClient.invalidateQueries({ queryKey: orpc.rules.list.key() });
+          setAgentLoopStatus({ phase: "done" });
+          toast.success("Anpassung übernommen");
+        } else {
+          setAgentLoopStatus({ phase: "idle" });
+        }
       },
       onError: (error) => {
         dispatch({
@@ -53,13 +76,21 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
             "Anpassungsnachricht konnte nicht gespeichert werden.",
           ),
         });
+        setAgentLoopStatus({
+          phase: "failed",
+          reason: extractErrorMessage(error, "Unbekannter Fehler"),
+        });
+        toast.error("Anpassung fehlgeschlagen");
       },
     }),
   );
 
   const discardSession = useMutation(
     orpc.adjustments.discard.mutationOptions({
-      onSuccess: () => dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view }),
+      onSuccess: () => {
+        dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
+        toast.info("Letzte Änderung verworfen");
+      },
       onError: (error) => {
         if (state.activeSessionDetail?.session.status === "applied") {
           dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
@@ -74,6 +105,10 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
         }
       },
     }),
+  );
+
+  const setScopeMutation = useMutation(
+    orpc.adjustments.setScope.mutationOptions(),
   );
 
   // Derived values
@@ -144,11 +179,24 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
 
   const toggleAdjustMode = useCallback(() => {
     if (!isAdjustableView) return;
+
+    // Block enabling when AI is unavailable
+    if (
+      !state.adjustModeByView[view] &&
+      statusQuery.data &&
+      !statusQuery.data.available
+    ) {
+      toast.info(
+        "Der KI-Anpassungsmodus erfordert einen API-Schlüssel. Bitte richte einen Anthropic API-Key ein.",
+      );
+      return;
+    }
+
     const nextEnabled = !state.adjustModeByView[view];
     dispatch({ type: "SET_ADJUST_MODE", view, enabled: nextEnabled });
     dispatch({ type: "SET_GUIDE_DISMISSED", view, dismissed: false });
     if (!nextEnabled) dispatch({ type: "CLEAR_ADJUSTMENT_STATE", view });
-  }, [isAdjustableView, state.adjustModeByView, view]);
+  }, [isAdjustableView, state.adjustModeByView, view, statusQuery.data]);
 
   const handleSelectionChange = useCallback(
     (selection: AdjustmentSelection, anchor: ViewportAnchor) => {
@@ -179,31 +227,59 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
   const latestRef = useRef({
     activeSessionDetail: state.activeSessionDetail,
     draftMessageByView: state.draftMessageByView,
+    selectionByView: state.selectionByView,
     appendMutate: appendMessage.mutate,
     discardMutate: discardSession.mutate,
   });
   latestRef.current = {
     activeSessionDetail: state.activeSessionDetail,
     draftMessageByView: state.draftMessageByView,
+    selectionByView: state.selectionByView,
     appendMutate: appendMessage.mutate,
     discardMutate: discardSession.mutate,
   };
 
   const handleSubmitMessage = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const { activeSessionDetail, draftMessageByView, appendMutate } =
-        latestRef.current;
+      const {
+        activeSessionDetail,
+        draftMessageByView,
+        appendMutate,
+        selectionByView,
+      } = latestRef.current;
       if (!activeSessionDetail) return;
       const content = draftMessageByView[view].trim();
       if (!content) return;
       dispatch({ type: "SET_SESSION_ERROR", error: null });
+
+      // Capture screenshot + markup of the selected block
+      let screenshot: string | undefined;
+      let markup: string | undefined;
+      const selection = selectionByView[view];
+
+      if (selection && sectionRef.current) {
+        const blockEl = sectionRef.current.querySelector<HTMLElement>(
+          `[data-testid="reader-block-${selection.messageId}-${selection.blockIndex}"]`,
+        );
+        if (blockEl) {
+          try {
+            screenshot = await captureScreenshot(blockEl);
+          } catch {
+            // Screenshot capture is best-effort — don't block the message
+          }
+          markup = blockEl.innerHTML;
+        }
+      }
+
       appendMutate({
         sessionId: activeSessionDetail.session.id,
         content,
+        screenshot,
+        markup,
       });
     },
-    [view],
+    [view, captureScreenshot],
   );
 
   const handleDiscardSession = useCallback(() => {
@@ -239,8 +315,45 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     [],
   );
 
+  const handleScopeSelect = useCallback(
+    (scope: "global" | "local") => {
+      const { activeSessionDetail } = latestRef.current;
+      if (!activeSessionDetail) {
+        setAgentLoopStatus({ phase: "idle" });
+        return;
+      }
+
+      // For "local", no server call needed — rule already has exact selector
+      if (scope === "local") {
+        setAgentLoopStatus({ phase: "idle" });
+        toast.success("Regel gilt nur für diesen Block.");
+        return;
+      }
+
+      // For "global", update rule selectors to block_type strategy
+      setScopeMutation.mutate(
+        { sessionId: activeSessionDetail.session.id, scope },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({
+              queryKey: orpc.rules.list.key(),
+            });
+            setAgentLoopStatus({ phase: "idle" });
+            toast.success("Regel gilt jetzt global.");
+          },
+          onError: () => {
+            setAgentLoopStatus({ phase: "idle" });
+            toast.error("Scope konnte nicht geändert werden.");
+          },
+        },
+      );
+    },
+    [queryClient.invalidateQueries, setScopeMutation.mutate],
+  );
+
   return {
     sectionRef,
+    adjustmentAvailable: statusQuery.data?.available ?? false,
     adjustModeEnabled: isAdjustModeEnabled,
     activeSessionDetail: state.activeSessionDetail,
     activeSelection,
@@ -264,5 +377,7 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
     clearCurrentAdjustmentState,
     setReplyVisible,
     setGuideDismissed,
+    agentLoopStatus,
+    handleScopeSelect,
   };
 }

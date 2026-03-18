@@ -29,6 +29,44 @@ vi.mock("@/lib/rpc", () => ({
   },
 }));
 
+vi.mock("@/lib/orpc", () => ({
+  orpc: {
+    adjustments: {
+      createSession: {
+        mutationOptions: () => ({ mutationFn: vi.fn() }),
+      },
+      appendMessage: {
+        mutationOptions: () => ({ mutationFn: vi.fn() }),
+      },
+      discard: {
+        mutationOptions: () => ({ mutationFn: vi.fn() }),
+      },
+      status: {
+        queryOptions: () => ({
+          queryKey: ["adjustments", "status"],
+          queryFn: () =>
+            Promise.resolve({
+              available: true,
+              provider: "anthropic",
+            }),
+        }),
+      },
+    },
+    rules: {
+      list: {
+        queryOptions: (opts: unknown) => ({
+          queryKey: ["rules", "list", opts],
+          queryFn: () => Promise.resolve([]),
+        }),
+        key: () => ["rules", "list"],
+      },
+      disable: {
+        mutationOptions: () => ({ mutationFn: vi.fn() }),
+      },
+    },
+  },
+}));
+
 const mockGet = vi.fn();
 
 vi.mock("@/lib/format-plugins", () => ({

@@ -6,6 +6,7 @@ import {
   AgentUnavailableError,
   runAgentTurn,
 } from "../lib/adjustment-agent.js";
+import { readAdjustmentAiConfig } from "../lib/adjustment-ai-config.js";
 import {
   appendAdjustmentMessage,
   createAdjustmentSession,
@@ -17,11 +18,13 @@ import {
   getAdjustmentSessionDetail,
   listAdjustmentSessions,
   listFormatRules,
+  listSessionEvents,
   markSessionApplied,
   promoteRuleToProfile,
   recordAdjustmentEvent,
   reopenAdjustmentSession,
   updateFormatRuleEffect,
+  updateFormatRuleSelector,
 } from "../lib/adjustment-repository.js";
 import { importFromClipboard } from "../lib/clipboard-import.js";
 import {
@@ -268,10 +271,14 @@ export const router = os.router({
       // Phase 2 — no wrapper: async AI call
       try {
         const job = getImportJob(detail.session.importId);
+        const sessionEvents = listSessionEvents(input.sessionId);
         const result = await runAgentTurn({
           sessionDetail: latestDetail,
           activeRules,
+          sessionEvents,
           job,
+          screenshot: input.screenshot,
+          markup: input.markup,
           callbacks: {
             onCreateRule: async ({ selector, effect, description }) => {
               const rule = createFormatRuleDirect({
@@ -376,6 +383,51 @@ export const router = os.router({
 
     metrics: os.adjustments.metrics.handler(({ input }) => {
       return getAdjustmentMetrics(input.importId, input.format);
+    }),
+
+    status: os.adjustments.status.handler(() => {
+      const config = readAdjustmentAiConfig();
+      return {
+        available: config.enabled,
+        provider: config.provider,
+        reason: config.disabledReason,
+      };
+    }),
+
+    setScope: os.adjustments.setScope.handler(({ input }) => {
+      const session = getAdjustmentSessionDetail(input.sessionId);
+      if (!session) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Adjustment-Session nicht gefunden.",
+        });
+      }
+
+      // Find rules created in this session
+      const rules = listFormatRules(
+        session.session.importId,
+        session.session.targetFormat,
+      ).filter(
+        (r) => r.sourceSessionId === input.sessionId && r.status === "active",
+      );
+
+      if (rules.length === 0) return { updated: 0 };
+
+      const selection = session.session.selection;
+      let updated = 0;
+
+      for (const rule of rules) {
+        if (input.scope === "global") {
+          // Change exact → block_type
+          updateFormatRuleSelector(rule.id, {
+            strategy: "block_type",
+            blockType: selection.blockType,
+          });
+          updated++;
+        }
+        // "local" = keep as-is (exact), no change needed
+      }
+
+      return { updated };
     }),
   },
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   adjustmentSessionStatusSchema,
+  appendAdjustmentMessageRequestSchema,
   blockTypeSelectorSchema,
   compoundSelectorSchema,
   customStyleEffectSchema,
@@ -11,6 +12,61 @@ import {
   readerPrefixSelectorSchema,
   readerRuleSelectorSchema,
 } from "./adjustments.js";
+
+// ---------------------------------------------------------------------------
+// appendAdjustmentMessageRequestSchema
+// ---------------------------------------------------------------------------
+
+describe("appendAdjustmentMessageRequestSchema", () => {
+  test("accepts content only", () => {
+    const result = appendAdjustmentMessageRequestSchema.safeParse({
+      content: "test",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts content with screenshot and markup", () => {
+    const result = appendAdjustmentMessageRequestSchema.safeParse({
+      content: "test",
+      screenshot: "base64data",
+      markup: "<p>hello</p>",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.screenshot).toBe("base64data");
+      expect(result.data.markup).toBe("<p>hello</p>");
+    }
+  });
+
+  test("rejects empty content", () => {
+    const result = appendAdjustmentMessageRequestSchema.safeParse({
+      content: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  test("accepts content with only screenshot", () => {
+    const result = appendAdjustmentMessageRequestSchema.safeParse({
+      content: "fix this",
+      screenshot: "base64png",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.screenshot).toBe("base64png");
+    }
+  });
+
+  test("accepts content with only markup", () => {
+    const result = appendAdjustmentMessageRequestSchema.safeParse({
+      content: "fix this",
+      markup: "<div>block</div>",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.markup).toBe("<div>block</div>");
+    }
+  });
+});
 
 // ---------------------------------------------------------------------------
 // compoundSelectorSchema

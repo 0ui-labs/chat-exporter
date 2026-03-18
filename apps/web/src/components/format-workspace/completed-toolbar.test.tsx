@@ -1,8 +1,10 @@
+// @vitest-environment happy-dom
 import { defaultRegistry } from "@chat-exporter/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { useFormatRules } from "@/components/format-workspace/use-format-rules";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { CompletedToolbar } from "./completed-toolbar";
 
@@ -80,7 +82,14 @@ function renderToolbar(options: RenderToolbarOptions = {}) {
     onViewChange: vi.fn(),
   };
 
-  return { ...render(<CompletedToolbar {...props} />), props };
+  return {
+    ...render(
+      <TooltipProvider delayDuration={0}>
+        <CompletedToolbar {...props} />
+      </TooltipProvider>,
+    ),
+    props,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -103,14 +112,29 @@ beforeAll(() => {
 // ---------------------------------------------------------------------------
 
 describe("CompletedToolbar", () => {
-  describe("two-row layout", () => {
-    test("renders format buttons row with all four view buttons", () => {
+  describe("pill group view selector", () => {
+    test("renders all view buttons inside a pill group container", () => {
       renderToolbar();
+
+      const pillGroup = screen.getByTestId("view-selector-pill-group");
+      expect(pillGroup).toBeInTheDocument();
 
       expect(screen.getByTestId("format-view-reader")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-markdown")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-handover")).toBeInTheDocument();
       expect(screen.getByTestId("format-view-json")).toBeInTheDocument();
+    });
+
+    test("view buttons are children of the pill group", () => {
+      renderToolbar();
+
+      const pillGroup = screen.getByTestId("view-selector-pill-group");
+      const registryFormats = defaultRegistry.getAll();
+
+      for (const format of registryFormats) {
+        const button = screen.getByTestId(`format-view-${format.id}`);
+        expect(pillGroup.contains(button)).toBe(true);
+      }
     });
 
     test("renders tab labels matching the defaultRegistry", () => {
@@ -123,6 +147,32 @@ describe("CompletedToolbar", () => {
       }
     });
 
+    test("active view button has active styling class", () => {
+      renderToolbar({ view: "markdown" });
+
+      const activeButton = screen.getByTestId("format-view-markdown");
+      expect(activeButton.className).toMatch(/bg-foreground/);
+      expect(activeButton.className).toMatch(/text-background/);
+    });
+
+    test("inactive view buttons have muted styling class", () => {
+      renderToolbar({ view: "reader" });
+
+      const inactiveButton = screen.getByTestId("format-view-markdown");
+      expect(inactiveButton.className).toMatch(/text-muted-foreground/);
+    });
+
+    test("clicking a view button calls onViewChange", async () => {
+      const user = userEvent.setup();
+      const { props } = renderToolbar({ view: "reader" });
+
+      await user.click(screen.getByTestId("format-view-markdown"));
+
+      expect(props.onViewChange).toHaveBeenCalledWith("markdown");
+    });
+  });
+
+  describe("two-row layout", () => {
     test("renders action buttons row with download button", () => {
       renderToolbar();
 
@@ -271,6 +321,28 @@ describe("CompletedToolbar", () => {
       await user.click(screen.getByTestId("toolbar-versions"));
 
       expect(onVersionsClick).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("tooltips", () => {
+    test("download button is wrapped in a Radix tooltip trigger", () => {
+      renderToolbar();
+
+      const downloadButton = screen.getByTestId("toolbar-download");
+
+      // Radix Tooltip adds data-state to the trigger element
+      expect(downloadButton).toHaveAttribute("data-state", "closed");
+      // title attribute should be removed (replaced by Tooltip)
+      expect(downloadButton).not.toHaveAttribute("title");
+    });
+
+    test("adjust button is wrapped in a Radix tooltip trigger", () => {
+      renderToolbar({ isAdjustableView: true });
+
+      const adjustButton = screen.getByTestId("toggle-adjust-mode-reader");
+
+      expect(adjustButton).toHaveAttribute("data-state", "closed");
+      expect(adjustButton).not.toHaveAttribute("title");
     });
   });
 });

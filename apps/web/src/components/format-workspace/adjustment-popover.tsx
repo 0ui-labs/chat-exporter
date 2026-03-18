@@ -6,7 +6,7 @@ import {
   shift,
   useFloating,
 } from "@floating-ui/react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import {
   type FormEvent,
   memo,
@@ -20,8 +20,11 @@ import type {
   FloatingAdjustmentAnchor,
   ViewMode,
 } from "@/components/format-workspace/types";
+import type { AgentLoopStatus } from "@/components/format-workspace/use-adjustment-session";
+import { Button } from "@/components/ui/button";
 
 type AdjustmentPopoverProps = {
+  agentLoopStatus: AgentLoopStatus;
   anchor: FloatingAdjustmentAnchor | null;
   containerRef: React.RefObject<HTMLElement | null>;
   draftMessage: string;
@@ -31,6 +34,7 @@ type AdjustmentPopoverProps = {
   onClose: () => void;
   onDraftMessageChange: (value: string) => void;
   onRejectLastChange: (() => void) | undefined;
+  onScopeSelect?: (scope: "global" | "local") => void;
   onSubmitMessage: (event: FormEvent<HTMLFormElement>) => void;
   open: boolean;
   sessionDetail: AdjustmentSessionDetail | null;
@@ -90,6 +94,7 @@ const DraftTextarea = memo(function DraftTextarea({
 });
 
 const PopoverContent = memo(function PopoverContent({
+  agentLoopStatus,
   draftMessage,
   error,
   isLoading,
@@ -97,6 +102,7 @@ const PopoverContent = memo(function PopoverContent({
   onClose,
   onDraftMessageChange,
   onRejectLastChange,
+  onScopeSelect,
   onSubmitMessage,
   sessionDetail,
   showReply,
@@ -179,13 +185,13 @@ const PopoverContent = memo(function PopoverContent({
               {adjustmentLabels.cancel}
             </button>
             {showReply && !isLoading && onRejectLastChange != null ? (
-              <button
-                className="inline-flex items-center justify-center rounded-xl border border-border/80 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-foreground/5"
+              <Button
+                variant="destructive-outline"
                 type="button"
                 onClick={onRejectLastChange}
               >
                 {adjustmentLabels.discard}
-              </button>
+              </Button>
             ) : null}
             <button
               data-testid="adjustment-send"
@@ -202,6 +208,43 @@ const PopoverContent = memo(function PopoverContent({
           </div>
         </form>
       </div>
+
+      {agentLoopStatus.phase === "thinking" && (
+        <div
+          data-testid="agent-status-thinking"
+          className="flex items-center gap-2 border-t border-border/80 px-4 py-2 text-xs text-muted-foreground"
+        >
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>{adjustmentLabels.agentThinking}</span>
+        </div>
+      )}
+
+      {agentLoopStatus.phase === "done" && lastAssistantMessage && (
+        <div
+          data-testid="scope-selection"
+          className="border-t border-border/80 px-4 py-3"
+        >
+          <p className="mb-2 text-xs text-muted-foreground">
+            {adjustmentLabels.scopeQuestion}
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              type="button"
+              onClick={() => onScopeSelect?.("global")}
+            >
+              {adjustmentLabels.scopeGlobal}
+            </button>
+            <button
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+              type="button"
+              onClick={() => onScopeSelect?.("local")}
+            >
+              {adjustmentLabels.scopeLocal}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

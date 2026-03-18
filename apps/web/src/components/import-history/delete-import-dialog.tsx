@@ -1,6 +1,7 @@
 import type { ImportSummary } from "@chat-exporter/shared";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { rpc } from "@/lib/rpc";
@@ -20,7 +21,10 @@ export function DeleteImportDialog({
 
   const deleteMutation = useMutation({
     mutationFn: () => rpc.imports.delete({ id: import_.id }),
-    onSuccess: () => onDeleted(),
+    onSuccess: () => {
+      toast.success("Import gelöscht");
+      onDeleted();
+    },
   });
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export function DeleteImportDialog({
             Abbrechen
           </Button>
           <Button
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             disabled={deleteMutation.isPending}
             onClick={() => deleteMutation.mutate()}
           >

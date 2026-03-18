@@ -10,6 +10,11 @@ import {
   AgentUnavailableError,
   runAgentTurn,
 } from "./adjustment-agent.js";
+import { requestClaudeResponse } from "./claude-client.js";
+
+vi.mock("./claude-client.js", () => ({
+  requestClaudeResponse: vi.fn(),
+}));
 
 // --- Env setup ---
 
@@ -22,6 +27,13 @@ function setTestEnv() {
   process.env.ADJUSTMENT_RULE_COMPILATION_MODEL = "gpt-5-mini";
   process.env.OPENAI_API_BASE_URL = "https://example.test/v1";
   process.env.OPENAI_API_KEY = "test-key";
+}
+
+function setAnthropicTestEnv() {
+  process.env.ADJUSTMENT_RULE_COMPILATION_ENABLED = "1";
+  process.env.ADJUSTMENT_RULE_COMPILATION_PROVIDER = "anthropic";
+  process.env.ADJUSTMENT_AGENT_MODEL = "claude-sonnet-4-20250514";
+  process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
 }
 
 // --- Factories ---
@@ -78,6 +90,51 @@ function createCallbacks() {
     onCreateRule: vi.fn().mockResolvedValue({ ruleId: "rule-new-1" }),
     onUpdateRule: vi.fn().mockResolvedValue(undefined),
     onDeleteRule: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+/** Creates a session with multiple user messages (simulates later turns). */
+function createMultiTurnSessionDetail(): AdjustmentSessionDetail {
+  return {
+    messages: [
+      {
+        content: "Wie kann ich helfen?",
+        createdAt: "2026-03-08T12:00:00.000Z",
+        id: "assistant-1",
+        role: "assistant" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Mach den Text größer",
+        createdAt: "2026-03-08T12:01:00.000Z",
+        id: "user-1",
+        role: "user" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Die Schriftgröße wurde angepasst.",
+        createdAt: "2026-03-08T12:02:00.000Z",
+        id: "assistant-2",
+        role: "assistant" satisfies Role,
+        sessionId: "session-1",
+      },
+      {
+        content: "Jetzt noch fetter bitte",
+        createdAt: "2026-03-08T12:03:00.000Z",
+        id: "user-2",
+        role: "user" satisfies Role,
+        sessionId: "session-1",
+      },
+    ],
+    session: {
+      createdAt: "2026-03-08T12:00:00.000Z",
+      id: "session-1",
+      importId: "import-1",
+      selection: createSelection(),
+      status: "open",
+      targetFormat: "reader",
+      updatedAt: "2026-03-08T12:03:00.000Z",
+    },
   };
 }
 
@@ -540,6 +597,126 @@ describe("AdjustmentAgent", () => {
     );
   });
 
+  test("hallucination guard: AI message without tool actions and no question mark → fallback", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    // AI returns a confident statement without calling any tools
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).not.toHaveBeenCalled();
+    expect(result.actions).toEqual([]);
+    expect(result.assistantMessage).toBe(
+      "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?",
+    );
+  });
+
+  test("hallucination guard: AI message without tool actions but with question mark → kept as clarification", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Möchtest du den Text größer oder fetter machen?"),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toEqual([]);
+    expect(result.assistantMessage).toBe(
+      "Möchtest du den Text größer oder fetter machen?",
+    );
+  });
+
+  test("hallucination guard: AI message with tool actions → message kept as-is", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toHaveLength(1);
+    // Message is kept because there ARE tool actions
+    expect(result.assistantMessage).toBe("Die Schriftgröße wurde angepasst.");
+  });
+
+  test("sends reasoning effort 'medium' in the request body", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      reasoning?: { effort?: string };
+    };
+
+    expect(body.reasoning).toBeDefined();
+    expect(body.reasoning?.effort).toBe("medium");
+  });
+
   test("throws AgentUnavailableError when AI is not configured", async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.CEREBRAS_API_KEY;
@@ -618,6 +795,453 @@ describe("AdjustmentAgent", () => {
 
     // Agent should still return
     expect(result.assistantMessage).toBeTruthy();
+  });
+
+  test("first turn sends tool_choice 'auto' (no forced tool call)", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Wie soll ich das ändern?"),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+
+    expect(body.tool_choice).toBe("auto");
+  });
+
+  test("later turns (>1 user messages) sends tool_choice 'auto'", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Wie soll ich das ändern?"),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createMultiTurnSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+
+    expect(body.tool_choice).toBe("auto");
+  });
+
+  test("tool loop follow-up calls use tool_choice 'auto'", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+
+    // First call should be "auto"
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const firstBody = JSON.parse(String(firstCall[1].body)) as {
+      tool_choice?: string;
+    };
+    expect(firstBody.tool_choice).toBe("auto");
+
+    // Second call (tool loop follow-up) should also be "auto"
+    const secondCall = fetchMock.mock.calls[1] as [string, RequestInit];
+    const secondBody = JSON.parse(String(secondCall[1].body)) as {
+      tool_choice?: string;
+    };
+    expect(secondBody.tool_choice).toBe("auto");
+  });
+
+  test("returns awaitingVisualFeedback: true when actions were taken", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-1",
+            output: [functionCallOutput("create_rule", createArgs)],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "resp-2",
+            output: [
+              assistantMessageOutput("Die Schriftgröße wurde angepasst."),
+            ],
+            output_text: null,
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toHaveLength(1);
+    expect(result.awaitingVisualFeedback).toBe(true);
+  });
+
+  test("returns awaitingVisualFeedback: false when no actions (clarification only)", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Möchtest du den Text größer oder fetter machen?"),
+    ]);
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(result.actions).toEqual([]);
+    expect(result.awaitingVisualFeedback).toBe(false);
+  });
+
+  test("markup is included in input messages when provided", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+      markup: "<p>Example content</p>",
+    });
+
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const firstCall = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(firstCall[1].body)) as {
+      input: Array<{ content?: Array<{ text?: string }> }>;
+    };
+
+    // The second message (selection context) should contain the markup
+    const selectionContextMessage = body.input[1];
+    const allText = selectionContextMessage?.content
+      ?.map((c) => c.text ?? "")
+      .join("");
+    expect(allText).toContain("Gerendetes Markup des Blocks");
+    expect(allText).toContain("<p>Example content</p>");
+  });
+});
+
+describe("AdjustmentAgent — Anthropic provider", () => {
+  const mockClaudeResponse = requestClaudeResponse as ReturnType<typeof vi.fn>;
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    globalThis.fetch = originalFetch;
+    mockClaudeResponse.mockReset();
+  });
+
+  test("Claude request has correct format (system, messages, tools)", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Wie soll ich das ändern?" }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(mockClaudeResponse).toHaveBeenCalledOnce();
+    const [request, config] = mockClaudeResponse.mock.calls[0] as [
+      {
+        system: string;
+        messages: unknown[];
+        tools: unknown[];
+        model: string;
+        max_tokens: number;
+        tool_choice?: unknown;
+      },
+      { apiKey: string; timeoutMs: number },
+    ];
+
+    // System prompt should be a string
+    expect(typeof request.system).toBe("string");
+    expect(request.system).toContain("Anpassungsmodus");
+
+    // Messages should be Claude format (user/assistant, no system)
+    expect(request.messages.length).toBeGreaterThan(0);
+    const firstMsg = request.messages[0] as { role: string };
+    expect(firstMsg.role).toBe("user");
+
+    // Tools should be in Claude format (name, description, input_schema)
+    expect(request.tools.length).toBeGreaterThan(0);
+    const firstTool = request.tools[0] as {
+      name: string;
+      description: string;
+      input_schema: unknown;
+    };
+    expect(firstTool).toHaveProperty("name");
+    expect(firstTool).toHaveProperty("description");
+    expect(firstTool).toHaveProperty("input_schema");
+
+    // Config should contain Anthropic API key
+    expect(config.apiKey).toBe("test-anthropic-key");
+  });
+
+  test("tool results are correctly formatted for Claude", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    const createArgs = {
+      selector: {
+        strategy: "exact",
+        messageId: "message-1",
+        blockIndex: 0,
+        blockType: "paragraph",
+      },
+      effect: {
+        type: "custom_style",
+        textStyle: { fontSize: "1.25rem" },
+      },
+      description: "Größere Schrift",
+    };
+
+    // First call: tool_use response
+    mockClaudeResponse
+      .mockResolvedValueOnce({
+        id: "msg-1",
+        content: [
+          {
+            type: "tool_use",
+            id: "toolu_1",
+            name: "create_rule",
+            input: createArgs,
+          },
+        ],
+        stop_reason: "tool_use",
+        model: "claude-sonnet-4-20250514",
+        usage: { input_tokens: 100, output_tokens: 50 },
+      })
+      .mockResolvedValueOnce({
+        id: "msg-2",
+        content: [{ type: "text", text: "Die Schriftgröße wurde angepasst." }],
+        stop_reason: "end_turn",
+        model: "claude-sonnet-4-20250514",
+        usage: { input_tokens: 200, output_tokens: 30 },
+      });
+
+    const result = await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    expect(callbacks.onCreateRule).toHaveBeenCalledOnce();
+    expect(result.actions).toHaveLength(1);
+
+    // Second call should contain tool_result in messages
+    const secondCall = mockClaudeResponse.mock.calls[1] as [
+      {
+        messages: Array<{
+          role: string;
+          content: Array<{ type: string; tool_use_id?: string }>;
+        }>;
+      },
+    ];
+    const lastMsg = secondCall[0].messages[secondCall[0].messages.length - 1];
+    expect(lastMsg).toBeDefined();
+    expect(lastMsg!.role).toBe("user");
+    const toolResult = lastMsg!.content.find((c) => c.type === "tool_result");
+    expect(toolResult).toBeDefined();
+    expect(toolResult?.tool_use_id).toBe("toolu_1");
+  });
+
+  test("fallback to OpenAI works via provider config", async () => {
+    setTestEnv();
+    const callbacks = createCallbacks();
+
+    globalThis.fetch = mockResponsesApi([
+      assistantMessageOutput("Alles klar."),
+    ]);
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    // Should NOT have called Claude
+    expect(mockClaudeResponse).not.toHaveBeenCalled();
+    // Should have called fetch (OpenAI)
+    expect(globalThis.fetch).toHaveBeenCalled();
+  });
+
+  test("screenshot is included as image content block for Anthropic provider", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Alles klar." }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+      screenshot: "iVBORw0KGgoAAAANS",
+    });
+
+    const [request] = mockClaudeResponse.mock.calls[0] as [
+      { messages: Array<{ role: string; content: unknown[] }> },
+    ];
+
+    // First user message should contain image content block
+    const firstUserMsg = request.messages[0]!;
+    expect(firstUserMsg.role).toBe("user");
+    const imageBlock = (
+      firstUserMsg.content as Array<{
+        type: string;
+        source?: { type: string; media_type: string; data: string };
+      }>
+    ).find((c) => c.type === "image");
+    expect(imageBlock).toBeDefined();
+    expect(imageBlock?.source?.type).toBe("base64");
+    expect(imageBlock?.source?.media_type).toBe("image/png");
+    expect(imageBlock?.source?.data).toBe("iVBORw0KGgoAAAANS");
+  });
+
+  test("tools are correctly converted from OpenAI to Claude format", async () => {
+    setAnthropicTestEnv();
+    const callbacks = createCallbacks();
+
+    mockClaudeResponse.mockResolvedValueOnce({
+      id: "msg-1",
+      content: [{ type: "text", text: "Alles klar." }],
+      stop_reason: "end_turn",
+      model: "claude-sonnet-4-20250514",
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+
+    await runAgentTurn({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks,
+    });
+
+    const [request] = mockClaudeResponse.mock.calls[0] as [
+      {
+        tools: Array<{
+          name: string;
+          description: string;
+          input_schema: Record<string, unknown>;
+        }>;
+      },
+    ];
+
+    // Should have create_rule, update_rule, delete_rule
+    const toolNames = request.tools.map((t) => t.name);
+    expect(toolNames).toContain("create_rule");
+    expect(toolNames).toContain("update_rule");
+    expect(toolNames).toContain("delete_rule");
+
+    // Each tool should have input_schema (not parameters)
+    for (const tool of request.tools) {
+      expect(tool).toHaveProperty("input_schema");
+      expect(tool).not.toHaveProperty("parameters");
+      expect(tool).not.toHaveProperty("type");
+      expect(tool).not.toHaveProperty("strict");
+    }
   });
 });
 
@@ -739,6 +1363,260 @@ describe("buildSelectorSchema", () => {
   });
 });
 
+describe("buildActionHistory", () => {
+  function createFormatRule(
+    overrides: Partial<import("@chat-exporter/shared").FormatRule> = {},
+  ): import("@chat-exporter/shared").FormatRule {
+    return {
+      id: "rule-1",
+      importId: null,
+      targetFormat: "reader",
+      kind: "render",
+      scope: "import_local",
+      status: "active",
+      selector: { strategy: "block_type", blockType: "paragraph" },
+      instruction: "Default instruction",
+      createdAt: "2026-03-08T12:00:00.000Z",
+      updatedAt: "2026-03-08T12:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  test("returns empty string for empty event list", () => {
+    const result = _internal.buildActionHistory([], []);
+
+    expect(result).toBe("");
+  });
+
+  test("maps rule_applied events to rule description", () => {
+    const rules = [
+      createFormatRule({
+        id: "abc-123",
+        instruction: "Liste weiter eingerückt",
+      }),
+      createFormatRule({ id: "def-456", instruction: "Überschrift kleiner" }),
+    ];
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "abc-123",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+      {
+        eventType: "rule_applied",
+        ruleId: "def-456",
+        createdAt: "2026-03-08T12:02:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, rules);
+
+    expect(result).toContain("## Deine bisherigen Aktionen in dieser Session");
+    expect(result).toContain(
+      '1. Regel erstellt: "Liste weiter eingerückt" (ID: abc-123)',
+    );
+    expect(result).toContain(
+      '2. Regel erstellt: "Überschrift kleiner" (ID: def-456)',
+    );
+  });
+
+  test("maps rule_disabled events to deletion text", () => {
+    const events = [
+      {
+        eventType: "rule_disabled",
+        ruleId: "ghi-789",
+        createdAt: "2026-03-08T12:03:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, []);
+
+    expect(result).toContain("1. Regel gelöscht (ID: ghi-789)");
+  });
+
+  test("uses fallback text when rule_applied event has no matching rule", () => {
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "unknown-id",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, []);
+
+    expect(result).toContain(
+      '1. Regel erstellt: "(unbekannte Regel)" (ID: unknown-id)',
+    );
+  });
+
+  test("correct numbering with mixed event types", () => {
+    const rules = [
+      createFormatRule({
+        id: "abc-123",
+        instruction: "Liste weiter eingerückt",
+      }),
+    ];
+    const events = [
+      {
+        eventType: "rule_applied",
+        ruleId: "abc-123",
+        createdAt: "2026-03-08T12:01:00.000Z",
+      },
+      {
+        eventType: "rule_disabled",
+        ruleId: "def-456",
+        createdAt: "2026-03-08T12:02:00.000Z",
+      },
+      {
+        eventType: "rule_applied",
+        ruleId: "unknown",
+        createdAt: "2026-03-08T12:03:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildActionHistory(events, rules);
+
+    expect(result).toContain(
+      '1. Regel erstellt: "Liste weiter eingerückt" (ID: abc-123)',
+    );
+    expect(result).toContain("2. Regel gelöscht (ID: def-456)");
+    expect(result).toContain(
+      '3. Regel erstellt: "(unbekannte Regel)" (ID: unknown)',
+    );
+  });
+});
+
+describe("buildSelectionContext", () => {
+  test("includes action history section when sessionEvents are provided", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      sessionEvents: [
+        {
+          eventType: "rule_applied",
+          ruleId: "rule-1",
+          createdAt: "2026-03-08T12:01:00.000Z",
+        },
+      ],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).toContain("## Deine bisherigen Aktionen in dieser Session");
+    expect(result).toContain("Regel erstellt");
+  });
+
+  test("omits action history section when no sessionEvents", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      sessionEvents: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).not.toContain(
+      "## Deine bisherigen Aktionen in dieser Session",
+    );
+  });
+
+  test("omits action history section when sessionEvents is undefined", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).not.toContain(
+      "## Deine bisherigen Aktionen in dieser Session",
+    );
+  });
+
+  test("includes full Effect objects of active rules", () => {
+    const rules = [
+      {
+        id: "rule-1",
+        importId: null,
+        targetFormat: "reader" as const,
+        kind: "render" as const,
+        scope: "import_local" as const,
+        status: "active" as const,
+        selector: {
+          strategy: "block_type" as const,
+          blockType: "list",
+        },
+        instruction: "Liste eingerückt",
+        compiledRule: {
+          type: "custom_style" as const,
+          containerStyle: { paddingLeft: "2rem" },
+        },
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: rules,
+      callbacks: createCallbacks(),
+    });
+
+    // Should contain Effect section with the full object
+    expect(result).toContain("Effect:");
+    expect(result).toContain("containerStyle");
+    expect(result).toContain("paddingLeft");
+    expect(result).toContain("2rem");
+  });
+
+  test("includes Renderer-Defaults section in context", () => {
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: [],
+      callbacks: createCallbacks(),
+    });
+
+    expect(result).toContain("Renderer-Defaults");
+    expect(result).toContain("render_markdown_strong");
+  });
+
+  test("Effect JSON is properly formatted for each rule", () => {
+    const rules = [
+      {
+        id: "rule-abc",
+        importId: null,
+        targetFormat: "reader" as const,
+        kind: "render" as const,
+        scope: "import_local" as const,
+        status: "active" as const,
+        selector: {
+          strategy: "exact" as const,
+          messageId: "m1",
+          blockIndex: 0,
+          blockType: "paragraph",
+        },
+        instruction: "Fett machen",
+        compiledRule: {
+          type: "custom_style" as const,
+          textStyle: { fontWeight: "700" },
+        },
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+    ];
+
+    const result = _internal.buildSelectionContext({
+      sessionDetail: createSessionDetail(),
+      activeRules: rules,
+      callbacks: createCallbacks(),
+    });
+
+    // Selektor and Effect should both be present for this rule
+    expect(result).toContain("[rule-abc]");
+    expect(result).toContain("Selektor:");
+    expect(result).toContain("Effect:");
+    expect(result).toContain("fontWeight");
+  });
+});
+
 describe("buildSystemPrompt", () => {
   test("reader prompt contains compound examples", () => {
     const prompt = _internal.buildSystemPrompt("reader");
@@ -752,5 +1630,55 @@ describe("buildSystemPrompt", () => {
     const prompt = _internal.buildSystemPrompt("reader");
 
     expect(prompt).toContain("Wann compound statt block_type");
+  });
+
+  test("reader prompt contains Renderer-Defaults section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Renderer-Defaults");
+    expect(prompt).toContain("render_markdown_strong");
+    expect(prompt).toContain(
+      "Erstelle niemals eine Regel die nur den Default wiederholt",
+    );
+  });
+
+  test("reader prompt contains Vision-Anweisungen section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Visuelles Feedback");
+    expect(prompt).toContain(
+      "Du bekommst einen Screenshot des ausgewählten Blocks",
+    );
+    expect(prompt).toContain("Melde erst Erfolg wenn du im Screenshot siehst");
+  });
+
+  test("reader prompt contains Scope-Anweisungen section", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain("Scope (Geltungsbereich)");
+    expect(prompt).toContain("Frage den Nutzer IMMER ob die Regel global");
+    expect(prompt).toContain(
+      "Stelle die Scope-Frage NACH dem erfolgreichen Anwenden",
+    );
+  });
+
+  test("reader prompt contains honesty instructions", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain(
+      "Wenn du unsicher bist ob die Änderung das Problem löst",
+    );
+    expect(prompt).toContain(
+      "Behaupte niemals dass eine Änderung funktioniert hat ohne visuelles Feedback",
+    );
+  });
+
+  test("reader prompt contains instruction to check existing rules", () => {
+    const prompt = _internal.buildSystemPrompt("reader");
+
+    expect(prompt).toContain(
+      "Prüfe immer zuerst die bestehenden Regeln bevor du neue erstellst",
+    );
+    expect(prompt).toContain("delete_rule statt eine neue zu erstellen");
   });
 });

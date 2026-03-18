@@ -32,11 +32,16 @@ vi.mock("../lib/adjustment-repository.js", () => ({
   promoteRuleToProfile: vi.fn(),
   demoteRuleToLocal: vi.fn(),
   markSessionApplied: vi.fn(),
+  listSessionEvents: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock("../lib/adjustment-agent.js", () => ({
   runAgentTurn: vi.fn(),
   AgentUnavailableError: class AgentUnavailableError extends Error {},
+}));
+
+vi.mock("../lib/adjustment-ai-config.js", () => ({
+  readAdjustmentAiConfig: vi.fn(),
 }));
 
 vi.mock("../lib/delete-repository.js", () => ({
@@ -74,6 +79,7 @@ vi.mock("../db/client.js", () => ({
 
 import { createRouterClient, ORPCError } from "@orpc/server";
 import { runAgentTurn } from "../lib/adjustment-agent.js";
+import { readAdjustmentAiConfig } from "../lib/adjustment-ai-config.js";
 import {
   appendAdjustmentMessage,
   createAdjustmentSession,
@@ -151,6 +157,9 @@ const mockDiscardAdjustmentSession = discardAdjustmentSession as ReturnType<
   typeof vi.fn
 >;
 const mockRunAgentTurn = runAgentTurn as ReturnType<typeof vi.fn>;
+const mockReadAdjustmentAiConfig = readAdjustmentAiConfig as ReturnType<
+  typeof vi.fn
+>;
 const mockRecordAdjustmentEvent = recordAdjustmentEvent as ReturnType<
   typeof vi.fn
 >;
@@ -1216,5 +1225,53 @@ describe("snapshots.rename", () => {
       "import-1",
       "New name",
     );
+  });
+});
+
+describe("adjustments.status", () => {
+  test("returns available: false when no API key is configured", async () => {
+    mockReadAdjustmentAiConfig.mockReturnValue({
+      enabled: false,
+      provider: "deterministic",
+      disabledReason:
+        "No adjustment rule compilation provider key is configured.",
+    });
+
+    const result = await client.adjustments.status();
+
+    expect(result).toEqual({
+      available: false,
+      provider: "deterministic",
+      reason: "No adjustment rule compilation provider key is configured.",
+    });
+    expect(mockReadAdjustmentAiConfig).toHaveBeenCalledOnce();
+  });
+
+  test("returns available: true when API key is configured", async () => {
+    mockReadAdjustmentAiConfig.mockReturnValue({
+      enabled: true,
+      provider: "anthropic",
+      disabledReason: undefined,
+    });
+
+    const result = await client.adjustments.status();
+
+    expect(result).toEqual({
+      available: true,
+      provider: "anthropic",
+      reason: undefined,
+    });
+  });
+
+  test("includes provider name in response", async () => {
+    mockReadAdjustmentAiConfig.mockReturnValue({
+      enabled: true,
+      provider: "openai",
+      disabledReason: undefined,
+    });
+
+    const result = await client.adjustments.status();
+
+    expect(result.provider).toBe("openai");
   });
 });

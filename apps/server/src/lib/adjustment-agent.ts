@@ -8,8 +8,15 @@ import type {
 import { customStyleEffectSchema } from "@chat-exporter/shared";
 
 import { readAdjustmentAiConfig } from "./adjustment-ai-config.js";
+import type {
+  ClaudeContentBlock,
+  ClaudeMessage,
+  ClaudeResponse,
+  ClaudeTool,
+} from "./claude-client.js";
+import { requestClaudeResponse } from "./claude-client.js";
 
-export const MAX_TOOL_ROUNDS = 3;
+export const MAX_TOOL_ROUNDS = 5;
 
 export class AgentUnavailableError extends Error {}
 
@@ -34,10 +41,19 @@ type ActionRecord = {
   ruleId: string;
 };
 
+type SessionEvent = {
+  eventType: string;
+  ruleId: string | null;
+  createdAt: string;
+};
+
 type RunAgentTurnInput = {
   sessionDetail: AdjustmentSessionDetail;
   activeRules: FormatRule[];
+  sessionEvents?: SessionEvent[];
   job?: ImportJob;
+  screenshot?: string; // base64 PNG
+  markup?: string; // HTML or Markdown of the block
   callbacks: {
     onCreateRule: (params: {
       selector: Record<string, unknown>;
@@ -178,10 +194,34 @@ Du übersetzt die Wünsche des Nutzers in **Darstellungsregeln**, die sofort sic
 - Zeige niemals JSON, Regel-IDs, CSS-Properties oder technische Details.
 - Sei ehrlich — sage nur, dass etwas geändert wurde, wenn du tatsächlich ein Tool aufgerufen hast.
 - Der Nutzer sieht die Änderung sofort live im Dokument. Du musst keine Vorschau beschreiben.
+- Prüfe immer zuerst die bestehenden Regeln bevor du neue erstellst. Wenn eine bestehende Regel das gemeldete Problem verursacht, lösche sie mit delete_rule statt eine neue zu erstellen.
+- Wenn du unsicher bist ob die Änderung das Problem löst, sage das ehrlich.
+- Wenn das Problem außerhalb deiner Fähigkeiten liegt (z.B. ein Rendering-Bug im Code), sage das.
+- Behaupte niemals dass eine Änderung funktioniert hat ohne visuelles Feedback geprüft zu haben.
 
 ${isReader ? readerGuide : markdownGuide}
 
-${isReader ? readerExamples : markdownExamples}`;
+${isReader ? readerExamples : markdownExamples}
+
+## Renderer-Defaults (gelten immer, keine Regel nötig)
+
+- Alle Reader-Blöcke verwenden automatisch \`textTransform: "render_markdown_strong"\` — Markdown **fett** und *kursiv* Syntax wird als echtes HTML gerendert.
+- Du musst dafür keine Regel erstellen. Wenn der Nutzer fragt "warum werden Sternchen als fett angezeigt?" — erkläre dass das der Standard ist.
+- Erstelle niemals eine Regel die nur den Default wiederholt (z.B. eine Regel die nur \`textTransform: "render_markdown_strong"\` setzt).
+
+## Visuelles Feedback
+
+- Du bekommst einen Screenshot des ausgewählten Blocks. Nutze ihn um das aktuelle Erscheinungsbild zu verstehen.
+- Nach jeder Änderung bekommst du einen neuen Screenshot. Vergleiche ihn mit dem vorherigen um zu prüfen ob die Änderung den gewünschten Effekt hat.
+- Melde erst Erfolg wenn du im Screenshot siehst, dass das Problem behoben ist.
+- Wenn der Screenshot zeigt dass die Änderung nicht den gewünschten Effekt hatte, versuche einen anderen Ansatz.
+
+## Scope (Geltungsbereich)
+
+- Frage den Nutzer IMMER ob die Regel global (für alle Blöcke dieses Typs) oder lokal (nur dieser Block) gelten soll.
+- Default-Empfehlung: global. Nur bei explizit block-spezifischen Anfragen lokal empfehlen.
+- Stelle die Scope-Frage NACH dem erfolgreichen Anwenden der Regel, nicht vorher.
+- Beispiel: "Die Änderung ist jetzt sichtbar. Soll sie für alle Listen gelten oder nur für diese eine?"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -525,9 +565,55 @@ function buildSelectionContext(input: RunAgentTurnInput) {
       const selectorStr = rule.selector
         ? JSON.stringify(rule.selector)
         : "(kein Selektor)";
+      const effectStr = rule.compiledRule
+        ? JSON.stringify(rule.compiledRule)
+        : "(kein Effect)";
       lines.push(
-        `- [${rule.id}] ${rule.instruction ?? "(keine Beschreibung)"} — Selektor: ${selectorStr}`,
+        `- [${rule.id}] ${rule.instruction ?? "(keine Beschreibung)"}`,
       );
+      lines.push(`  Selektor: ${selectorStr}`);
+      lines.push(`  Effect: ${effectStr}`);
+    }
+  }
+
+  // Renderer-Defaults section
+  lines.push("");
+  lines.push("## Renderer-Defaults (gelten immer, keine Regel nötig)");
+  lines.push(
+    '- Alle Reader-Blöcke: textTransform = "render_markdown_strong" (Markdown **bold** und *italic* werden gerendert)',
+  );
+
+  const actionHistory = buildActionHistory(
+    input.sessionEvents ?? [],
+    activeRules,
+  );
+  if (actionHistory) {
+    lines.push("");
+    lines.push(actionHistory);
+  }
+
+  return lines.join("\n");
+}
+
+function buildActionHistory(
+  sessionEvents: SessionEvent[],
+  activeRules: FormatRule[],
+): string {
+  if (sessionEvents.length === 0) return "";
+
+  const ruleMap = new Map(activeRules.map((r) => [r.id, r]));
+  const lines: string[] = ["## Deine bisherigen Aktionen in dieser Session"];
+
+  for (const [i, event] of sessionEvents.entries()) {
+    const num = i + 1;
+    const ruleId = event.ruleId ?? "unknown";
+
+    if (event.eventType === "rule_disabled") {
+      lines.push(`${num}. Regel gelöscht (ID: ${ruleId})`);
+    } else if (event.eventType === "rule_applied") {
+      const rule = ruleMap.get(ruleId);
+      const description = rule?.instruction ?? "(unbekannte Regel)";
+      lines.push(`${num}. Regel erstellt: "${description}" (ID: ${ruleId})`);
     }
   }
 
@@ -541,13 +627,26 @@ type InputMessage = {
 
 function buildInputMessages(input: RunAgentTurnInput): InputMessage[] {
   const targetFormat = input.sessionDetail.session.targetFormat;
+  const selectionContent: Array<{
+    text: string;
+    type: "input_text" | "output_text";
+  }> = [{ text: buildSelectionContext(input), type: "input_text" }];
+
+  // Include rendered markup when available (plaintext for OpenAI compatibility)
+  if (input.markup) {
+    selectionContent.push({
+      text: `\n\nGerendetes Markup des Blocks:\n\`\`\`\n${input.markup}\n\`\`\``,
+      type: "input_text",
+    });
+  }
+
   const messages: InputMessage[] = [
     {
       content: [{ text: buildSystemPrompt(targetFormat), type: "input_text" }],
       role: "system",
     },
     {
-      content: [{ text: buildSelectionContext(input), type: "input_text" }],
+      content: selectionContent,
       role: "user",
     },
   ];
@@ -650,7 +749,7 @@ async function requestOpenAiResponse(
     },
     body: JSON.stringify({
       model: config.model,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "medium" },
       store: true,
       ...body,
     }),
@@ -665,6 +764,214 @@ async function requestOpenAiResponse(
   }
 
   return (await response.json()) as ResponsesPayload;
+}
+
+// ---------------------------------------------------------------------------
+// Claude/Anthropic Adapter
+// ---------------------------------------------------------------------------
+
+/** Convert OpenAI-format tools to Claude format */
+function convertToolsToClaude(
+  openAiTools: ReturnType<typeof buildTools>,
+): ClaudeTool[] {
+  return openAiTools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters,
+  }));
+}
+
+/** Convert InputMessages to Claude message format (system extracted separately) */
+function convertMessagesToClaude(
+  inputMessages: InputMessage[],
+  input: RunAgentTurnInput,
+): { system: string; messages: ClaudeMessage[] } {
+  const systemMsg = inputMessages.find((m) => m.role === "system");
+  const system = systemMsg?.content.map((c) => c.text).join("\n") ?? "";
+
+  const messages: ClaudeMessage[] = [];
+  for (const msg of inputMessages) {
+    if (msg.role === "system") continue;
+    const role = msg.role === "user" ? "user" : "assistant";
+    const content: ClaudeContentBlock[] = msg.content.map((c) => ({
+      type: "text" as const,
+      text: c.text,
+    }));
+    messages.push({ role, content });
+  }
+
+  // Add screenshot as image content block for Claude vision
+  if (input.screenshot && messages.length > 0) {
+    const firstUserMsg = messages.find((m) => m.role === "user");
+    if (firstUserMsg) {
+      firstUserMsg.content.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: "image/png",
+          data: input.screenshot,
+        },
+      });
+    }
+  }
+
+  return { system, messages };
+}
+
+/** Extract text content from a Claude response */
+function extractClaudeTextContent(response: ClaudeResponse): string {
+  return response.content
+    .filter(
+      (block): block is { type: "text"; text: string } => block.type === "text",
+    )
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+}
+
+/** Extract tool_use blocks from a Claude response */
+function extractClaudeToolCalls(response: ClaudeResponse): FunctionCallItem[] {
+  return response.content
+    .filter(
+      (
+        block,
+      ): block is {
+        type: "tool_use";
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      } => block.type === "tool_use",
+    )
+    .map((block) => ({
+      arguments: JSON.stringify(block.input),
+      callId: block.id,
+      name: block.name,
+    }));
+}
+
+/** Run a full agent turn against the Claude/Anthropic API */
+async function runClaudeAgentTurn(
+  input: RunAgentTurnInput,
+  config: ReturnType<typeof readAdjustmentAiConfig>,
+): Promise<{
+  assistantMessage: string;
+  actions: ActionRecord[];
+  awaitingVisualFeedback: boolean;
+}> {
+  const actions: ActionRecord[] = [];
+  const targetFormat = input.sessionDetail.session.targetFormat;
+  const inputMessages = buildInputMessages(input);
+  const { system, messages } = convertMessagesToClaude(inputMessages, input);
+  const claudeTools = convertToolsToClaude(buildTools(targetFormat));
+
+  let claudeMessages = [...messages];
+
+  let response = await requestClaudeResponse(
+    {
+      model: config.model,
+      system,
+      messages: claudeMessages,
+      tools: claudeTools,
+      max_tokens: 4096,
+      tool_choice: { type: "auto" },
+    },
+    {
+      apiKey: config.anthropic!.apiKey,
+      timeoutMs: config.timeoutMs,
+    },
+  );
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    const toolCalls = extractClaudeToolCalls(response);
+    if (toolCalls.length === 0) {
+      break;
+    }
+
+    // Add assistant response to conversation
+    claudeMessages = [
+      ...claudeMessages,
+      { role: "assistant" as const, content: response.content },
+    ];
+
+    // Execute tool calls and build tool results
+    const toolResults: ClaudeContentBlock[] = [];
+    for (const call of toolCalls) {
+      const result = await executeToolCall(call, input.callbacks, actions);
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: call.callId,
+        content: result,
+      });
+    }
+
+    // Add tool results as user message
+    claudeMessages = [
+      ...claudeMessages,
+      { role: "user" as const, content: toolResults },
+    ];
+
+    response = await requestClaudeResponse(
+      {
+        model: config.model,
+        system,
+        messages: claudeMessages,
+        tools: claudeTools,
+        max_tokens: 4096,
+        tool_choice: { type: "auto" },
+      },
+      {
+        apiKey: config.anthropic!.apiKey,
+        timeoutMs: config.timeoutMs,
+      },
+    );
+  }
+
+  const rawMessage = extractClaudeTextContent(response);
+  let assistantMessage: string;
+
+  if (rawMessage) {
+    if (actions.length === 0 && !rawMessage.includes("?")) {
+      assistantMessage =
+        "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?";
+    } else {
+      assistantMessage = rawMessage;
+    }
+  } else if (actions.length > 0) {
+    assistantMessage = "Die Änderung ist jetzt sichtbar.";
+  } else {
+    // Retry with nudge
+    const retryResponse = await requestClaudeResponse(
+      {
+        model: config.model,
+        system,
+        messages: [
+          ...claudeMessages,
+          {
+            role: "user" as const,
+            content: [
+              {
+                type: "text" as const,
+                text: "Du hast gerade keine Antwort gegeben. Bitte stelle dem Nutzer jetzt eine konkrete Rückfrage, damit du eine passende Regel erstellen kannst.",
+              },
+            ],
+          },
+        ],
+        tools: claudeTools,
+        max_tokens: 4096,
+      },
+      {
+        apiKey: config.anthropic!.apiKey,
+        timeoutMs: config.timeoutMs,
+      },
+    );
+
+    assistantMessage =
+      extractClaudeTextContent(retryResponse) ||
+      "Ich konnte die Anfrage nicht verstehen. Kannst du bitte genauer beschreiben, was du ändern möchtest?";
+  }
+
+  const awaitingVisualFeedback = actions.length > 0;
+  return { assistantMessage, actions, awaitingVisualFeedback };
 }
 
 // ---------------------------------------------------------------------------
@@ -777,9 +1084,16 @@ async function executeToolCall(
 export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
   assistantMessage: string;
   actions: ActionRecord[];
+  awaitingVisualFeedback: boolean;
 }> {
   const config = readAdjustmentAiConfig();
 
+  // Dispatch to Anthropic/Claude path
+  if (config.enabled && config.provider === "anthropic" && config.anthropic) {
+    return runClaudeAgentTurn(input, config);
+  }
+
+  // OpenAI path (legacy)
   if (!config.enabled || config.provider !== "openai" || !config.openai) {
     throw new AgentUnavailableError(
       "Live-KI-Anpassungen sind aktuell nicht konfiguriert. Hinterlege einen OpenAI-Zugang, bevor du diesen Chat nutzt.",
@@ -838,7 +1152,13 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
   let assistantMessage: string;
 
   if (rawMessage) {
-    assistantMessage = rawMessage;
+    if (actions.length === 0 && !rawMessage.includes("?")) {
+      // AI claims success without tool call → use honest fallback
+      assistantMessage =
+        "Ich konnte die Änderung leider nicht umsetzen. Kannst du genauer beschreiben, was du ändern möchtest?";
+    } else {
+      assistantMessage = rawMessage;
+    }
   } else if (actions.length > 0) {
     assistantMessage = "Die Änderung ist jetzt sichtbar.";
   } else {
@@ -870,8 +1190,15 @@ export async function runAgentTurn(input: RunAgentTurnInput): Promise<{
       "Ich konnte die Anfrage nicht verstehen. Kannst du bitte genauer beschreiben, was du ändern möchtest?";
   }
 
-  return { assistantMessage, actions };
+  const awaitingVisualFeedback = actions.length > 0;
+
+  return { assistantMessage, actions, awaitingVisualFeedback };
 }
 
 /** @internal — exported for testing only */
-export const _internal = { buildSelectorSchema, buildSystemPrompt };
+export const _internal = {
+  buildActionHistory,
+  buildSelectionContext,
+  buildSelectorSchema,
+  buildSystemPrompt,
+};

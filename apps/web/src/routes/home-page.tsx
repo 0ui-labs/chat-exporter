@@ -5,17 +5,22 @@ import {
   type FormEvent,
   type ReactNode,
   startTransition,
+  useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import { FormatWorkspace } from "@/components/format-workspace/format-workspace";
 import { getImportStageEntry } from "@/components/format-workspace/labels";
 import type { ViewMode } from "@/components/format-workspace/types";
+import { WelcomeCard } from "@/components/onboarding/welcome-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { usePlaceholderRotation } from "@/hooks/use-placeholder-rotation";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +123,26 @@ export function HomePage() {
     plainText?: string;
   } | null>(null);
   const [previewText, setPreviewText] = useState("");
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  const placeholderExamples = [
+    "https://chatgpt.com/share/abc123...",
+    "https://claude.ai/share/xyz789...",
+  ];
+  const {
+    placeholder: rotatingPlaceholder,
+    visible: placeholderVisible,
+    pause: pausePlaceholder,
+    resume: resumePlaceholder,
+  } = usePlaceholderRotation(placeholderExamples, 4000);
+
+  const handleScrollToInput = useCallback(() => {
+    urlInputRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    urlInputRef.current?.focus();
+  }, []);
 
   const { data: allJobs = [] } = useQuery(
     orpc.imports.list.queryOptions({ input: {} }),
@@ -143,6 +168,7 @@ export function HomePage() {
       onSuccess: (nextJob) => {
         queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
         setHasEditedUrl(false);
+        toast.info("Import gestartet");
         startTransition(() => setActiveImport(nextJob.id));
       },
     }),
@@ -154,6 +180,7 @@ export function HomePage() {
         queryClient.invalidateQueries({ queryKey: orpc.imports.key() });
         setPastedContent(null);
         setPreviewText("");
+        toast.info("Import gestartet");
         startTransition(() => setActiveImport(nextJob.id));
       },
     }),
@@ -172,6 +199,15 @@ export function HomePage() {
       setUrl(job.sourceUrl);
     }
   }, [hasEditedUrl, job]);
+
+  const jobStatus = job?.status;
+  useEffect(() => {
+    if (jobStatus === "completed") {
+      toast.success("Import abgeschlossen");
+    } else if (jobStatus === "failed") {
+      toast.error("Import fehlgeschlagen");
+    }
+  }, [jobStatus]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -242,7 +278,11 @@ export function HomePage() {
   const showInlineOriginalButton = Boolean(job && activeSourceUrl);
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
+      <WelcomeCard
+        visible={allJobs.length === 0 && !activeImportId}
+        onScrollToInput={handleScrollToInput}
+      />
       <Card className="border-border/90 bg-card/92 shadow-panel">
         <CardContent className="p-4 sm:p-6">
           <div className="space-y-6">
@@ -269,18 +309,24 @@ export function HomePage() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div className="relative flex-1">
                       <Input
+                        ref={urlInputRef}
                         aria-label="Freigabelink"
                         className={cn(
-                          "h-12 pr-4 text-base",
+                          "h-12 pr-4 text-base transition-opacity duration-150",
                           showInlineOriginalButton ? "pr-24 sm:pr-40" : null,
+                          !url && !placeholderVisible
+                            ? "placeholder:opacity-0"
+                            : "placeholder:opacity-100",
                         )}
                         inputMode="url"
-                        placeholder="https://chatgpt.com/share/... oder ein anderer öffentlicher KI-Share-Link"
+                        placeholder={rotatingPlaceholder}
                         value={url}
+                        onBlur={resumePlaceholder}
                         onChange={(event) => {
                           setHasEditedUrl(true);
                           setUrl(event.target.value);
                         }}
+                        onFocus={pausePlaceholder}
                       />
 
                       {showInlineOriginalButton ? (

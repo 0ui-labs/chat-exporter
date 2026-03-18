@@ -8,6 +8,7 @@ import {
   appendAdjustmentMessageRequestSchema,
   createAdjustmentSessionRequestSchema,
   formatRuleSchema,
+  setScopeRequestSchema,
 } from "./adjustments.js";
 import {
   deleteMessageRequestSchema,
@@ -109,6 +110,18 @@ export const contract = {
         }),
       )
       .output(adjustmentMetricsSchema),
+
+    status: oc.output(
+      z.object({
+        available: z.boolean(),
+        provider: z.string(),
+        reason: z.string().optional(),
+      }),
+    ),
+
+    setScope: oc
+      .input(setScopeRequestSchema)
+      .output(z.object({ updated: z.number() })),
   },
 
   rules: {
