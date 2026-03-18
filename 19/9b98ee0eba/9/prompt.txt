@@ -1,0 +1,673 @@
+/audit
+
+---
+
+<task-notification>
+<task-id>ad75fbf14aa34e38b</task-id>
+<tool-use-id>toolu_017rdtgigFA5DZhuhPye2vig</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ad75fbf14aa34e38b.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit A1: Package-Grenzen" completed</summary>
+<result>Audit abgeschlossen. Ergebnis:
+
+**Status: OK** -- Keine Package-Grenzen-Verletzungen gefunden.
+
+Alle Cross-Package-Imports in `apps/web` und `apps/server` nutzen korrekt den `@chat-exporter/shared`-Alias. Relative Imports bleiben innerhalb ihrer jeweiligen Packages. Keine `require()`-Aufrufe, keine versteckten Path-Aliases die Grenzen verbergen.
+
+Bericht geschrieben nach: `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/a1-package-grenzen.md`</result>
+<usage><total_tokens>39696</total_tokens><tool_uses>24</tool_uses><duration_ms>96922</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ad75fbf14aa34e38b.output
+
+---
+
+<task-notification>
+<task-id>a02c9c3bad3c9c917</task-id>
+<tool-use-id>toolu_014DPsNj8vSoyHgjNbpxQTos</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a02c9c3bad3c9c917.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit A2: Zirkuläre Abhängigkeiten" completed</summary>
+<result>Audit abgeschlossen. Ergebnis:
+
+- **Status: ok** -- Keine zirkulaeren Abhaengigkeiten in allen drei Packages.
+- `madge --circular` auf `apps/web/src` (137 Dateien), `apps/server/src` (76 Dateien) und `packages/shared/src` (15 Dateien) jeweils ohne Befund.
+- Cross-Package-Imports folgen der korrekten Richtung: `shared` importiert aus keinem anderen Package, `web` und `server` importieren nicht voneinander.
+
+Bericht geschrieben nach: `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/a2-zirkulaere-abhaengigkeiten.md`</result>
+<usage><total_tokens>22070</total_tokens><tool_uses>18</tool_uses><duration_ms>108809</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a02c9c3bad3c9c917.output
+
+---
+
+<task-notification>
+<task-id>af515f3f6317cd254</task-id>
+<tool-use-id>toolu_01QGzMRHaEGisUR2zX5aAQQw</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/af515f3f6317cd254.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit D1: Fehlende DB-Indizes" completed</summary>
+<result>Der Audit-Bericht wurde nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/d1-fehlende-indizes.md` geschrieben.
+
+**Zusammenfassung der Ergebnisse:**
+
+- **Status:** befund (3 Befunde, alle Schweregrad niedrig)
+- **9 Tabellen** analysiert, **14 bestehende Indizes** erfasst, alle Repository-Dateien auf Query-Patterns durchsucht
+
+**Befunde:**
+1. **B1:** `imports.sourcePlatform` wird in `listImportSummaries()` als WHERE-Filter verwendet, hat aber keinen Index
+2. **B2:** Die Profil-Query in `listFormatRules()` filtert nach `isNull(importId) AND scope = 'format_profile'` — `scope` ist in keinem bestehenden Index enthalten
+3. **B3:** `listAdjustmentSessions()` filtert nach `importId + targetFormat` mit `ORDER BY createdAt`, aber der bestehende Composite-Index deckt nur `(importId, createdAt)` ab
+
+Alle Befunde sind auto-fixbar durch Schema-Aenderungen und haben niedrigen Schweregrad, da es sich um eine Single-User-Anwendung mit typischerweise kleiner Datenbankgroesse handelt.</result>
+<usage><total_tokens>47137</total_tokens><tool_uses>26</tool_uses><duration_ms>129342</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/af515f3f6317cd254.output
+
+---
+
+<task-notification>
+<task-id>a64a933a15ec389e9</task-id>
+<tool-use-id>toolu_013F3EpLZdSGvZSuyGBKjtLi</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a64a933a15ec389e9.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit A4: Schema Single Source of Truth" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/a4-schema-single-source.md`.
+
+**Zusammenfassung der Ergebnisse:**
+
+- **Status: befund, Schweregrad: niedrig** -- Das Projekt befolgt das Schema-als-Single-Source-of-Truth-Prinzip insgesamt gut.
+- **6 Befunde** dokumentiert, davon 2 mit niedrigem Schweregrad und 4 informativ:
+  - **B1:** Duplizierter `ResolvedMessage`-Typ im Frontend mit abweichender Struktur (anderer Feldname `id` vs `messageId`, zusaetzliches `role`-Feld)
+  - **B2:** `OutputFormatDescriptor` im Shared-Package ist das einzige Interface ohne Zod-Schema-Backing
+  - **B4:** Vier Stellen mit unvalidierten `JSON.parse()`-Aufrufen auf DB-Daten (router.ts, conversation-merge.ts, delete-repository.ts, import-repository.ts)
+  - B3, B5, B6 sind rein informativ (server-interne Typen, externe API-Typen)
+
+Keine Code-Aenderungen vorgenommen, wie angewiesen.</result>
+<usage><total_tokens>45111</total_tokens><tool_uses>41</tool_uses><duration_ms>171068</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a64a933a15ec389e9.output
+
+---
+
+<task-notification>
+<task-id>ae5550da237c5b801</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae5550da237c5b801.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit A3: Separation of Concerns" completed</summary>
+<result>The audit report has been written to `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/a3-separation-of-concerns.md`.
+
+**Summary of findings:**
+
+- **Status: befund** (issues found), **Schweregrad: mittel**
+- **B1 (mittel):** The `adjustments.appendMessage` handler in `router.ts` contains ~130 lines of orchestration logic (transactions, agent turns, event recording, session state management) that should be extracted into a dedicated service function. All other handlers in the same router are 5-15 lines.
+- **B2 (niedrig):** `edit-repository.ts` leaks JSON serialization to the router -- the caller does `JSON.stringify`/`JSON.parse` whereas `import-repository.ts` and `adjustment-repository.ts` handle this internally.
+- **B3 (niedrig):** `rule-engine.tsx`, `rule-matching.ts`, and `rule-scope.ts` contain pure business logic (no React) but live in the components directory. `rule-engine.tsx` uses a `.tsx` extension despite containing no JSX.
+
+**Positive findings:** Parsers are fully isolated from DB, the adjustment-agent uses clean callback-based IoC, the import-store correctly orchestrates as a service layer, and the frontend consistently uses hooks for API access.</result>
+<usage><total_tokens>56772</total_tokens><tool_uses>52</tool_uses><duration_ms>232883</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae5550da237c5b801.output
+
+---
+
+<task-notification>
+<task-id>a339217c4cae79850</task-id>
+<tool-use-id>toolu_01CJ3zC7pMVdKARRpRXSeevx</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a339217c4cae79850.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit A5: Error-Handling-Konsistenz" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/a5-error-handling.md`.
+
+**Zusammenfassung der Ergebnisse:**
+
+- **Status:** befund, **Schweregrad:** mittel
+- **7 Befunde** identifiziert:
+  - **B1 (niedrig):** Zwei identische Error-Extraktions-Helfer (`extractErrorMessage` vs `errorMsg`), gleiches Pattern 12x inline wiederholt
+  - **B2 (mittel):** 10 Router-Handler mit try/catch-ORPCError-Wrapping, 10 ohne -- inkonsistenter Fehlerschutz. Handler wie `setScope`, `edits.save`, `snapshots.create/delete` lassen Exceptions ungewrapped durch
+  - **B3 (mittel):** `useSnapshots` (5 Mutations) und `useMessageDeletion` (3 async Calls) haben keine `onError`-Callbacks -- Fehler bleiben fuer den User unsichtbar
+  - **B4 (niedrig):** 5 Silent-Catch-Stellen verschlucken Fehler komplett ohne Logging
+  - **B5 (mittel):** Kein globaler `app.onError()` in Hono -- ungewrappte Exceptions gehen unformatiert an den Client
+  - **B6 (niedrig):** Kein `unhandledRejection`-Handler im Server-Prozess
+  - **B7 (niedrig):** Error-Messages mischen Deutsch und Englisch inkonsistent</result>
+<usage><total_tokens>83444</total_tokens><tool_uses>54</tool_uses><duration_ms>268401</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a339217c4cae79850.output
+
+---
+
+<task-notification>
+<task-id>a91dbc3b8510bbd09</task-id>
+<tool-use-id>toolu_017LV7HYG83qGt17o6vqdLxq</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a91dbc3b8510bbd09.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit D3: WAL-Modus Konfiguration" completed</summary>
+<result>**Audit abgeschlossen: WAL-Modus ist korrekt konfiguriert.**
+
+Die zentrale Datenbankinitialisierung in `apps/server/src/db/client.ts` (Zeile 25) setzt `PRAGMA journal_mode = WAL` zusammen mit `busy_timeout = 5000` und `foreign_keys = ON`. Alle Repository-Module nutzen ausschließlich diesen zentralen Client — es gibt keine Bypass-Pfade. Die einzige weitere `Database`-Instanz ist ein Read-only-Client in einem Smoke-Test-Skript, der automatisch vom WAL des Writers profitiert.
+
+Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/d3-wal-modus.md` mit Status **ok**.</result>
+<usage><total_tokens>27440</total_tokens><tool_uses>9</tool_uses><duration_ms>56294</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a91dbc3b8510bbd09.output
+
+---
+
+<task-notification>
+<task-id>a8fa360b06074006f</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a8fa360b06074006f.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit D4: Migrations-Hygiene" completed</summary>
+<result>Audit report written to `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/d4-migrations-hygiene.md`.
+
+**Key findings:**
+
+- **Status: befund / Schweregrad: hoch** -- The project has no versioned migrations despite Drizzle Kit being installed and configured. The `./drizzle` output directory does not exist.
+- All 9 tables are created via raw `CREATE TABLE IF NOT EXISTS` in `apps/server/src/db/client.ts` at every application start.
+- Four unversioned ad-hoc migrations live inline in `client.ts` (format_rules nullable import_id, imports error_stage column, conversation_snapshots column removal, imports import_method column), controlled by pragma introspection checks.
+- **No schema drift detected** -- the Drizzle schema in `schema.ts` and the DDL in `client.ts` are currently consistent.
+- No schema manipulations found outside `client.ts` (non-test code).
+- Recommendation: Activate Drizzle Kit migrations, create a baseline, and migrate the ad-hoc DDL into versioned SQL files.</result>
+<usage><total_tokens>41810</total_tokens><tool_uses>26</tool_uses><duration_ms>151844</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a8fa360b06074006f.output
+
+---
+
+<task-notification>
+<task-id>aa91f89925a5cde40</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/aa91f89925a5cde40.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit B3: AI-Call Resilience" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/b3-ai-call-resilience.md`.
+
+**Kernbefunde:**
+
+1. **B3.1 (hoch):** Keine Retry-Logik bei transienten Fehlern (429, 500, 503) in den OpenAI- und Cerebras-`fetch()`-Calls. Ein einzelner Rate-Limit-Fehler bricht den gesamten Request ab. Der Anthropic SDK-Client hat zwar Default-Retries (2x), aber die Konfiguration ist implizit und der Client wird pro Call neu instanziiert.
+
+2. **B3.2 (mittel):** Kein Circuit-Breaker -- bei Provider-Ausfall warten alle User jeweils 60s Timeout pro Anfrage.
+
+3. **B3.3 (niedrig):** Anthropic-Client wird pro Call neu erstellt statt wiederverwendet.
+
+4. **B3.4 (mittel):** Keine Differenzierung zwischen retriable (429, 503) und non-retriable (400, 401) Fehlern.
+
+**Was gut funktioniert:** Timeouts sind durchgängig vorhanden (60s Default, konfigurierbar), Error-Propagation zum Client ist sauber (503/504 Mapping), und der Import-Pfad hat Graceful Degradation (deterministische Fallback-Blocks bei AI-Failure).</result>
+<usage><total_tokens>62923</total_tokens><tool_uses>27</tool_uses><duration_ms>165498</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/aa91f89925a5cde40.output
+
+---
+
+<task-notification>
+<task-id>a7752754c9b989fe8</task-id>
+<tool-use-id>toolu_01FJKKYwFRcAEX2MuX3ozhi6</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a7752754c9b989fe8.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit D2: Ungebatchte DB-Writes" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/d2-ungebatchte-writes.md`.
+
+**Ergebnis:** Ein Befund mit niedrigem Schweregrad.
+
+- **Befund 1 (`setScope` in `router.ts:418`):** Loop uber `updateFormatRuleSelector` ohne umschliessende Transaktion. Typischerweise 1-3 Iterationen, daher Performance-unkritisch, aber bei Fehler mitten im Loop inkonsistenter Zustand. Fix: `withTransaction` wrapper (~5 Zeilen).
+
+- Die Import-Pipeline ist architekturbedingt sauber -- Conversations werden als serialisiertes JSON in einer Row gespeichert, nicht als einzelne Message-Inserts. Ein Import mit hunderten Messages erzeugt nur 2-3 DB-Writes in einer Transaktion.
+
+- Alle anderen Loops mit DB-Writes (`appendMessage` Phase 3, `softDeleteRound`) sind korrekt in Transaktionen gewrappt.</result>
+<usage><total_tokens>51421</total_tokens><tool_uses>46</tool_uses><duration_ms>196931</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a7752754c9b989fe8.output
+
+---
+
+<task-notification>
+<task-id>a005375cf511b93d1</task-id>
+<tool-use-id>toolu_01KSTUdCgib6dXXuKbjT7wZu</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a005375cf511b93d1.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit B1: Input-Validierung" completed</summary>
+<result>Der Audit-Bericht wurde nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/b1-input-validierung.md` geschrieben.
+
+**Kernergebnis:** Status `befund`, Schweregrad `niedrig`. Alle 30 oRPC-Endpoints haben Zod-Input-Schemas, die automatisch vor Handler-Aufruf validiert werden. Drei kleine Verbesserungsmoglichkeiten gefunden:
+
+1. **B1.1** -- `exportArtifact.format` nutzt `z.string()` statt `z.enum()`, obwohl die Artifact-Formate endlich sind.
+2. **B1.2** -- `screenshot` und `markup` Felder (Base64/HTML) haben keine `.max()` Groessenbeschraenkung.
+3. **B1.3** -- Viele ID-Felder nutzen `z.string()` ohne `.min(1)`, sodass leere Strings die Schema-Validierung passieren.
+
+Alle Befunde sind auto-fixbar und haben keine Sicherheitsrelevanz im aktuellen lokalen Deployment-Kontext.</result>
+<usage><total_tokens>67172</total_tokens><tool_uses>44</tool_uses><duration_ms>193418</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a005375cf511b93d1.output
+
+---
+
+<task-notification>
+<task-id>a19ba7121f298691a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a19ba7121f298691a.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit B2: Idempotenz" completed</summary>
+<result>The audit report has been written to `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/b2-idempotenz.md`.
+
+**Summary of findings:**
+
+- **12 write operations** analyzed across imports, adjustments, deletions, edits, and snapshots
+- **8 operations are well-protected** via upserts, guard clauses, or idempotent result patterns
+- **4 operations have idempotency gaps**, rated overall as **mittel** (medium) severity:
+  - **B2-1** (mittel): `createImportJob` allows duplicate imports of the same URL with no dedup
+  - **B2-2** (mittel): `appendAdjustmentMessage` has no idempotency key -- network retries create duplicate messages and double AI calls
+  - **B2-3** (niedrig): `softDeleteMessage` throws on duplicate instead of silently ignoring (unlike `softDeleteRound` which handles it correctly)
+  - **B2-4** (mittel): `runImportJob` has no status guard against concurrent execution
+
+All findings are auto-fixable via standard patterns (upsert, idempotency keys, status guards). No code changes were made.</result>
+<usage><total_tokens>53383</total_tokens><tool_uses>52</tool_uses><duration_ms>199067</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a19ba7121f298691a.output
+
+---
+
+<task-notification>
+<task-id>a505215346da706c3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a505215346da706c3.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit B4: Structured Logging" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/b4-structured-logging.md`.
+
+**Kernergebnisse:**
+
+- **Status: Befund, Schweregrad: Mittel** -- Kein strukturiertes Logging-Framework vorhanden, keine Request-Logging-Middleware.
+- **Positiv:** Nur 3 `console.*`-Aufrufe im gesamten Server-Code (1x Startup-Meldung, 2x in einem Smoke-Test-Script). Frontend und Shared-Package sind komplett frei davon. Keine sensitiven Daten in Logs gefunden.
+- **Hauptdefizit:** Fehlende Request-Logging-Middleware (kein HTTP-Method/URL/Status/Duration-Tracking) und kein zentraler Logger mit Level-Steuerung.
+- **Quick Win:** `hono/logger`-Middleware aktivieren (bereits in Hono enthalten, null Dependencies). Mittelfristig pino einführen.</result>
+<usage><total_tokens>22431</total_tokens><tool_uses>10</tool_uses><duration_ms>81079</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a505215346da706c3.output
+
+---
+
+<task-notification>
+<task-id>a5e6cdb900d0d78cd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a5e6cdb900d0d78cd.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit S4: Security Headers" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/s4-security-headers.md`.
+
+**Ergebnis: Befund (Schweregrad hoch, auto-fixbar)**
+
+Der Hono-Server in `apps/server/src/app.ts` setzt keinen einzigen Security Header. Keine `secureHeaders`-Middleware, kein CORS, kein CSRF-Schutz. Die App ist eine nackte `new Hono()`-Instanz mit nur einem RPC-Handler. Der Fix ist eine einzige Zeile: `app.use(secureHeaders())` aus `hono/secure-headers`.</result>
+<usage><total_tokens>25411</total_tokens><tool_uses>17</tool_uses><duration_ms>85475</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a5e6cdb900d0d78cd.output
+
+---
+
+<task-notification>
+<task-id>ac46555cec458f90c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ac46555cec458f90c.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit S1: SSRF bei URL-Imports" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/s1-ssrf.md`.
+
+**Kernbefund: SSRF-Schwachstelle mit Schweregrad "hoch".**
+
+Die URL-Validierung in `apps/server/src/lib/source-platform.ts` (`hasSupportedImportProtocol`) prueft nur das Protokoll (HTTP/HTTPS), blockiert aber keine privaten IP-Adressen. Ein Angreifer kann URLs wie `http://169.254.169.254/latest/meta-data/` (AWS Metadata) oder `http://127.0.0.1:8080` einreichen. Der Server-seitige Playwright-Browser navigiert dorthin, extrahiert den HTML-Content und speichert ihn in der Datenbank, wo er ueber die `rawHtml`- und `snapshot`-Endpoints abrufbar ist.
+
+Drei Befunde im Detail:
+- **B1** (hoch): Kein Private-IP-Filter -- alle 8 Provider-Importer leiten User-URLs ungefiltert an `page.goto()` weiter
+- **B2** (mittel): Kein DNS-Rebinding-Schutz -- zeitliche Trennung zwischen Validierung und Navigation
+- **B3** (niedrig): HTTP neben HTTPS erlaubt, obwohl alle bekannten Plattformen HTTPS nutzen</result>
+<usage><total_tokens>37198</total_tokens><tool_uses>21</tool_uses><duration_ms>125568</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ac46555cec458f90c.output
+
+---
+
+<task-notification>
+<task-id>abb02bd02f5f3871e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/abb02bd02f5f3871e.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit S2: XSS durch HTML" completed</summary>
+<result>Audit complete. The report has been written to `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/s2-xss.md`.
+
+**Key findings:**
+
+- **Status: ok** — No XSS vulnerability found.
+- The architecture prevents XSS structurally: Provider HTML is parsed server-side into structured `Block` objects with plain `text: z.string()` fields (no raw HTML stored). The frontend renders these exclusively via React JSX (automatic escaping), with zero instances of unsafe HTML injection patterns anywhere in `apps/web/src`.
+- Both HTML export paths (`reader-html-export.ts`, `message-clipboard.ts`) properly escape text before embedding in HTML strings.
+- The HTML preview iframe uses `sandbox=""` (maximum restriction).
+- No sanitization library is needed because raw HTML never enters the DOM.</result>
+<usage><total_tokens>44834</total_tokens><tool_uses>38</tool_uses><duration_ms>187894</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/abb02bd02f5f3871e.output
+
+---
+
+<task-notification>
+<task-id>a06f85ffa9a331a4f</task-id>
+<tool-use-id>toolu_012bK2iXrvy3yvzpCEgvUT4X</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a06f85ffa9a331a4f.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit S5: Auth und Rate-Limiting" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/s5-auth-rate-limiting.md`.
+
+**Kernergebnisse:**
+
+- **Keine Authentifizierung:** Alle 28 RPC-Endpoints sind ohne Auth erreichbar. Der oRPC-Context ist ein leeres Objekt `{}`, keine Middleware in `apps/server/src/app.ts`.
+- **Kein Rate-Limiting:** Null Treffer in der gesamten Codebase. Besonders kritisch bei `imports.create` (Playwright-Browser) und `adjustments.appendMessage` (AI-API-Kosten).
+- **Kein CORS:** Keine CORS-Middleware konfiguriert.
+- **Browser-Pool Concurrency:** Funktionierendes Limit von 3 gleichzeitigen Playwright-Kontexten (`MAX_CONCURRENT_BROWSER_CONTEXTS = 3`), Browser-Recycling nach 50 Kontexten, Idle-Shutdown nach 60s. Jedoch: die Warteschlange ist unbegrenzt (kein Queue-Size-Limit).
+- **Schweregrad: hoch** — bei lokaler Nutzung mitigiert, aber jede Netzwerk-Exposure macht alle Daten und AI-Budgets angreifbar.</result>
+<usage><total_tokens>54371</total_tokens><tool_uses>50</tool_uses><duration_ms>192072</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a06f85ffa9a331a4f.output
+
+---
+
+<task-notification>
+<task-id>a85d6287c48df8ff8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a85d6287c48df8ff8.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit S3: Secret Exposure" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/s3-secret-exposure.md`.
+
+**Ergebnis: 1 Befund (mittlerer Schweregrad, auto-fixbar)**
+
+- **`.gitignore` fehlt `.env`-Schutz** -- Kein einziger `.env`-Eintrag in der `.gitignore`. Ein versehentliches `git add .` wuerde eine `.env.local` mit API-Keys in die Git-History aufnehmen. Fix: 4 Zeilen in `.gitignore` ergaenzen.
+
+**Positiv:** Keine hardcodierten Secrets, keine Secrets im Frontend, sauberes Error-Handling (nur `error.message`), minimales Logging ohne Secrets, API-Keys nur serverseitig im Speicher.</result>
+<usage><total_tokens>49723</total_tokens><tool_uses>58</tool_uses><duration_ms>264049</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a85d6287c48df8ff8.output
+
+---
+
+<task-notification>
+<task-id>accbf0f4c3f71bbae</task-id>
+<tool-use-id>toolu_01JjHyus8YJGxLJmEyckds2S</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/accbf0f4c3f71bbae.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit F1: Virtualisierung Listen" completed</summary>
+<result>Audit abgeschlossen. Der Bericht liegt unter `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/f1-virtualisierung.md`.
+
+**Kernbefund:** `@tanstack/react-virtual` ist als Dependency installiert, wird aber nirgends verwendet. Die zentrale Nachrichtenliste in `apps/web/src/components/format-workspace/reader-view.tsx` (Zeile 577) rendert alle Nachrichten per `.map()` ohne Virtualisierung -- jede Nachricht erzeugt einen vollstaendigen DOM-Knoten. Schweregrad: hoch, auto-fixbar: ja (Bibliothek ist bereits vorhanden).</result>
+<usage><total_tokens>35171</total_tokens><tool_uses>10</tool_uses><duration_ms>68408</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/accbf0f4c3f71bbae.output
+
+---
+
+<task-notification>
+<task-id>a26e67b3edd4e22c5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a26e67b3edd4e22c5.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit F2: Code-Splitting" completed</summary>
+<result>Audit abgeschlossen. Hier die Zusammenfassung:
+
+**Status: OK -- Kein Befund.**
+
+Die Web-App nutzt korrekt route-basiertes Code-Splitting:
+
+- Alle 3 Content-Routen in `apps/web/src/router.tsx` verwenden React Routers native `lazy`-Property mit dynamischen `import()`-Ausdruecken
+- Nur das `RootLayout` wird statisch importiert (korrekt, da es immer gebraucht wird)
+- Der Production-Build erzeugt 5 separate JS-Chunks: einen Hauptbundle (347 kB) mit Framework-Code plus individuelle Chunks pro Route
+- Einziger Hinweis fuer die Zukunft: `home-page.js` ist mit 247 kB relativ gross und koennte bei Wachstum weiteres internes Splitting vertragen
+
+Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/f2-code-splitting.md`.</result>
+<usage><total_tokens>26256</total_tokens><tool_uses>20</tool_uses><duration_ms>104304</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a26e67b3edd4e22c5.output
+
+---
+
+<task-notification>
+<task-id>a841ef3e501681401</task-id>
+<tool-use-id>toolu_01KQo91UPsGboZ7oC3y38Lrw</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a841ef3e501681401.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit T1: Test-Pyramide" completed</summary>
+<result>Der Audit-Bericht wurde geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/t1-test-pyramide.md`.
+
+**Kernbefund:** Die Test-Pyramide hat eine gesunde Grundform (85% Unit / 10% Integration / 4% E2E), aber es gibt eine Luecke auf der Integrations-Ebene. Der zentrale Server-Router (`apps/server/src/rpc/router.test.ts`) wird mit 19 `vi.mock()`-Aufrufen komplett isoliert getestet. Es fehlen Integrationstests, die Router + Repositories + echte SQLite-DB zusammen pruefen. Die 3 E2E-Tests tragen dadurch ueberproportionale Verantwortung fuer die Verifikation des Zusammenspiels. Schweregrad: **mittel**. Hauptempfehlung: Server-Integrationstests mit `app.request()` und echter DB einfuehren.</result>
+<usage><total_tokens>40312</total_tokens><tool_uses>28</tool_uses><duration_ms>132244</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a841ef3e501681401.output
+
+---
+
+<task-notification>
+<task-id>ab0b9389ebeaafd3d</task-id>
+<tool-use-id>toolu_015tGexo1Z6GQxh6f9vW3ajz</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ab0b9389ebeaafd3d.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit T2: Verhalten vs Implementierung" completed</summary>
+<result>Der Audit-Bericht wurde geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/t2-verhalten-vs-implementierung.md`.
+
+**Kernergebnis:** Status **befund**, Schweregrad **mittel**. Von 83 Testdateien sind ca. 10-12 signifikant implementierungsgekoppelt. Die drei Hauptproblemzonen sind:
+
+1. **`apps/server/src/rpc/router.test.ts`** (hoch) -- 10 gemockte Module, 34+ Mock-Funktionen, testet fast ausschliesslich interne Verdrahtung statt HTTP-Verhalten
+2. **`apps/server/src/lib/share-import.test.ts`** (mittel) -- Alle 9 Provider gemockt, testet nur Dispatching-Mechanik statt Parsing-Ergebnisse
+3. **`apps/web/src/components/format-workspace/format-workspace.test.tsx`** (mittel) -- 17 vi.mock()-Aufrufe, UI-Verhalten durch Mock-Verification ersetzt
+
+Dem gegenueber stehen viele vorbildliche Tests (table-utils, rule-engine, relative-time, conversation-schemas) die als Vorlage dienen koennen.</result>
+<usage><total_tokens>56785</total_tokens><tool_uses>27</tool_uses><duration_ms>149638</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ab0b9389ebeaafd3d.output
+
+---
+
+<task-notification>
+<task-id>a5bb681647bc37ba0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a5bb681647bc37ba0.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit F3: Rerender-Optimierung" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/f3-rerender-optimierung.md`.
+
+**Zusammenfassung der Befunde:**
+
+- **Status:** befund, **Schweregrad:** mittel
+
+**3 Befunde identifiziert:**
+
+1. **B1 (mittel):** Inline-Arrow-Functions in `reader-view.tsx` (Zeilen 588-605) brechen das `React.memo` von `ReaderMessage`. Vier Callbacks (`onCopyMessage`, `onDeleteMessage`, `onDeleteRound`, `onRestore`) werden als `() => callback(message.id)` in der `.map()`-Loop erzeugt, was bei jedem Render neue Referenzen produziert. Bei 50+ Nachrichten werden alle Messages neu gerendert statt nur der betroffenen.
+
+2. **B2 (niedrig):** `hasEdits = resolvedMessages.some(...)` in `format-workspace.tsx` (Zeile 121) ohne `useMemo` - bei jeder Render-Phase neu berechnet.
+
+3. **B3 (niedrig):** `clearDisableError` und `clearPromoteError` in `use-format-rules.ts` (Zeilen 145-146) als Inline-Funktionen im Return-Objekt statt `useCallback`.
+
+**Positiv:** Kein globaler State, kein React Context, konsequenter Einsatz von `useCallback`/`useMemo` in den meisten Stellen, `ReaderMessage` korrekt mit `memo` gewrappt. Die Architektur ist grundsätzlich solide - nur B1 hat messbaren Impact.</result>
+<usage><total_tokens>67651</total_tokens><tool_uses>43</tool_uses><duration_ms>180846</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a5bb681647bc37ba0.output
+
+---
+
+<task-notification>
+<task-id>ae71d6aa7e32825b3</task-id>
+<tool-use-id>toolu_018Vv6VmKay2VsAYcuvBkYhZ</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae71d6aa7e32825b3.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit F4: Accessibility" completed</summary>
+<result>The accessibility audit report has been written to `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/f4-accessibility.md`.
+
+**Summary of findings:**
+
+- **9 total findings** (3 medium, 6 low severity), all but one auto-fixable
+- **Positive:** No clickable `<div>`/`<span>` anti-patterns, ARIA labels on most icon buttons, Radix-based shadcn/ui dialogs where used, proper `<header>`/`<main>` landmarks, `<article>` for messages, `<table>` for tabular data
+- **Key issues:**
+  - **B1-B3 (medium):** Clickable `<tr>` without keyboard access, delete button invisible on focus, two custom dialogs without focus trapping
+  - **B4-B9 (low):** Missing `aria-live` regions for dynamic status updates, unlabeled `<select>`, tabs without ARIA tab pattern, missing `<h1>` on home page, no `<nav>` landmark, popover without focus management</result>
+<usage><total_tokens>75282</total_tokens><tool_uses>66</tool_uses><duration_ms>248614</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae71d6aa7e32825b3.output
+
+---
+
+<task-notification>
+<task-id>ae51697aefc884a5c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae51697aefc884a5c.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit O3: CI-Pipeline" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/o3-ci-pipeline.md`.
+
+**Kernergebnis: Kritischer Befund** -- Es existiert keine CI-Pipeline. Das Projekt hat zwar alle nötigen Quality-Check-Scripts (lint, typecheck, test, build, e2e), aber keinen server-seitigen Mechanismus der sie erzwingt. Der einzige Schutz sind lokale Lefthook pre-commit Hooks (Biome Lint + Typecheck), die per `--no-verify` umgehbar sind. Unit-Tests, E2E-Tests, Build-Check und Dependency Audit werden nirgends automatisch ausgeführt.</result>
+<usage><total_tokens>21940</total_tokens><tool_uses>8</tool_uses><duration_ms>59360</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ae51697aefc884a5c.output
+
+---
+
+<task-notification>
+<task-id>aaf63d821a7851e2b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/aaf63d821a7851e2b.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit O1: Dependency-Audit" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/o1-dependency-audit.md`.
+
+**Kernbefunde:**
+
+- **8 CVEs** in `undici@7.22.0` (3 high, 5 moderate) -- alle transitiv via `jsdom@28.1.0`. Effektives Production-Risiko niedrig (WebSocket-Pfade nicht genutzt), aber durch jsdom-Upgrade auf v29 sofort behebbar.
+- **8 Major-Version-Rückstände**, davon die kritischsten: React 18 vs 19, Zod 3 vs 4, react-router-dom 6 vs 7, Vite 6 vs 8.
+- **Quick Win:** `jsdom@29` installieren löst alle Security-Findings.</result>
+<usage><total_tokens>25985</total_tokens><tool_uses>7</tool_uses><duration_ms>78289</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/aaf63d821a7851e2b.output
+
+---
+
+<task-notification>
+<task-id>a8b4e93f3dfc4d3f9</task-id>
+<tool-use-id>toolu_01LhWqS7Q7y6b1NXE9sSqoJb</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a8b4e93f3dfc4d3f9.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit O2: Reproducible Builds" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/o2-reproducible-builds.md`.
+
+**Zusammenfassung der Befunde:**
+
+- **Lockfile:** OK -- `pnpm-lock.yaml` ist git-tracked, `packageManager`-Feld pinnt pnpm@10.9.2.
+- **B1 (mittel):** Keine Node.js-Version gepinnt -- weder `.nvmrc`, `.node-version` noch `engines`-Feld vorhanden.
+- **B2 (niedrig):** Playwright-Browser werden nicht automatisch installiert -- neuer Klon schlaegt fehl ohne manuelles `npx playwright install`.
+- **B3 (niedrig):** Corepack scheint nicht aktiv -- lokal laeuft pnpm 9.15.0 statt der deklarierten 10.9.2.
+
+Alle drei Befunde sind auto-fixbar mit wenigen Zeilen. Schweregrad insgesamt: **mittel**.</result>
+<usage><total_tokens>23313</total_tokens><tool_uses>14</tool_uses><duration_ms>79328</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a8b4e93f3dfc4d3f9.output
+
+---
+
+<task-notification>
+<task-id>a6af14e646a922beb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a6af14e646a922beb.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit P3: Concurrency-Limits" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/p3-concurrency-limits.md`.
+
+**Ergebnis: OK** -- Concurrency-Limits sind vollstaendig implementiert.
+
+Kernbefunde:
+- `apps/server/src/lib/browser-pool.ts` implementiert ein Singleton-Browser-Pattern mit Queue
+- `MAX_CONCURRENT_BROWSER_CONTEXTS = 3` begrenzt gleichzeitige Kontexte (`apps/server/src/lib/constants.ts`)
+- `MAX_CONTEXTS_PER_BROWSER = 50` erzwingt Browser-Recycling gegen Memory-Leaks
+- Idle-Shutdown nach 60 Sekunden Inaktivitaet
+- Alle 7 Share-Import-Module nutzen ausschliesslich den Pool -- kein Modul startet eigenstaendig einen Browser
+- Umfassende Tests in `apps/server/src/lib/browser-pool.test.ts`
+- Einzige optionale Haertung: Queue-Groessenlimit fehlt (unkritisch fuer Single-User-Tool)</result>
+<usage><total_tokens>37602</total_tokens><tool_uses>18</tool_uses><duration_ms>98760</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a6af14e646a922beb.output
+
+---
+
+<task-notification>
+<task-id>ac9737b51ea0f0097</task-id>
+<tool-use-id>toolu_011v2vKUyKBvndZ5t7RBKCtd</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ac9737b51ea0f0097.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit T3: Fixture-Qualität" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/t3-fixture-qualitaet.md`.
+
+**Kernergebnis: Befund, Schweregrad hoch.**
+
+Die wesentlichen Findings:
+
+1. **Keine echten HTML-Snapshots vorhanden** -- Kein einziger der 8 Provider-Parser (ChatGPT, Claude, Gemini, Grok, DeepSeek, Perplexity, LeChat, Unknown) wird gegen echte HTML-Snapshots der jeweiligen Share-Seiten getestet. Es gibt keine `.html`-Fixture-Dateien im Repository.
+
+2. **Parser-Tests testen nur Infrastruktur** -- Alle `*-share-import.test.ts`-Dateien testen Browser-Pool-Lifecycle und Konstanten. Die eigentliche HTML-Parsing-Logik in den `page.evaluate()`-Callbacks ist eine Test-Blackbox.
+
+3. **DOM_KIT_SCRIPT wird nie gegen DOM ausgefuehrt** -- `parser-dom-kit.test.ts` prueft nur String-Eigenschaften des generierten JavaScript. Die Kernfunktionen (`elementToBlocks`, `extractTable`, `extractCodeText`) laufen in keinem Test gegen echte DOM-Strukturen.
+
+4. **Einzige Ausnahme**: `clipboard-import.test.ts` testet minimale kuenstliche HTML-Snippets (2-3 Zeilen), aber keine provider-spezifischen Strukturen.</result>
+<usage><total_tokens>42130</total_tokens><tool_uses>40</tool_uses><duration_ms>164505</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ac9737b51ea0f0097.output
+
+---
+
+<task-notification>
+<task-id>a42dcd721b0838956</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a42dcd721b0838956.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit P2: Große Objekte im Speicher" completed</summary>
+<result>Audit-Bericht geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/p2-grosse-objekte.md`.
+
+**Zusammenfassung der Befunde:**
+
+1. **B1 (mittel):** Komplette Konversationen als JSON-Blob in einer SQLite-Spalte (`conversationJson`). `patchJob()` deserialisiert/reserializiert bei jedem Update die gesamte Konversation, auch wenn nur Metadaten geaendert werden.
+
+2. **B2 (mittel):** Keine Virtualisierung im Reader View -- alle Messages werden gleichzeitig als DOM-Elemente gerendert. `buildReaderEffectsMap()` iteriert bei jeder Regel-Aenderung ueber alle Messages/Blocks.
+
+3. **B3 (mittel):** `imports.get` liefert das vollstaendige Objekt (Conversation + Artifacts) an den Client. React Query cached es, und mehrere `useMemo`-Ableitungen halten parallele Kopien.
+
+4. **B4 (niedrig):** Artifact-Generierung erzeugt alle Formate als vollstaendige Strings im Speicher, aber nur einmalig beim Import.
+
+**Schutzmassnahmen vorhanden:** `MAX_MESSAGE_COUNT = 5.000` und `MAX_RAW_HTML_BYTES = 10 MB`. Die Listen-API (`listImportSummaries`) laedt korrekt nur Metadaten.</result>
+<usage><total_tokens>72158</total_tokens><tool_uses>58</tool_uses><duration_ms>226768</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/a42dcd721b0838956.output
+
+---
+
+<task-notification>
+<task-id>ad593ab8135699a8b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ad593ab8135699a8b.output</output-file>
+<status>completed</status>
+<summary>Agent "Audit P1: Bundle-Size-Analyse" completed</summary>
+<result>Der Audit-Bericht wurde geschrieben nach `/Users/philippbriese/Documents/dev/chat exporter/docs/audits/p1-bundle-size.md`.
+
+**Zusammenfassung der Ergebnisse:**
+
+- **Status: befund, Schweregrad: mittel**
+- **Gesamt-JS-Bundle: 647.5 KB raw / 201.7 KB gzip** (5 Chunks + 1 CSS)
+
+**4 Befunde identifiziert:**
+
+1. **B1 (hoch):** `@tanstack/react-query-devtools` wird statisch in `main.tsx` importiert und landet im Produktions-Bundle. ~130 KB (38% des Entry-Chunks) sind reiner Devtools-Code, den kein User je sieht. Fix: Conditional import mit `import.meta.env.DEV`.
+
+2. **B2 (mittel):** Keine `manualChunks`-Konfiguration in `vite.config.ts`. Alle Vendor-Libraries (React, Router, TanStack Query, Radix, Sonner) landen im Entry-Chunk. Bei jedem App-Update wird der gesamte 346 KB Chunk cache-invalidiert.
+
+3. **B3 (niedrig):** `packages/shared/package.json` fehlt `"sideEffects": false` -- aktuell kein messbarer Impact, aber Best Practice fuer Tree-Shaking-Garantien.
+
+4. **B4 (niedrig):** `@tanstack/react-virtual` ist als Dependency deklariert, wird aber nirgends importiert -- tote Dependency.
+
+**Positiv:** Route-basiertes Code-Splitting funktioniert korrekt, lucide-react ist sauber tree-shaken, und `html-to-image` ist minimal gebundled.</result>
+<usage><total_tokens>45882</total_tokens><tool_uses>53</tool_uses><duration_ms>293989</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-philippbriese-Documents-dev-chat-exporter/e794b711-aa77-45ef-87d5-95e11af72faf/tasks/ad593ab8135699a8b.output
+
+---
+
+Sollten wir einen Planungsworkflow zwischen Audit und audit-fix setzen oder ist das in Audit-fix integriert?
