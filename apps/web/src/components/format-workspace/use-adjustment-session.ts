@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toPng } from "html-to-image";
 import {
   type FormEvent,
   useCallback,
@@ -221,28 +222,61 @@ export function useAdjustmentSession(view: ViewMode, jobId: string) {
   const latestRef = useRef({
     activeSessionDetail: state.activeSessionDetail,
     draftMessageByView: state.draftMessageByView,
+    selectionByView: state.selectionByView,
     appendMutate: appendMessage.mutate,
     discardMutate: discardSession.mutate,
   });
   latestRef.current = {
     activeSessionDetail: state.activeSessionDetail,
     draftMessageByView: state.draftMessageByView,
+    selectionByView: state.selectionByView,
     appendMutate: appendMessage.mutate,
     discardMutate: discardSession.mutate,
   };
 
   const handleSubmitMessage = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const { activeSessionDetail, draftMessageByView, appendMutate } =
-        latestRef.current;
+      const {
+        activeSessionDetail,
+        draftMessageByView,
+        appendMutate,
+        selectionByView,
+      } = latestRef.current;
       if (!activeSessionDetail) return;
       const content = draftMessageByView[view].trim();
       if (!content) return;
       dispatch({ type: "SET_SESSION_ERROR", error: null });
+
+      // Capture screenshot + markup of the selected block
+      let screenshot: string | undefined;
+      let markup: string | undefined;
+      const selection = selectionByView[view];
+
+      if (selection && sectionRef.current) {
+        const blockEl = sectionRef.current.querySelector<HTMLElement>(
+          `[data-testid="reader-block-${selection.messageId}-${selection.blockIndex}"]`,
+        );
+        if (blockEl) {
+          try {
+            const dataUrl = await toPng(blockEl, {
+              width: Math.min(blockEl.scrollWidth, 800),
+              pixelRatio: 1,
+              cacheBust: true,
+            });
+            screenshot = dataUrl.replace(/^data:image\/png;base64,/, "");
+          } catch {
+            // Screenshot capture is best-effort — don't block the message
+          }
+          markup = blockEl.innerHTML;
+        }
+      }
+
       appendMutate({
         sessionId: activeSessionDetail.session.id,
         content,
+        screenshot,
+        markup,
       });
     },
     [view],
